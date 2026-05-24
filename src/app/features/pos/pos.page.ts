@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal, computed, HostListener } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -235,15 +235,17 @@ import { Customer } from '../../shared/models/customer.model';
           </a>
         </div>
       } @else {
-        <div style="flex:1; display:flex; overflow:hidden;">
+        <div [style]="isMobile() ? 'flex:1; display:flex; flex-direction:column; overflow:hidden;' : 'flex:1; display:flex; overflow:hidden;'">
 
-          <!-- Sol: ürünler listesi -->
-          <div style="flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:8px;">
+          <!-- Ürünler listesi -->
+          <div [style]="isMobile() ? 'flex:1; overflow-y:auto; padding:10px 12px; display:flex; flex-direction:column; gap:8px;' : 'flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:8px;'">
             @for (item of cart.items(); track item._tempId) {
-              <div style="display:flex; align-items:center; gap:12px; background:#fff; border:1px solid #f1f5f9; border-radius:14px; padding:12px 16px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-                <div style="width:40px; height:40px; border-radius:10px; background:#fff7ed; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                  <i class="pi pi-box" style="font-size:16px; color:#f97316;"></i>
-                </div>
+              <div style="display:flex; align-items:center; gap:10px; background:#fff; border:1px solid #f1f5f9; border-radius:14px; padding:10px 12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                @if (!isMobile()) {
+                  <div style="width:40px; height:40px; border-radius:10px; background:#fff7ed; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="pi pi-box" style="font-size:16px; color:#f97316;"></i>
+                  </div>
+                }
                 <div style="flex:1; min-width:0;">
                   <p style="font-size:14px; font-weight:600; color:#1e293b; margin:0 0 2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ item.productName }}</p>
                   <p style="font-size:12px; color:#94a3b8; margin:0;">{{ item.unitPrice | currencyTr }} / adet</p>
@@ -253,76 +255,79 @@ import { Customer } from '../../shared/models/customer.model';
                     (click)="cart.updateQuantity(item._tempId, item.quantity - 1)"
                     style="width:30px; height:30px; border-radius:8px; border:1px solid #e2e8f0; background:#f8fafc; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#64748b;"
                   ><i class="pi pi-minus" style="font-size:11px;"></i></button>
-                  <span style="font-size:15px; font-weight:700; color:#1e293b; min-width:28px; text-align:center;">{{ item.quantity }}</span>
+                  <span style="font-size:15px; font-weight:700; color:#1e293b; min-width:24px; text-align:center;">{{ item.quantity }}</span>
                   <button
                     (click)="cart.updateQuantity(item._tempId, item.quantity + 1)"
                     style="width:30px; height:30px; border-radius:8px; border:1px solid #e2e8f0; background:#f8fafc; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#64748b;"
                   ><i class="pi pi-plus" style="font-size:11px;"></i></button>
                 </div>
-                <p style="font-size:15px; font-weight:700; color:#1e293b; margin:0; min-width:72px; text-align:right;">{{ item.totalPrice | currencyTr }}</p>
+                <p style="font-size:14px; font-weight:700; color:#1e293b; margin:0; min-width:64px; text-align:right;">{{ item.totalPrice | currencyTr }}</p>
                 <button
                   (click)="cart.updateQuantity(item._tempId, 0)"
-                  style="width:30px; height:30px; border-radius:8px; border:none; background:#fef2f2; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#ef4444; flex-shrink:0;"
+                  style="width:28px; height:28px; border-radius:8px; border:none; background:#fef2f2; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#ef4444; flex-shrink:0;"
                 ><i class="pi pi-trash" style="font-size:12px;"></i></button>
               </div>
             }
           </div>
 
-          <!-- Sağ: özet + ödeme -->
-          <div style="width:320px; flex-shrink:0; display:flex; flex-direction:column; background:#fff; border-left:1px solid #f1f5f9;">
-
-            <!-- Özet -->
-            <div style="padding:20px 20px 16px; border-bottom:1px solid #f1f5f9;">
-              <p style="font-size:13px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; margin:0 0 12px;">Sipariş Özeti</p>
-              <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                <span style="font-size:13px; color:#64748b;">Ara Toplam</span>
-                <span style="font-size:13px; color:#1e293b; font-weight:500;">{{ cart.subtotal() | currencyTr }}</span>
-              </div>
-              @if (cart.itemsDiscount() > 0) {
+          <!-- Sağ panel (masaüstü) -->
+          @if (!isMobile()) {
+            <div style="width:320px; flex-shrink:0; display:flex; flex-direction:column; background:#fff; border-left:1px solid #f1f5f9;">
+              <div style="padding:20px 20px 16px; border-bottom:1px solid #f1f5f9;">
+                <p style="font-size:13px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; margin:0 0 12px;">Sipariş Özeti</p>
                 <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                  <span style="font-size:13px; color:#16a34a;">İndirim</span>
-                  <span style="font-size:13px; color:#16a34a; font-weight:600;">-{{ cart.itemsDiscount() | currencyTr }}</span>
+                  <span style="font-size:13px; color:#64748b;">Ara Toplam</span>
+                  <span style="font-size:13px; color:#1e293b; font-weight:500;">{{ cart.subtotal() | currencyTr }}</span>
                 </div>
-              }
-              <div style="display:flex; justify-content:space-between; border-top:2px solid #f1f5f9; margin-top:10px; padding-top:10px;">
-                <span style="font-size:17px; font-weight:700; color:#1e293b;">Toplam</span>
+                @if (cart.itemsDiscount() > 0) {
+                  <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                    <span style="font-size:13px; color:#16a34a;">İndirim</span>
+                    <span style="font-size:13px; color:#16a34a; font-weight:600;">-{{ cart.itemsDiscount() | currencyTr }}</span>
+                  </div>
+                }
+                <div style="display:flex; justify-content:space-between; border-top:2px solid #f1f5f9; margin-top:10px; padding-top:10px;">
+                  <span style="font-size:17px; font-weight:700; color:#1e293b;">Toplam</span>
+                  <span style="font-size:20px; font-weight:800; color:#f97316;">{{ cart.totalAmount() | currencyTr }}</span>
+                </div>
+              </div>
+              <div style="padding:16px; display:flex; flex-direction:column; gap:10px; flex:1; justify-content:flex-end;">
+                <button (click)="pay('cash')" style="display:flex; align-items:center; justify-content:center; gap:8px; background:linear-gradient(135deg,#22c55e,#16a34a); color:white; border:none; border-radius:12px; padding:14px; cursor:pointer; font-size:15px; font-weight:700;">
+                  <i class="pi pi-wallet" style="font-size:16px;"></i> Nakit Ödeme
+                </button>
+                <button (click)="pay('card')" style="display:flex; align-items:center; justify-content:center; gap:8px; background:linear-gradient(135deg,#3b82f6,#2563eb); color:white; border:none; border-radius:12px; padding:14px; cursor:pointer; font-size:15px; font-weight:700;">
+                  <i class="pi pi-credit-card" style="font-size:16px;"></i> Kart ile Öde
+                </button>
+                <button (click)="payCredit()" style="display:flex; align-items:center; justify-content:center; gap:8px; background:linear-gradient(135deg,#f97316,#ea580c); color:white; border:none; border-radius:12px; padding:14px; cursor:pointer; font-size:15px; font-weight:700;">
+                  <i class="pi pi-user" style="font-size:16px;"></i> Veresiye
+                </button>
+              </div>
+            </div>
+          }
+
+          <!-- Alt panel (mobil) -->
+          @if (isMobile()) {
+            <div style="background:#fff; border-top:1px solid #f1f5f9; box-shadow:0 -4px 16px rgba(0,0,0,0.08); padding:12px 16px; flex-shrink:0;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <span style="font-size:14px; color:#64748b;">
+                  {{ cart.itemCount() }} ürün
+                  @if (cart.itemsDiscount() > 0) { · <span style="color:#16a34a;">-{{ cart.itemsDiscount() | currencyTr }}</span> }
+                </span>
                 <span style="font-size:20px; font-weight:800; color:#f97316;">{{ cart.totalAmount() | currencyTr }}</span>
               </div>
-            </div>
-
-            <!-- Ödeme butonları -->
-            <div style="padding:16px; display:flex; flex-direction:column; gap:10px; flex:1; justify-content:flex-end;">
-              <button
-                (click)="pay('cash')"
-                style="display:flex; align-items:center; justify-content:center; gap:8px; background:linear-gradient(135deg,#22c55e,#16a34a); color:white; border:none; border-radius:12px; padding:14px; cursor:pointer; font-size:15px; font-weight:700;"
-                onmouseenter="this.style.opacity='0.9'"
-                onmouseleave="this.style.opacity='1'"
-              >
-                <i class="pi pi-wallet" style="font-size:16px;"></i>
-                Nakit Ödeme
-              </button>
-              <button
-                (click)="pay('card')"
-                style="display:flex; align-items:center; justify-content:center; gap:8px; background:linear-gradient(135deg,#3b82f6,#2563eb); color:white; border:none; border-radius:12px; padding:14px; cursor:pointer; font-size:15px; font-weight:700;"
-                onmouseenter="this.style.opacity='0.9'"
-                onmouseleave="this.style.opacity='1'"
-              >
-                <i class="pi pi-credit-card" style="font-size:16px;"></i>
-                Kart ile Öde
-              </button>
-              @if (cart.customerId()) {
-                <button
-                  (click)="pay('credit')"
-                  style="display:flex; align-items:center; justify-content:center; gap:8px; background:linear-gradient(135deg,#f97316,#ea580c); color:white; border:none; border-radius:12px; padding:14px; cursor:pointer; font-size:15px; font-weight:700;"
-                  onmouseenter="this.style.opacity='0.9'"
-                  onmouseleave="this.style.opacity='1'"
-                >
-                  <i class="pi pi-user" style="font-size:16px;"></i>
-                  Veresiye
+              <div style="display:flex; gap:8px;">
+                <button (click)="pay('cash')" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; background:linear-gradient(135deg,#22c55e,#16a34a); color:white; border:none; border-radius:12px; padding:13px 8px; cursor:pointer; font-size:13px; font-weight:700;">
+                  <i class="pi pi-wallet" style="font-size:14px;"></i> Nakit
                 </button>
-              }
+                <button (click)="pay('card')" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; background:linear-gradient(135deg,#3b82f6,#2563eb); color:white; border:none; border-radius:12px; padding:13px 8px; cursor:pointer; font-size:13px; font-weight:700;">
+                  <i class="pi pi-credit-card" style="font-size:14px;"></i> Kart
+                </button>
+                <button (click)="payCredit()" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; background:linear-gradient(135deg,#f97316,#ea580c); color:white; border:none; border-radius:12px; padding:13px 8px; cursor:pointer; font-size:13px; font-weight:700;">
+                  <i class="pi pi-user" style="font-size:14px;"></i> Veresiye
+                </button>
+              </div>
             </div>
-          </div>
+          }
+
         </div>
       }
     </div>
@@ -335,10 +340,17 @@ export class PosPage implements OnInit {
   private readonly saleSvc = inject(SaleService);
   private readonly messageSvc = inject(MessageService);
 
+  private windowWidth = signal(window.innerWidth);
+  readonly isMobile = computed(() => this.windowWidth() < 768);
+
+  @HostListener('window:resize')
+  onResize() { this.windowWidth.set(window.innerWidth); }
+
   readonly customers = signal<Customer[]>([]);
   customerSearch = '';
   showCashDialog = false;
   cashAmount = 0;
+  _pendingCredit = false;
   showCustomerDialog = false;
   showCreditDialog = false;
   creditInterestRate = 0;
@@ -377,6 +389,10 @@ export class PosPage implements OnInit {
     this.cart.setCustomer(c.id, `${c.firstName} ${c.lastName}`);
     this.showCustomerDialog = false;
     this.customerSearch = '';
+    if (this._pendingCredit) {
+      this._pendingCredit = false;
+      this.pay('credit');
+    }
   }
 
   onBarcodeDetected(barcode: string): void {
@@ -396,6 +412,15 @@ export class PosPage implements OnInit {
     } else {
       this.toast(`Barkod bulunamadı: ${barcode}`, 'warn');
     }
+  }
+
+  payCredit(): void {
+    if (!this.cart.customerId()) {
+      this.showCustomerDialog = true;
+      this._pendingCredit = true;
+      return;
+    }
+    this.pay('credit');
   }
 
   pay(method: 'cash' | 'card' | 'credit'): void {
