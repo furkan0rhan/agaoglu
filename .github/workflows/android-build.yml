@@ -52,7 +52,7 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Build Android APK
-        run: npx tauri android build --debug
+        run: npx tauri android build --debug --target aarch64
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
