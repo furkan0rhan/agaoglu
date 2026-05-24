@@ -31,6 +31,16 @@ import { CartStore } from '../../features/pos/store/cart.store';
           [style.bottom]="'calc(64px + env(safe-area-inset-bottom, 0px) + 8px)'">
           <div style="width:36px; height:4px; background:#e2e8f0; border-radius:2px; margin:0 auto 16px;"></div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <a routerLink="/customers" (click)="showMore.set(false)"
+                style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:16px; text-decoration:none;"
+                [style.background]="isActive('/customers') ? '#f0fdf4' : '#f8fafc'"
+                [style.border]="isActive('/customers') ? '1.5px solid #bbf7d0' : '1.5px solid #f1f5f9'">
+                <div style="width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"
+                  [style.background]="isActive('/customers') ? '#16a34a' : '#f1f5f9'">
+                  <i class="pi pi-users" style="font-size:15px;" [style.color]="isActive('/customers') ? 'white' : '#64748b'"></i>
+                </div>
+                <span style="font-size:13px; font-weight:600;" [style.color]="isActive('/customers') ? '#16a34a' : '#1e293b'">Müşteriler</span>
+              </a>
             @if (isAdmin()) {
               <a routerLink="/credit" (click)="showMore.set(false)"
                 style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:16px; text-decoration:none;"
@@ -41,16 +51,6 @@ import { CartStore } from '../../features/pos/store/cart.store';
                   <i class="pi pi-credit-card" style="font-size:15px;" [style.color]="isActive('/credit') ? 'white' : '#64748b'"></i>
                 </div>
                 <span style="font-size:13px; font-weight:600;" [style.color]="isActive('/credit') ? '#16a34a' : '#1e293b'">Veresiye</span>
-              </a>
-              <a routerLink="/reports" (click)="showMore.set(false)"
-                style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:16px; text-decoration:none;"
-                [style.background]="isActive('/reports') ? '#f0fdf4' : '#f8fafc'"
-                [style.border]="isActive('/reports') ? '1.5px solid #bbf7d0' : '1.5px solid #f1f5f9'">
-                <div style="width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"
-                  [style.background]="isActive('/reports') ? '#16a34a' : '#f1f5f9'">
-                  <i class="pi pi-chart-bar" style="font-size:15px;" [style.color]="isActive('/reports') ? 'white' : '#64748b'"></i>
-                </div>
-                <span style="font-size:13px; font-weight:600;" [style.color]="isActive('/reports') ? '#16a34a' : '#1e293b'">Raporlar</span>
               </a>
               <a routerLink="/expenses" (click)="showMore.set(false)"
                 style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:16px; text-decoration:none;"
@@ -134,16 +134,16 @@ import { CartStore } from '../../features/pos/store/cart.store';
           </div>
         </a>
 
-        <!-- Müşteriler -->
-        <a routerLink="/customers" (click)="showMore.set(false)" style="flex:1; display:flex; justify-content:center; align-items:center; text-decoration:none;">
+        <!-- Raporlar -->
+        <a routerLink="/reports" (click)="showMore.set(false)" style="flex:1; display:flex; justify-content:center; align-items:center; text-decoration:none;">
           <div style="display:flex; align-items:center; border-radius:20px; padding:8px 12px; transition:background 0.2s;"
-            [style.background]="isActive('/customers') && !showMore() ? '#f0fdf4' : 'transparent'">
-            <i class="pi pi-users" style="font-size:22px; flex-shrink:0; transition:color 0.2s;"
-              [style.color]="isActive('/customers') && !showMore() ? '#16a34a' : '#94a3b8'"></i>
+            [style.background]="isActive('/reports') && !showMore() ? '#f0fdf4' : 'transparent'">
+            <i class="pi pi-chart-bar" style="font-size:22px; flex-shrink:0; transition:color 0.2s;"
+              [style.color]="isActive('/reports') && !showMore() ? '#16a34a' : '#94a3b8'"></i>
             <span style="white-space:nowrap; font-size:12px; font-weight:700; color:#16a34a; margin-left:6px; overflow:hidden; transition:max-width 0.3s ease, opacity 0.25s ease;"
-              [style.max-width]="isActive('/customers') && !showMore() ? '80px' : '0px'"
-              [style.opacity]="isActive('/customers') && !showMore() ? '1' : '0'">
-              Müşteriler
+              [style.max-width]="isActive('/reports') && !showMore() ? '65px' : '0px'"
+              [style.opacity]="isActive('/reports') && !showMore() ? '1' : '0'">
+              Raporlar
             </span>
           </div>
         </a>
