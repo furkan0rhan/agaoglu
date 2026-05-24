@@ -23,11 +23,12 @@ import { CartStore } from '../../features/pos/store/cart.store';
       <!-- "Diğer" backdrop -->
       @if (showMore()) {
         <div (click)="showMore.set(false)"
-          style="position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:290; backdrop-filter:blur(3px);">
+          style="position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:310; backdrop-filter:blur(3px);">
         </div>
 
         <!-- "Diğer" sheet -->
-        <div style="position:fixed; left:12px; right:12px; bottom:76px; background:#fff; border-radius:24px; z-index:295; box-shadow:0 -2px 40px rgba(0,0,0,0.15); padding:16px;">
+        <div style="position:fixed; left:12px; right:12px; background:#fff; border-radius:24px; z-index:320; box-shadow:0 -2px 40px rgba(0,0,0,0.15); padding:16px;"
+          [style.bottom]="'calc(64px + env(safe-area-inset-bottom, 0px) + 8px)'">
           <div style="width:36px; height:4px; background:#e2e8f0; border-radius:2px; margin:0 auto 16px;"></div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
             @if (isAdmin()) {
@@ -87,7 +88,7 @@ import { CartStore } from '../../features/pos/store/cart.store';
       <nav style="position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid #f1f5f9; box-shadow:0 -2px 16px rgba(0,0,0,0.07); z-index:300; display:flex; align-items:center; padding:0 6px; padding-bottom:env(safe-area-inset-bottom, 0px); height:calc(64px + env(safe-area-inset-bottom, 0px));">
 
         <!-- Dashboard -->
-        <a routerLink="/dashboard" style="flex:1; display:flex; justify-content:center; align-items:center; text-decoration:none;">
+        <a routerLink="/dashboard" (click)="showMore.set(false)" style="flex:1; display:flex; justify-content:center; align-items:center; text-decoration:none;">
           <div style="display:flex; align-items:center; gap:0; border-radius:20px; padding:8px 12px; transition:background 0.2s;"
             [style.background]="isActive('/dashboard') ? '#f0fdf4' : 'transparent'">
             <i class="pi pi-home" style="font-size:22px; flex-shrink:0; transition:color 0.2s;"
@@ -101,7 +102,7 @@ import { CartStore } from '../../features/pos/store/cart.store';
         </a>
 
         <!-- Ürünler -->
-        <a routerLink="/products" style="flex:1; display:flex; justify-content:center; align-items:center; text-decoration:none;">
+        <a routerLink="/products" (click)="showMore.set(false)" style="flex:1; display:flex; justify-content:center; align-items:center; text-decoration:none;">
           <div style="display:flex; align-items:center; border-radius:20px; padding:8px 12px; transition:background 0.2s;"
             [style.background]="isActive('/products') && !showMore() ? '#f0fdf4' : 'transparent'">
             <i class="pi pi-box" style="font-size:22px; flex-shrink:0; transition:color 0.2s;"
@@ -115,7 +116,7 @@ import { CartStore } from '../../features/pos/store/cart.store';
         </a>
 
         <!-- Sepet (POS) -->
-        <a routerLink="/pos" style="flex:1; display:flex; justify-content:center; align-items:center; text-decoration:none;">
+        <a routerLink="/pos" (click)="showMore.set(false)" style="flex:1; display:flex; justify-content:center; align-items:center; text-decoration:none;">
           <div style="display:flex; align-items:center; border-radius:20px; padding:8px 12px; transition:background 0.2s; position:relative;"
             [style.background]="isActive('/pos') && !showMore() ? '#fff7ed' : 'transparent'">
             <i class="pi pi-shopping-cart" style="font-size:22px; flex-shrink:0; transition:color 0.2s;"
@@ -134,7 +135,7 @@ import { CartStore } from '../../features/pos/store/cart.store';
         </a>
 
         <!-- Müşteriler -->
-        <a routerLink="/customers" style="flex:1; display:flex; justify-content:center; align-items:center; text-decoration:none;">
+        <a routerLink="/customers" (click)="showMore.set(false)" style="flex:1; display:flex; justify-content:center; align-items:center; text-decoration:none;">
           <div style="display:flex; align-items:center; border-radius:20px; padding:8px 12px; transition:background 0.2s;"
             [style.background]="isActive('/customers') && !showMore() ? '#f0fdf4' : 'transparent'">
             <i class="pi pi-users" style="font-size:22px; flex-shrink:0; transition:color 0.2s;"
@@ -166,7 +167,14 @@ import { CartStore } from '../../features/pos/store/cart.store';
     }
   `,
   styles: [`
-    :host { display: flex; flex-direction: row; height: 100%; overflow: hidden; }
+    :host {
+      display: flex;
+      flex-direction: row;
+      height: 100%;
+      overflow: hidden;
+      padding-top: env(safe-area-inset-top, 0px);
+      box-sizing: border-box;
+    }
     .main-content {
       flex: 1;
       min-width: 0;

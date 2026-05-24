@@ -19,12 +19,6 @@
 * { box-sizing: border-box; }
 html, body, ion-app { height: 100%; width: 100%; }
 
-/* Safe area (Android/iOS status bar) */
-app-root {
-  display: block;
-  height: 100%;
-  padding-top: env(safe-area-inset-top, 0px);
-}
 
 /* PrimeNG global overrides */
 .p-button { border-radius: 10px !important; font-weight: 600 !important; }
