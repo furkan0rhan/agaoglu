@@ -1,0 +1,8 @@
+<WixLocalization Culture="tr-TR" Codepage="1254" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  <String Id="TauriLanguage">1055</String>
+  <String Id="TauriCodepage">1254</String>
+  <String Id="LaunchApp">Tarım Market Pro'yu Başlat</String>
+  <String Id="DowngradeErrorMessage">Tarım Market Pro'nun daha yeni bir sürümü zaten yüklü.</String>
+  <String Id="PathEnvVarFeature">Tarım Market Pro çalıştırılabilir dosyasının yükleme konumunu PATH sistem ortam değişkenine ekler.</String>
+  <String Id="InstallAppFeature">Tarım Market Pro'yu yükler.</String>
+</WixLocalization>

@@ -1,0 +1,35 @@
+/* Ionic core (must be @use first) */
+@use '@ionic/angular/css/core.css';
+@use '@ionic/angular/css/normalize.css';
+@use '@ionic/angular/css/structure.css';
+@use '@ionic/angular/css/display.css';
+
+/* Tailwind */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* PrimeIcons */
+@import 'primeicons/primeicons.css';
+
+:root {
+  --ion-font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body, ion-app { height: 100%; width: 100%; }
+
+/* PrimeNG global overrides */
+.p-button { border-radius: 10px !important; font-weight: 600 !important; }
+.p-inputtext { border-radius: 10px !important; border-color: #e5e7eb !important; }
+.p-inputtext:focus { border-color: #16a34a !important; box-shadow: 0 0 0 3px rgba(22,163,74,0.12) !important; }
+.p-password { width: 100%; }
+.p-password input { border-radius: 10px !important; border-color: #e5e7eb !important; width: 100%; }
+.p-tag { border-radius: 20px !important; font-size: 0.72rem !important; font-weight: 700 !important; padding: 3px 10px !important; }
+.p-chip { border-radius: 20px !important; font-size: 0.82rem !important; }
+.p-card { border-radius: 16px !important; box-shadow: 0 2px 12px rgba(0,0,0,0.06) !important; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }

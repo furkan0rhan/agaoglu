@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm *)",
+      "Bash(ng *)",
+      "Bash(mkdir *)",
+      "Bash(node *)",
+      "Bash(npx *)"
+    ]
+  }
+}
