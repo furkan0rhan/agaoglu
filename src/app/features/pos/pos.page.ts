@@ -407,6 +407,7 @@ export class PosPage implements OnInit {
         discount: 0,
         discountType: 'percent',
         totalPrice: product.salePrice,
+        stock: product.stock,
       });
       this.toast(`${product.name} eklendi`, 'success');
     } else {

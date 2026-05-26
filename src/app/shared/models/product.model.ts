@@ -4,6 +4,7 @@ export interface Batch {
   id: string;
   quantity: number;
   expiryDate: Timestamp | null;
+  gtsNo: string | null;
   addedAt: Timestamp;
 }
 
@@ -12,7 +13,6 @@ export interface Product {
   tenantId: string;
   name: string;
   barcode: string;
-  gtsNo: string | null;
   purchasePrice: number;
   salePrice: number;
   stock: number;

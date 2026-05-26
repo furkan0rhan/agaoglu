@@ -40,7 +40,7 @@ export const ProductStore = signalStore(
           p.name.toLowerCase().includes(q) ||
           p.barcode.includes(q) ||
           (p.brand?.toLowerCase().includes(q) ?? false) ||
-          (p.gtsNo?.includes(q) ?? false)
+          (p.batches?.some(b => b.gtsNo?.includes(q)) ?? false)
         );
       }
       if (selectedCategory()) {
@@ -105,7 +105,7 @@ export const ProductStore = signalStore(
     toggleExpiring: () => patchState(store, { showExpiringOnly: !store.showExpiringOnly() }),
     selectProduct: (p: Product | null) => patchState(store, { selectedProduct: p }),
     findByBarcode: (barcode: string) =>
-      store.products().find(p => p.barcode === barcode || p.gtsNo === barcode) ?? null,
+      store.products().find(p => p.barcode === barcode || p.batches?.some(b => b.gtsNo === barcode)) ?? null,
     clearFilters: () =>
       patchState(store, { searchQuery: '', selectedCategory: null, showLowStockOnly: false, showExpiringOnly: false }),
   }))

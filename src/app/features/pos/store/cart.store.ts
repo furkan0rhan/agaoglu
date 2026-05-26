@@ -94,16 +94,20 @@ export const CartStore = signalStore(
     addItem(item: Omit<CartItem, '_tempId'>): void {
       const existing = store.items().find(i => i.productId === item.productId);
       if (existing) {
+        const newQty = Math.min(existing.quantity + item.quantity, item.stock);
+        if (newQty === existing.quantity) return;
         patchState(store, {
           items: store.items().map(i =>
             i.productId === item.productId
-              ? { ...i, quantity: i.quantity + item.quantity }
+              ? { ...i, quantity: newQty, totalPrice: i.unitPrice * newQty }
               : i
           ),
         });
       } else {
+        const qty = Math.min(item.quantity, item.stock);
+        if (qty <= 0) return;
         patchState(store, {
-          items: [...store.items(), { ...item, _tempId: crypto.randomUUID() }],
+          items: [...store.items(), { ...item, quantity: qty, _tempId: crypto.randomUUID() }],
         });
       }
     },
@@ -114,9 +118,11 @@ export const CartStore = signalStore(
         return;
       }
       patchState(store, {
-        items: store.items().map(i =>
-          i._tempId === tempId ? { ...i, quantity, totalPrice: i.unitPrice * quantity } : i
-        ),
+        items: store.items().map(i => {
+          if (i._tempId !== tempId) return i;
+          const capped = Math.min(quantity, i.stock);
+          return { ...i, quantity: capped, totalPrice: i.unitPrice * capped };
+        }),
       });
     },
 

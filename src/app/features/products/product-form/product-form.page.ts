@@ -71,12 +71,6 @@ import { Timestamp } from '@angular/fire/firestore';
               <input pInputText formControlName="barcode" placeholder="Barkod numarası" class="w-full font-mono" />
             </div>
 
-            <!-- GTS No -->
-            <div class="flex flex-col gap-1.5">
-              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">GTS No (QR)</label>
-              <input pInputText formControlName="gtsNo" placeholder="GTS numarası" class="w-full" />
-            </div>
-
             <!-- Marka -->
             <div class="flex flex-col gap-1.5">
               <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Marka</label>
@@ -171,6 +165,17 @@ import { Timestamp } from '@angular/fire/firestore';
                 [showButtons]="true"
                 styleClass="w-full"
               />
+            </div>
+
+            <!-- Ayırıcı: İlk Parti -->
+            <div class="md:col-span-2 xl:col-span-3 border-t border-gray-100 pt-4 mt-1">
+              <p class="text-xs font-bold text-gray-400 uppercase tracking-widest m-0">İlk Parti Bilgileri <span class="normal-case font-normal text-gray-300">(stok > 0 ise)</span></p>
+            </div>
+
+            <!-- GTS No -->
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">GTS No</label>
+              <input pInputText formControlName="gtsNo" placeholder="Bu partinin GTS numarası" class="w-full font-mono" />
             </div>
 
             <!-- Son Kullanma Tarihi -->
@@ -270,12 +275,12 @@ export class ProductFormPage implements OnInit {
   readonly form = this.fb.group({
     name: ['', Validators.required],
     barcode: [''],
-    gtsNo: [''],
     brand: [''],
     purchasePrice: [0, [Validators.required, Validators.min(0)]],
     salePrice: [0, [Validators.required, Validators.min(0)]],
     stock: [0, [Validators.required, Validators.min(0)]],
     minStock: [5],
+    gtsNo: [''],
     expiryDateVal: [null as Date | null],
     description: [''],
     isActive: [true],
@@ -289,7 +294,15 @@ export class ProductFormPage implements OnInit {
       const product = this.store.products().find(p => p.id === this.productId);
       if (product) {
         this.form.patchValue({
-          ...product,
+          name: product.name,
+          barcode: product.barcode ?? '',
+          brand: product.brand ?? '',
+          purchasePrice: product.purchasePrice,
+          salePrice: product.salePrice,
+          stock: product.stock,
+          minStock: product.minStock,
+          description: product.description ?? '',
+          isActive: product.isActive,
           expiryDateVal: product.expiryDate ? product.expiryDate.toDate() : null,
         });
         this.vatRateStr = product.vatRate != null ? product.vatRate.toString() : '';
@@ -305,22 +318,27 @@ export class ProductFormPage implements OnInit {
       const v = this.form.value;
       const expiryDate = v.expiryDateVal ? Timestamp.fromDate(v.expiryDateVal) : null;
 
+      const stock = Number(v.stock);
+      const gtsNo = v.gtsNo?.trim() || null;
+      const initialBatches = stock > 0
+        ? [{ id: crypto.randomUUID(), quantity: stock, expiryDate: expiryDate ?? null, gtsNo, addedAt: Timestamp.now() }]
+        : [];
+
       const data = {
         name: v.name!,
         barcode: v.barcode ?? '',
-        gtsNo: v.gtsNo || null,
         category: this.categoryStr || 'Diğer',
         brand: v.brand || null,
         purchasePrice: Number(v.purchasePrice),
         salePrice: Number(v.salePrice),
         vatRate: this.vatRateStr ? Number(this.vatRateStr) : null,
-        stock: Number(v.stock),
+        stock,
         minStock: Number(v.minStock),
         expiryDate,
         description: v.description || null,
         imageUrl: null,
         isActive: v.isActive ?? true,
-        batches: [],
+        batches: initialBatches,
       };
 
       if (this.isEdit) {

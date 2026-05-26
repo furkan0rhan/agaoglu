@@ -239,6 +239,7 @@ export class ProductListPage implements OnInit {
       discount: 0,
       discountType: 'percent',
       totalPrice: product.salePrice,
+      stock: product.stock,
     });
     this.toast.add({ severity: 'success', summary: '', detail: `${product.name} sepete eklendi`, life: 2000 });
   }

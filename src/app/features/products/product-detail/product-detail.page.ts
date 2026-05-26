@@ -284,16 +284,19 @@ import { Batch, Product, StockMovement } from '../../../shared/models/product.mo
                 } @else {
                   <div class="divide-y divide-gray-50">
                     @for (b of activeBatches(); track b.id) {
-                      <div class="flex items-center px-5 py-3 gap-3">
-                        <div class="w-2 h-2 rounded-full flex-shrink-0" [class]="batchDotClass(b)"></div>
+                      <div class="flex items-start px-5 py-3 gap-3">
+                        <div class="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" [class]="batchDotClass(b)"></div>
                         <div class="flex-1 min-w-0">
                           <p class="text-sm font-semibold text-gray-800">{{ b.quantity }} adet</p>
+                          @if (b.gtsNo) {
+                            <p class="text-xs text-gray-500 font-mono">GTS: {{ b.gtsNo }}</p>
+                          }
                           <p class="text-xs" [class]="batchDateClass(b)">
                             @if (b.expiryDate) {
                               SKT: {{ b.expiryDate.toDate() | date:'dd.MM.yyyy' }}
                               <span class="text-gray-400 ml-1">({{ daysLeft(b) }} gün)</span>
                             } @else {
-                              <span class="text-gray-400">Tarih yok</span>
+                              <span class="text-gray-400">SKT yok</span>
                             }
                           </p>
                         </div>
@@ -339,6 +342,10 @@ import { Batch, Product, StockMovement } from '../../../shared/models/product.mo
         </div>
         @if (dialogMode() === 'in') {
           <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-semibold text-gray-700">GTS No <span class="text-gray-400 font-normal">(opsiyonel)</span></label>
+            <input pInputText [(ngModel)]="dialogGtsNo" placeholder="Bu partinin GTS numarası" class="w-full font-mono" />
+          </div>
+          <div class="flex flex-col gap-1.5">
             <label class="text-sm font-semibold text-gray-700">Son Kullanma Tarihi <span class="text-gray-400 font-normal">(opsiyonel)</span></label>
             <p-datepicker
               [(ngModel)]="dialogExpiryDate"
@@ -347,6 +354,7 @@ import { Batch, Product, StockMovement } from '../../../shared/models/product.mo
               [showButtonBar]="true"
               placeholder="GG.AA.YYYY"
               styleClass="w-full"
+              appendTo="body"
             />
           </div>
         }
@@ -424,6 +432,7 @@ export class ProductDetailPage implements OnInit {
   dialogVisible = false;
   dialogQty = 1;
   dialogReason = '';
+  dialogGtsNo = '';
   dialogExpiryDate: Date | null = null;
 
   constructor() {
@@ -500,6 +509,7 @@ export class ProductDetailPage implements OnInit {
     this.dialogMode.set(mode);
     this.dialogQty = 1;
     this.dialogReason = '';
+    this.dialogGtsNo = '';
     this.dialogExpiryDate = null;
     this.dialogVisible = true;
   }
@@ -512,7 +522,8 @@ export class ProductDetailPage implements OnInit {
       const delta = this.dialogMode() === 'in' ? this.dialogQty : -this.dialogQty;
       const reason = this.dialogReason.trim() || (this.dialogMode() === 'in' ? 'Stok girişi' : 'Stok çıkışı');
       const expiryDate = this.dialogMode() === 'in' ? this.dialogExpiryDate : null;
-      await this.svc.adjustStock(p, delta, reason, null, expiryDate);
+      const gtsNo = this.dialogMode() === 'in' ? this.dialogGtsNo.trim() || null : null;
+      await this.svc.adjustStock(p, delta, reason, null, expiryDate, gtsNo);
       this.product.set({ ...p, stock: p.stock + delta });
       this.dialogVisible = false;
       this.toast.add({ severity: 'success', summary: 'Başarılı', detail: `Stok güncellendi: ${p.stock + delta} adet`, life: 3000 });
@@ -530,7 +541,6 @@ export class ProductDetailPage implements OnInit {
       { label: 'Kategori', value: p.category || '-' },
       { label: 'Barkod', value: p.barcode || '-', class: 'font-mono' },
       { label: 'Marka', value: p.brand || '-' },
-      { label: 'GTS No', value: p.gtsNo || '-' },
       { label: 'Min. Stok', value: p.minStock + ' adet' },
       ...(p.vatRate != null ? [{ label: 'KDV Oranı', value: '%' + p.vatRate }] : []),
       ...(p.expiryDate ? [{ label: 'Son Kullanma', value: p.expiryDate.toDate().toLocaleDateString('tr-TR') }] : []),

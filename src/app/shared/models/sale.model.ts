@@ -42,4 +42,5 @@ export interface Sale {
 
 export interface CartItem extends SaleItem {
   _tempId: string;
+  stock: number;
 }
