@@ -10,6 +10,6 @@
     "notification:default",
     "notification:allow-request-permission",
     "notification:allow-is-permission-granted",
-    "notification:allow-send-notification"
+    "notification:allow-notify"
   ]
 }
