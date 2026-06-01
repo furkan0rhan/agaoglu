@@ -8,6 +8,7 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { AuthService } from '../../../core/auth/services/auth.service';
+import { LangService } from '../../../core/i18n/lang.service';
 
 @Component({
   selector: 'app-login',
@@ -22,47 +23,46 @@ import { AuthService } from '../../../core/auth/services/auth.service';
           <div class="text-center mb-8">
             <img src="assets/TarimLogo.png" alt="Tarım Market Logo" class="w-20 h-20 mx-auto mb-4 object-contain" />
             <h1 class="text-2xl font-bold text-gray-800">Tarım Market Pro</h1>
-            <p class="text-gray-400 text-sm mt-1">Hesabınıza giriş yapın</p>
+            <p class="text-gray-400 text-sm mt-1">{{ t().auth.loginTitle }}</p>
           </div>
 
           <!-- Form -->
           <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
 
             <div class="flex flex-col gap-1.5">
-              <label class="text-sm font-semibold text-gray-700">E-posta</label>
+              <label class="text-sm font-semibold text-gray-700">{{ t().auth.email }}</label>
               <p-iconfield class="w-full">
                 <p-inputicon styleClass="pi pi-envelope" />
-                <input pInputText type="email" formControlName="email" placeholder="ornek@email.com" class="w-full" autocomplete="email" />
+                <input pInputText type="email" formControlName="email" [placeholder]="t().auth.emailPlaceholder" class="w-full" autocomplete="email" />
               </p-iconfield>
               @if (form.get('email')?.invalid && form.get('email')?.touched) {
-                <p class="text-xs text-red-500">Geçerli bir e-posta girin</p>
+                <p class="text-xs text-red-500">{{ t().auth.emailInvalid }}</p>
               }
             </div>
 
             <div class="flex flex-col gap-1.5">
-              <label class="text-sm font-semibold text-gray-700">Şifre</label>
+              <label class="text-sm font-semibold text-gray-700">{{ t().auth.password }}</label>
               <p-password
                 formControlName="password"
                 [feedback]="false"
                 [toggleMask]="true"
-                placeholder="Şifreniz"
+                [placeholder]="t().auth.passwordPlaceholder"
                 styleClass="w-full"
                 inputStyleClass="w-full"
                 autocomplete="current-password"
               ></p-password>
               @if (form.get('password')?.invalid && form.get('password')?.touched) {
-                <p class="text-xs text-red-500">Şifre gerekli</p>
+                <p class="text-xs text-red-500">{{ t().auth.passwordRequired }}</p>
               }
             </div>
 
-            <!-- Beni hatırla + Şifremi unuttum -->
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <p-checkbox formControlName="rememberMe" [binary]="true" inputId="remember"></p-checkbox>
-                <label for="remember" class="text-sm text-gray-600 cursor-pointer select-none">Beni hatırla</label>
+                <label for="remember" class="text-sm text-gray-600 cursor-pointer select-none">{{ t().auth.rememberMe }}</label>
               </div>
               <a [routerLink]="['/auth/forgot-password']" class="text-sm text-green-600 font-medium hover:text-green-700 transition-colors">
-                Şifremi unuttum
+                {{ t().auth.forgotPassword }}
               </a>
             </div>
 
@@ -75,7 +75,7 @@ import { AuthService } from '../../../core/auth/services/auth.service';
 
             <p-button
               type="submit"
-              label="Giriş Yap"
+              [label]="t().auth.login"
               icon="pi pi-sign-in"
               [loading]="loading()"
               [disabled]="form.invalid"
@@ -86,8 +86,8 @@ import { AuthService } from '../../../core/auth/services/auth.service';
           </form>
 
           <div class="flex justify-center gap-2 mt-6 text-sm text-gray-400">
-            <span>Hesabınız yok mu?</span>
-            <a [routerLink]="['/auth/register']" class="text-green-600 font-semibold hover:text-green-700 transition-colors">Kayıt ol</a>
+            <span>{{ t().auth.noAccount }}</span>
+            <a [routerLink]="['/auth/register']" class="text-green-600 font-semibold hover:text-green-700 transition-colors">{{ t().auth.register }}</a>
           </div>
 
         </div>
@@ -98,6 +98,7 @@ import { AuthService } from '../../../core/auth/services/auth.service';
 export class LoginPage {
   private readonly authService = inject(AuthService);
   private readonly fb = inject(FormBuilder);
+  readonly t = inject(LangService).t;
 
   readonly loading = signal(false);
   readonly error = signal('');
@@ -125,14 +126,15 @@ export class LoginPage {
   private getErrorMessage(err: unknown): string {
     if (err && typeof err === 'object' && 'code' in err) {
       const code = (err as { code: string }).code;
+      const a = this.t().auth;
       const messages: Record<string, string> = {
-        'auth/user-not-found': 'Bu e-posta ile kayıtlı kullanıcı yok.',
-        'auth/wrong-password': 'Hatalı şifre.',
-        'auth/too-many-requests': 'Çok fazla deneme. Lütfen bekleyin.',
-        'auth/invalid-credential': 'E-posta veya şifre hatalı.',
+        'auth/user-not-found': a.errUserNotFound,
+        'auth/wrong-password': a.errWrongPassword,
+        'auth/too-many-requests': a.errTooManyRequests,
+        'auth/invalid-credential': a.errInvalidCredential,
       };
-      return messages[code] ?? 'Giriş başarısız. Tekrar deneyin.';
+      return messages[code] ?? a.errDefault;
     }
-    return 'Giriş başarısız.';
+    return this.t().auth.errDefault;
   }
 }

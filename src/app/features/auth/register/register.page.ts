@@ -7,6 +7,7 @@ import { PasswordModule } from 'primeng/password';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { AuthService } from '../../../core/auth/services/auth.service';
+import { LangService } from '../../../core/i18n/lang.service';
 
 const passwordMatchValidator: ValidatorFn = (group: AbstractControl): ValidationErrors | null => {
   const pass = group.get('password')?.value;
@@ -26,68 +27,64 @@ const passwordMatchValidator: ValidatorFn = (group: AbstractControl): Validation
           <!-- Brand -->
           <div class="text-center mb-8">
             <img src="assets/TarimLogo.png" alt="Tarım Market Logo" class="w-20 h-20 mx-auto mb-4 object-contain" />
-            <h1 class="text-2xl font-bold text-gray-800">Kayıt Ol</h1>
-            <p class="text-gray-400 text-sm mt-1">Yeni hesap oluşturun</p>
+            <h1 class="text-2xl font-bold text-gray-800">{{ t().auth.registerTitle }}</h1>
+            <p class="text-gray-400 text-sm mt-1">{{ t().auth.registerSubtitle }}</p>
           </div>
 
           <!-- Form -->
           <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
 
             <div class="flex flex-col gap-1.5">
-              <label class="text-sm font-semibold text-gray-700">Ad Soyad</label>
+              <label class="text-sm font-semibold text-gray-700">{{ t().auth.displayName }}</label>
               <p-iconfield class="w-full">
                 <p-inputicon styleClass="pi pi-user" />
-                <input pInputText type="text" formControlName="displayName" placeholder="Adınız Soyadınız" class="w-full" autocomplete="name" />
+                <input pInputText type="text" formControlName="displayName" [placeholder]="t().auth.displayNamePlaceholder" class="w-full" autocomplete="name" />
               </p-iconfield>
               @if (form.get('displayName')?.invalid && form.get('displayName')?.touched) {
-                <p class="text-xs text-red-500">Ad soyad gerekli</p>
+                <p class="text-xs text-red-500">{{ t().auth.displayNameRequired }}</p>
               }
             </div>
 
             <div class="flex flex-col gap-1.5">
-              <label class="text-sm font-semibold text-gray-700">E-posta</label>
+              <label class="text-sm font-semibold text-gray-700">{{ t().auth.email }}</label>
               <p-iconfield class="w-full">
                 <p-inputicon styleClass="pi pi-envelope" />
-                <input pInputText type="email" formControlName="email" placeholder="ornek@email.com" class="w-full" autocomplete="email" />
+                <input pInputText type="email" formControlName="email" [placeholder]="t().auth.emailPlaceholder" class="w-full" autocomplete="email" />
               </p-iconfield>
               @if (form.get('email')?.invalid && form.get('email')?.touched) {
-                <p class="text-xs text-red-500">Geçerli bir e-posta girin</p>
+                <p class="text-xs text-red-500">{{ t().auth.emailInvalid }}</p>
               }
             </div>
 
             <div class="flex flex-col gap-1.5">
-              <label class="text-sm font-semibold text-gray-700">Şifre</label>
+              <label class="text-sm font-semibold text-gray-700">{{ t().auth.password }}</label>
               <p-password
                 formControlName="password"
                 [feedback]="true"
                 [toggleMask]="true"
-                placeholder="En az 6 karakter"
+                [placeholder]="t().auth.passwordTooShort"
                 styleClass="w-full"
                 inputStyleClass="w-full"
                 autocomplete="new-password"
-                promptLabel="Şifre gücü"
-                weakLabel="Zayıf"
-                mediumLabel="Orta"
-                strongLabel="Güçlü"
               ></p-password>
               @if (form.get('password')?.invalid && form.get('password')?.touched) {
-                <p class="text-xs text-red-500">Şifre en az 6 karakter olmalı</p>
+                <p class="text-xs text-red-500">{{ t().auth.passwordTooShort }}</p>
               }
             </div>
 
             <div class="flex flex-col gap-1.5">
-              <label class="text-sm font-semibold text-gray-700">Şifre Tekrarı</label>
+              <label class="text-sm font-semibold text-gray-700">{{ t().auth.confirmPassword }}</label>
               <p-password
                 formControlName="confirmPassword"
                 [feedback]="false"
                 [toggleMask]="true"
-                placeholder="Şifrenizi tekrar girin"
+                [placeholder]="t().auth.confirmPasswordPlaceholder"
                 styleClass="w-full"
                 inputStyleClass="w-full"
                 autocomplete="new-password"
               ></p-password>
               @if (form.get('confirmPassword')?.touched && form.hasError('passwordMismatch')) {
-                <p class="text-xs text-red-500">Şifreler eşleşmiyor</p>
+                <p class="text-xs text-red-500">{{ t().auth.passwordMismatch }}</p>
               }
             </div>
 
@@ -100,7 +97,7 @@ const passwordMatchValidator: ValidatorFn = (group: AbstractControl): Validation
 
             <p-button
               type="submit"
-              label="Kayıt Ol"
+              [label]="t().auth.registerTitle"
               icon="pi pi-user-plus"
               [loading]="loading()"
               [disabled]="form.invalid"
@@ -111,8 +108,8 @@ const passwordMatchValidator: ValidatorFn = (group: AbstractControl): Validation
           </form>
 
           <div class="flex justify-center gap-2 mt-6 text-sm text-gray-400">
-            <span>Hesabınız var mı?</span>
-            <a [routerLink]="['/auth/login']" class="text-green-600 font-semibold hover:text-green-700 transition-colors">Giriş yapın</a>
+            <span>{{ t().auth.hasAccount }}</span>
+            <a [routerLink]="['/auth/login']" class="text-green-600 font-semibold hover:text-green-700 transition-colors">{{ t().auth.goLogin }}</a>
           </div>
 
         </div>
@@ -123,6 +120,7 @@ const passwordMatchValidator: ValidatorFn = (group: AbstractControl): Validation
 export class RegisterPage {
   private readonly authService = inject(AuthService);
   private readonly fb = inject(FormBuilder);
+  readonly t = inject(LangService).t;
 
   readonly loading = signal(false);
   readonly error = signal('');
@@ -142,7 +140,7 @@ export class RegisterPage {
       const { email, password, displayName } = this.form.value;
       await this.authService.register(email!, password!, displayName!);
     } catch {
-      this.error.set('Kayıt başarısız. E-posta zaten kullanılıyor olabilir.');
+      this.error.set(this.t().auth.errDefault);
     } finally {
       this.loading.set(false);
     }

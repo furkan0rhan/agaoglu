@@ -1,9 +1,11 @@
-import { Component, inject, signal, HostListener, OnInit } from '@angular/core';
+import { Component, inject, signal, HostListener, OnInit, computed } from '@angular/core';
 import { RouterLink, RouterLinkActive, Router, NavigationEnd } from '@angular/router';
 import { TooltipModule } from 'primeng/tooltip';
 import { AuthService } from '../../core/auth/services/auth.service';
 import { SidebarService } from './sidebar.service';
 import { CartStore } from '../../features/pos/store/cart.store';
+import { ThemeService } from '../../core/theme/theme.service';
+import { LangService } from '../../core/i18n/lang.service';
 import { filter } from 'rxjs';
 
 interface NavItem { title: string; path: string; icon: string; roles?: string[]; }
@@ -24,15 +26,15 @@ interface NavItem { title: string; path: string; icon: string; roles?: string[];
         top: 0;
         display: flex;
         flex-direction: column;
-        background: #fff;
-        border-right: 1px solid #f1f5f9;
+        background: var(--bg-surface);
+        border-right: 1px solid var(--border);
         box-shadow: 2px 0 16px rgba(0,0,0,0.08);
         transition: width 0.22s cubic-bezier(0.4,0,0.2,1), transform 0.26s cubic-bezier(0.4,0,0.2,1);
         overflow: hidden;
       "
     >
       <!-- Brand -->
-      <div style="display:flex; align-items:center; padding:14px; border-bottom:1px solid #f8fafc; flex-shrink:0; min-height:60px; gap:10px;">
+      <div style="display:flex; align-items:center; padding:14px; border-bottom:1px solid var(--border); flex-shrink:0; min-height:60px; gap:10px;">
         <img
           src="assets/TarimLogo.png"
           alt="Tarım Market Logo"
@@ -41,15 +43,15 @@ interface NavItem { title: string; path: string; icon: string; roles?: string[];
           style="width:36px; height:36px; object-fit:contain; flex-shrink:0;"
         />
         <div [style.opacity]="showText() ? '1' : '0'" style="transition:opacity 0.15s; white-space:nowrap; overflow:hidden; flex:1;">
-          <p style="font-size:13px; font-weight:700; color:#1e293b; line-height:1.2;">Tarım Market</p>
+          <p style="font-size:13px; font-weight:700; color:var(--text-primary); line-height:1.2;">Tarım Market</p>
           <p style="font-size:10px; font-weight:600; color:#16a34a; text-transform:uppercase; letter-spacing:1px;">Pro</p>
         </div>
         @if (!isMobile() && showText()) {
           <button
             (click)="collapse()"
-            style="width:28px; height:28px; border-radius:8px; border:1px solid #e2e8f0; background:#f8fafc; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; color:#64748b;"
-            onmouseenter="this.style.background='#f1f5f9'"
-            onmouseleave="this.style.background='#f8fafc'"
+            style="width:28px; height:28px; border-radius:8px; border:1px solid var(--border-mid); background:var(--bg-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; color:var(--text-secondary);"
+            onmouseenter="this.style.background='var(--bg-page)'"
+            onmouseleave="this.style.background='var(--bg-muted)'"
           >
             <i class="pi pi-chevron-left" style="font-size:11px;"></i>
           </button>
@@ -80,32 +82,70 @@ interface NavItem { title: string; path: string; icon: string; roles?: string[];
       </nav>
 
       <!-- Footer -->
-      <div style="border-top:1px solid #f1f5f9; padding:8px 10px; flex-shrink:0; display:flex; flex-direction:column; gap:2px;">
-        <div style="display:flex; align-items:center; gap:10px; padding:8px 4px; flex-shrink:0;">
-          <div
-            [pTooltip]="!showText() ? formattedName() : ''"
+      <div style="border-top:1px solid var(--border); padding:8px 10px; flex-shrink:0; display:flex; flex-direction:column; gap:4px;">
+
+        <!-- User + dark toggle + lang toggle yan yana (expanded) -->
+        <div style="display:flex; align-items:center; gap:6px;">
+          <a
+            routerLink="/settings"
+            (click)="onNavClick()"
+            [pTooltip]="!showText() ? t().nav.settings : ''"
             tooltipPosition="right"
-            style="width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#4ade80,#16a34a); display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:12px; flex-shrink:0; cursor:default; letter-spacing:0.5px;"
-          >{{ initials() }}</div>
-          <div [style.opacity]="showText() ? '1' : '0'" style="transition:opacity 0.15s; overflow:hidden; white-space:nowrap; min-width:0;">
-            <p style="font-size:13px; font-weight:600; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:0 0 1px;">{{ formattedName() }}</p>
-            <p style="font-size:10px; font-weight:600; color:#16a34a; text-transform:uppercase; letter-spacing:0.5px; margin:0;">{{ roleLabel() }}</p>
-          </div>
+            style="flex:1; min-width:0; display:flex; align-items:center; gap:10px; padding:6px 4px; border-radius:10px; text-decoration:none; transition:background 0.15s; overflow:hidden;"
+            onmouseenter="this.style.background='var(--bg-muted)'"
+            onmouseleave="this.style.background='transparent'"
+          >
+            <div style="width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#4ade80,#16a34a); display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:12px; flex-shrink:0; letter-spacing:0.5px;">{{ initials() }}</div>
+            <div [style.opacity]="showText() ? '1' : '0'" style="transition:opacity 0.15s; overflow:hidden; white-space:nowrap; min-width:0; flex:1;">
+              <p style="font-size:13px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:0 0 1px;">{{ formattedName() }}</p>
+              <p style="font-size:10px; font-weight:600; color:#16a34a; text-transform:uppercase; letter-spacing:0.5px; margin:0;">{{ roleLabel() }} · {{ t().nav.settings }}</p>
+            </div>
+          </a>
+
+          @if (showText()) {
+            <button
+              (click)="themeSvc.toggle()"
+              [pTooltip]="themeSvc.isDark() ? t().nav.lightMode : t().nav.darkMode"
+              tooltipPosition="top"
+              style="width:36px; height:36px; border-radius:10px; border:none; background:var(--bg-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; transition:background 0.15s;"
+              onmouseenter="this.style.background='var(--border-mid)'"
+              onmouseleave="this.style.background='var(--bg-muted)'"
+            >
+              <i [class]="'pi ' + (themeSvc.isDark() ? 'pi-sun' : 'pi-moon')" style="font-size:15px; color:var(--text-secondary);"></i>
+            </button>
+            <button
+              (click)="langSvc.toggle()"
+              pTooltip="TR / EN"
+              tooltipPosition="top"
+              style="width:36px; height:36px; border-radius:10px; border:none; background:var(--bg-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; font-size:10px; font-weight:700; color:var(--text-secondary); transition:background 0.15s;"
+              onmouseenter="this.style.background='var(--border-mid)'"
+              onmouseleave="this.style.background='var(--bg-muted)'"
+            >{{ langSvc.lang() === 'tr' ? 'EN' : 'TR' }}</button>
+          }
         </div>
 
-        <button
-          (click)="logout()"
-          [pTooltip]="!showText() ? 'Çıkış Yap' : ''"
-          tooltipPosition="right"
-          style="display:flex; align-items:center; gap:10px; padding:6px 4px; border-radius:10px; border:none; background:transparent; cursor:pointer; width:100%; text-align:left;"
-          onmouseenter="this.style.background='#fef2f2'"
-          onmouseleave="this.style.background='transparent'"
-        >
-          <div style="width:36px; height:36px; border-radius:10px; background:#fef2f2; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-            <i class="pi pi-sign-out" style="font-size:14px; color:#ef4444;"></i>
-          </div>
-          <span [style.opacity]="showText() ? '1' : '0'" style="transition:opacity 0.12s; font-size:13px; font-weight:500; color:#ef4444; white-space:nowrap;">Çıkış Yap</span>
-        </button>
+        <!-- Dark + lang toggle collapsed modunda ayrı satır -->
+        @if (!showText()) {
+          <button
+            (click)="themeSvc.toggle()"
+            [pTooltip]="themeSvc.isDark() ? t().nav.lightMode : t().nav.darkMode"
+            tooltipPosition="right"
+            style="width:36px; height:36px; border-radius:10px; border:none; background:var(--bg-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; margin:0 auto; transition:background 0.15s;"
+            onmouseenter="this.style.background='var(--border-mid)'"
+            onmouseleave="this.style.background='var(--bg-muted)'"
+          >
+            <i [class]="'pi ' + (themeSvc.isDark() ? 'pi-sun' : 'pi-moon')" style="font-size:14px; color:var(--text-secondary);"></i>
+          </button>
+          <button
+            (click)="langSvc.toggle()"
+            pTooltip="TR / EN"
+            tooltipPosition="right"
+            style="width:36px; height:36px; border-radius:10px; border:none; background:var(--bg-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; margin:0 auto; font-size:10px; font-weight:700; color:var(--text-secondary); transition:background 0.15s;"
+            onmouseenter="this.style.background='var(--border-mid)'"
+            onmouseleave="this.style.background='var(--bg-muted)'"
+          >{{ langSvc.lang() === 'tr' ? 'EN' : 'TR' }}</button>
+        }
+
       </div>
     </aside>
   `,
@@ -115,7 +155,7 @@ interface NavItem { title: string; path: string; icon: string; roles?: string[];
       flex-shrink: 0;
       transition: width 0.26s cubic-bezier(0.4,0,0.2,1);
     }
-    .nav-active { background: #f0fdf4 !important; }
+    .nav-active { background: var(--nav-active-bg) !important; }
     nav::-webkit-scrollbar { width: 0; }
   `],
   host: {
@@ -123,24 +163,31 @@ interface NavItem { title: string; path: string; icon: string; roles?: string[];
   },
 })
 export class SidebarComponent implements OnInit {
-  readonly auth    = inject(AuthService);
+  readonly auth       = inject(AuthService);
   readonly sidebarSvc = inject(SidebarService);
-  readonly router  = inject(Router);
-  readonly cart    = inject(CartStore);
+  readonly router     = inject(Router);
+  readonly cart       = inject(CartStore);
+  readonly themeSvc   = inject(ThemeService);
+  readonly langSvc    = inject(LangService);
+  readonly t          = this.langSvc.t;
 
   readonly collapsed = signal(false);
   readonly isMobile = signal(false);
 
-  private readonly navItems: NavItem[] = [
-    { title: 'Dashboard',   path: '/dashboard', icon: 'pi-home' },
-    { title: 'Ürünler',     path: '/products',  icon: 'pi-box' },
-    { title: 'Satış / POS', path: '/pos',       icon: 'pi-shopping-cart', roles: ['admin', 'cashier'] },
-    { title: 'Müşteriler',  path: '/customers', icon: 'pi-users',         roles: ['admin', 'cashier'] },
-    { title: 'Veresiye',    path: '/credit',    icon: 'pi-credit-card',   roles: ['admin'] },
-    { title: 'Raporlar',    path: '/reports',   icon: 'pi-chart-bar',     roles: ['admin'] },
-    { title: 'Giderler',    path: '/expenses',  icon: 'pi-wallet',        roles: ['admin'] },
-    { title: 'Ayarlar',     path: '/settings',  icon: 'pi-cog',           roles: ['admin'] },
-  ];
+  private readonly navItems = computed<NavItem[]>(() => {
+    const n = this.t().nav;
+    return [
+      { title: n.dashboard,   path: '/dashboard',   icon: 'pi-home' },
+      { title: n.products,    path: '/products',    icon: 'pi-box' },
+      { title: n.pos,         path: '/pos',         icon: 'pi-shopping-cart', roles: ['admin', 'cashier'] },
+      { title: n.customers,   path: '/customers',   icon: 'pi-users',         roles: ['admin', 'cashier'] },
+      { title: n.credit,      path: '/credit',      icon: 'pi-credit-card',   roles: ['admin'] },
+      { title: n.reports,     path: '/reports',     icon: 'pi-chart-bar',     roles: ['admin'] },
+      { title: n.expenses,    path: '/expenses',    icon: 'pi-wallet',        roles: ['admin'] },
+      { title: n.suppliers,   path: '/suppliers',   icon: 'pi-truck',         roles: ['admin'] },
+      { title: n.stockCount,  path: '/stock-count', icon: 'pi-barcode',       roles: ['admin'] },
+    ];
+  });
 
   ngOnInit(): void {
     this.checkMobile();
@@ -181,16 +228,17 @@ export class SidebarComponent implements OnInit {
 
   visibleNavItems(): NavItem[] {
     const user = this.auth.currentUser();
-    if (!user) return this.navItems;
-    return this.navItems.filter(i => !i.roles || i.roles.includes(user.role));
+    const items = this.navItems();
+    if (!user) return items;
+    return items.filter(i => !i.roles || i.roles.includes(user.role));
   }
 
   linkStyle(active: boolean): string {
-    return `display:flex; align-items:center; gap:10px; padding:8px 6px; border-radius:10px; text-decoration:none; background:${active ? '#f0fdf4' : 'transparent'}; transition:background 0.15s;`;
+    return `display:flex; align-items:center; gap:10px; padding:8px 6px; border-radius:10px; text-decoration:none; color:var(--text-primary); background:${active ? 'var(--nav-active-bg)' : 'transparent'}; transition:background 0.15s;`;
   }
 
   iconStyle(active: boolean): string {
-    return `width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:${active ? '#16a34a' : '#f1f5f9'}; color:${active ? 'white' : '#64748b'}; transition:background 0.15s;`;
+    return `width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:${active ? '#16a34a' : 'var(--icon-bg)'}; color:${active ? 'white' : 'var(--icon-color)'}; transition:background 0.15s;`;
   }
 
   formattedName(): string {
@@ -204,9 +252,10 @@ export class SidebarComponent implements OnInit {
   }
 
   roleLabel(): string {
-    const map: Record<string, string> = { admin: 'Yönetici', cashier: 'Kasiyer', staff: 'Personel' };
+    const n = this.t().nav;
+    const map: Record<string, string> = { admin: n.admin, cashier: n.cashier, staff: n.staff };
     return map[this.auth.currentUser()?.role ?? ''] ?? '';
   }
 
-  logout() { this.auth.logout(); }
 }
+

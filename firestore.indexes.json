@@ -59,7 +59,7 @@
         { "fieldPath": "tenantId", "order": "ASCENDING" },
         { "fieldPath": "date", "order": "DESCENDING" }
       ]
-    }
+    },
   ],
   "fieldOverrides": []
 }

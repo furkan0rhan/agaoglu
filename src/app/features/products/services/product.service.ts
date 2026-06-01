@@ -55,7 +55,7 @@ export class ProductService {
     await firstValueFrom(this.fs.update(PRODUCTS, id, { isActive: false }));
   }
 
-  async adjustStock(product: Product, delta: number, reason: string, reference: string | null = null, expiryDate?: Date | null, gtsNo?: string | null): Promise<void> {
+  async adjustStock(product: Product, delta: number, reason: string, reference: string | null = null, expiryDate?: Date | null, gtsNo?: string | null, supplierId?: string | null): Promise<void> {
     const newStock = product.stock + delta;
     const movement: Partial<StockMovement> = {
       tenantId: this.auth.currentTenantId(),
@@ -83,6 +83,7 @@ export class ProductService {
         expiryDate: expiryDate ? Timestamp.fromDate(expiryDate) : null,
         gtsNo: gtsNo || null,
         addedAt: Timestamp.now(),
+        supplierId: supplierId || null,
       };
       const updatedBatches = [...currentBatches, newBatch];
       productUpdate.batches = updatedBatches;

@@ -6,6 +6,7 @@ export interface Batch {
   expiryDate: Timestamp | null;
   gtsNo: string | null;
   addedAt: Timestamp;
+  supplierId: string | null;
 }
 
 export interface Product {

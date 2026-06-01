@@ -17,6 +17,9 @@ import { ProductStore } from '../store/product.store';
 import { ProductService } from '../services/product.service';
 import { CurrencyTrPipe } from '../../../shared/pipes/currency-tr.pipe';
 import { Batch, Product, StockMovement } from '../../../shared/models/product.model';
+import { SupplierService } from '../../suppliers/services/supplier.service';
+import { Supplier } from '../../../shared/models/supplier.model';
+import { LangService } from '../../../core/i18n/lang.service';
 
 @Component({
   selector: 'app-product-detail',
@@ -38,13 +41,13 @@ import { Batch, Product, StockMovement } from '../../../shared/models/product.mo
            class="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors text-gray-500">
           <i class="pi pi-arrow-left text-sm"></i>
         </a>
-        <h1 class="text-xl font-bold text-gray-800 flex-1 truncate">{{ product()?.name ?? 'Ürün Detayı' }}</h1>
+        <h1 class="text-xl font-bold text-gray-800 flex-1 truncate">{{ product()?.name ?? t().products.detail }}</h1>
         @if (product() && !isEditing()) {
-          <p-button icon="pi pi-pencil" label="Düzenle" severity="secondary" size="small" (onClick)="startEdit()" />
+          <p-button icon="pi pi-pencil" [label]="t().common.edit" severity="secondary" size="small" (onClick)="startEdit()" />
         }
         @if (isEditing()) {
-          <p-button icon="pi pi-times" label="İptal" severity="secondary" [outlined]="true" size="small" (onClick)="cancelEdit()" />
-          <p-button icon="pi pi-check" label="Kaydet" severity="success" size="small" [loading]="saving()" (onClick)="saveEdit()" />
+          <p-button icon="pi pi-times" [label]="t().common.cancel" severity="secondary" [outlined]="true" size="small" (onClick)="cancelEdit()" />
+          <p-button icon="pi pi-check" [label]="t().common.save" severity="success" size="small" [loading]="saving()" (onClick)="saveEdit()" />
         }
       </div>
 
@@ -71,11 +74,11 @@ import { Batch, Product, StockMovement } from '../../../shared/models/product.mo
                   <i [class]="'pi text-xl ' + stockIcon()"></i>
                 </div>
                 <div>
-                  <p class="text-sm font-medium opacity-80">Mevcut Stok</p>
-                  <p class="text-3xl font-bold">{{ product()!.stock }} <span class="text-base font-medium">adet</span></p>
+                  <p class="text-sm font-medium opacity-80">{{ t().products.currentStock }}</p>
+                  <p class="text-3xl font-bold">{{ product()!.stock }} <span class="text-base font-medium">{{ t().products.piece }}</span></p>
                   @if (product()!.stock <= product()!.minStock && product()!.stock > 0) {
                     <p class="text-xs font-semibold mt-0.5 opacity-80">
-                      <i class="pi pi-exclamation-triangle mr-1"></i>Min. stok: {{ product()!.minStock }} adet
+                      <i class="pi pi-exclamation-triangle mr-1"></i>{{ t().products.minStockWarn }} {{ product()!.minStock }} {{ t().products.piece }}
                     </p>
                   }
                 </div>
@@ -84,7 +87,7 @@ import { Batch, Product, StockMovement } from '../../../shared/models/product.mo
               <!-- Bilgi kartı -->
               <div class="bg-white rounded-2xl shadow-soft border border-gray-50 overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-50">
-                  <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider">Ürün Bilgileri</h2>
+                  <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider">{{ t().products.productInfo }}</h2>
                 </div>
 
                 @if (!isEditing()) {
@@ -100,64 +103,64 @@ import { Batch, Product, StockMovement } from '../../../shared/models/product.mo
                   <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
 
                     <div class="md:col-span-2 flex flex-col gap-1.5">
-                      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ürün Adı</label>
+                      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.infoName }}</label>
                       <input pInputText [(ngModel)]="editForm.name" class="w-full" />
                     </div>
 
                     <div class="flex flex-col gap-1.5">
-                      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Barkod</label>
+                      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.infoBarcode }}</label>
                       <input pInputText [(ngModel)]="editForm.barcode" class="w-full font-mono" />
                     </div>
 
                     <div class="flex flex-col gap-1.5">
-                      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Marka</label>
+                      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.infoBrand }}</label>
                       <input pInputText [(ngModel)]="editForm.brand" class="w-full" />
                     </div>
 
                     <div class="flex flex-col gap-1.5">
-                      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Kategori</label>
+                      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.infoCategory }}</label>
                       <p-autocomplete
                         [(ngModel)]="editForm.category"
                         [suggestions]="categorySuggestions"
                         (completeMethod)="searchCategory($event)"
                         [forceSelection]="false"
                         [dropdown]="true"
-                        placeholder="Kategori seçin veya yazın"
+                        [placeholder]="t().products.formCategoryPlaceholder"
                         styleClass="w-full"
                       />
                     </div>
 
                     <div class="flex flex-col gap-1.5">
-                      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Min. Stok</label>
+                      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.infoMinStock }}</label>
                       <p-inputNumber [(ngModel)]="editForm.minStock" [min]="0" styleClass="w-full" />
                     </div>
 
                     <div class="flex flex-col gap-1.5">
-                      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Alış Fiyatı (₺)</label>
+                      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.purchasePrice }} (₺)</label>
                       <p-inputNumber [(ngModel)]="editForm.purchasePrice" [minFractionDigits]="2" [maxFractionDigits]="2" mode="decimal" locale="tr-TR" styleClass="w-full" />
                     </div>
 
                     <div class="flex flex-col gap-1.5">
-                      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Satış Fiyatı (₺)</label>
+                      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.salePrice }} (₺)</label>
                       <p-inputNumber [(ngModel)]="editForm.salePrice" [minFractionDigits]="2" [maxFractionDigits]="2" mode="decimal" locale="tr-TR" styleClass="w-full" />
                     </div>
 
                     <div class="flex flex-col gap-1.5">
-                      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">KDV Oranı (%)</label>
+                      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.infoVat }} (%)</label>
                       <p-autocomplete
                         [(ngModel)]="editForm.vatRateStr"
                         [suggestions]="vatSuggestions"
                         (completeMethod)="searchVat($event)"
                         [forceSelection]="false"
                         [dropdown]="true"
-                        placeholder="Örn: 8, 18, 20"
+                        [placeholder]="t().products.formVatPlaceholder"
                         styleClass="w-full"
                       />
                     </div>
 
                     <div class="md:col-span-2 flex flex-col gap-1.5">
-                      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Açıklama</label>
-                      <input pInputText [(ngModel)]="editForm.description" class="w-full" placeholder="Opsiyonel" />
+                      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.infoDescription }}</label>
+                      <input pInputText [(ngModel)]="editForm.description" class="w-full" [placeholder]="t().common.optional" />
                     </div>
 
                   </div>
@@ -167,16 +170,16 @@ import { Batch, Product, StockMovement } from '../../../shared/models/product.mo
               <!-- Stok hareketleri -->
               <div class="bg-white rounded-2xl shadow-soft border border-gray-50 overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
-                  <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider">Son Stok Hareketleri</h2>
+                  <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider">{{ t().products.stockMovements }}</h2>
                   <a [routerLink]="['/products', productId(), 'movements']"
                      class="text-xs text-green-600 font-semibold hover:text-green-700 flex items-center gap-1">
-                    Tümünü gör <i class="pi pi-arrow-right text-xs"></i>
+                    {{ t().products.viewAll }} <i class="pi pi-arrow-right text-xs"></i>
                   </a>
                 </div>
                 @if (movements().length === 0) {
                   <div class="flex flex-col items-center justify-center py-10 text-gray-400 gap-2">
                     <i class="pi pi-history text-3xl opacity-30"></i>
-                    <p class="text-sm">Henüz stok hareketi yok</p>
+                    <p class="text-sm">{{ t().products.noMovements }}</p>
                   </div>
                 } @else {
                   <div class="divide-y divide-gray-50">
@@ -194,7 +197,7 @@ import { Batch, Product, StockMovement } from '../../../shared/models/product.mo
                           <p class="text-sm font-bold" [class]="m.type === 'in' ? 'text-green-600' : 'text-red-500'">
                             {{ m.type === 'in' ? '+' : '-' }}{{ m.quantity }}
                           </p>
-                          <p class="text-xs text-gray-400">{{ m.newStock }} adet</p>
+                          <p class="text-xs text-gray-400">{{ m.newStock }} {{ t().products.piece }}</p>
                         </div>
                       </div>
                     }
@@ -209,9 +212,8 @@ import { Batch, Product, StockMovement } from '../../../shared/models/product.mo
 
               <!-- Stok işlemleri -->
               <div class="bg-white rounded-2xl shadow-soft border border-gray-50 p-5">
-                <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Stok İşlemleri</h2>
+                <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">{{ t().products.stockActions }}</h2>
                 <div class="flex gap-3">
-                  <!-- Stok Ekle -->
                   <button
                     (click)="openDialog('in')"
                     class="flex-1 flex flex-col items-center justify-center gap-2 py-5 rounded-2xl border-2 border-green-100 bg-green-50 hover:bg-green-100 hover:border-green-200 transition-all duration-200 cursor-pointer group"
@@ -219,9 +221,8 @@ import { Batch, Product, StockMovement } from '../../../shared/models/product.mo
                     <div class="w-11 h-11 rounded-xl bg-green-500 group-hover:bg-green-600 flex items-center justify-center transition-colors shadow-sm">
                       <i class="pi pi-plus text-white text-lg"></i>
                     </div>
-                    <span class="text-sm font-bold text-green-700">Stok Ekle</span>
+                    <span class="text-sm font-bold text-green-700">{{ t().products.addStock }}</span>
                   </button>
-                  <!-- Stok Çıkar -->
                   <button
                     (click)="openDialog('out')"
                     [disabled]="product()!.stock === 0"
@@ -230,7 +231,7 @@ import { Batch, Product, StockMovement } from '../../../shared/models/product.mo
                     <div class="w-11 h-11 rounded-xl bg-orange-500 group-hover:bg-orange-600 flex items-center justify-center transition-colors shadow-sm">
                       <i class="pi pi-minus text-white text-lg"></i>
                     </div>
-                    <span class="text-sm font-bold text-orange-700">Stok Çıkar</span>
+                    <span class="text-sm font-bold text-orange-700">{{ t().products.removeStock }}</span>
                   </button>
                 </div>
                 <div class="mt-3">
@@ -238,48 +239,48 @@ import { Batch, Product, StockMovement } from '../../../shared/models/product.mo
                     [routerLink]="['/products', productId(), 'movements']"
                     class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors text-sm font-semibold text-gray-600"
                   >
-                    <i class="pi pi-history text-sm"></i> Stok Hareketleri
+                    <i class="pi pi-history text-sm"></i> {{ t().products.viewMovements }}
                   </button>
                 </div>
               </div>
 
               <!-- Fiyat özeti -->
               <div class="bg-white rounded-2xl shadow-soft border border-gray-50 p-5">
-                <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Fiyatlar</h2>
+                <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">{{ t().products.prices }}</h2>
                 <div class="space-y-3">
                   <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-500">Alış Fiyatı</span>
+                    <span class="text-sm text-gray-500">{{ t().products.purchasePrice }}</span>
                     <span class="text-sm font-semibold text-gray-700">{{ product()!.purchasePrice | currencyTr }}</span>
                   </div>
                   <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-500">Satış Fiyatı</span>
+                    <span class="text-sm text-gray-500">{{ t().products.salePrice }}</span>
                     <span class="text-base font-bold text-green-700">{{ product()!.salePrice | currencyTr }}</span>
                   </div>
                   @if (product()!.vatRate != null) {
                     <div class="flex justify-between items-center">
-                      <span class="text-sm text-gray-500">KDV</span>
+                      <span class="text-sm text-gray-500">{{ t().products.vat }}</span>
                       <span class="text-sm font-semibold text-gray-700">%{{ product()!.vatRate }}</span>
                     </div>
                   }
                   <div class="border-t border-gray-100 pt-3 flex justify-between items-center">
-                    <span class="text-sm text-gray-500">Kâr Marjı</span>
+                    <span class="text-sm text-gray-500">{{ t().products.margin }}</span>
                     <span class="text-sm font-bold text-blue-600">%{{ marginPercent() }}</span>
                   </div>
                 </div>
               </div>
 
-              <!-- Partiler (Lot Takibi) -->
+              <!-- Partiler -->
               <div class="bg-white rounded-2xl shadow-soft border border-gray-50 overflow-hidden">
                 <div class="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
-                  <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider">Partiler</h2>
+                  <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider">{{ t().products.batches }}</h2>
                   @if (activeBatches().length > 0) {
-                    <span class="text-xs font-semibold text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{{ activeBatches().length }} parti</span>
+                    <span class="text-xs font-semibold text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{{ activeBatches().length }} {{ t().products.batchCount }}</span>
                   }
                 </div>
                 @if (activeBatches().length === 0) {
                   <div class="flex flex-col items-center justify-center py-8 text-gray-400 gap-1.5">
                     <i class="pi pi-box text-2xl opacity-30"></i>
-                    <p class="text-xs">Parti kaydı yok</p>
+                    <p class="text-xs">{{ t().products.noBatches }}</p>
                   </div>
                 } @else {
                   <div class="divide-y divide-gray-50">
@@ -287,16 +288,19 @@ import { Batch, Product, StockMovement } from '../../../shared/models/product.mo
                       <div class="flex items-start px-5 py-3 gap-3">
                         <div class="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" [class]="batchDotClass(b)"></div>
                         <div class="flex-1 min-w-0">
-                          <p class="text-sm font-semibold text-gray-800">{{ b.quantity }} adet</p>
+                          <p class="text-sm font-semibold text-gray-800">{{ b.quantity }} {{ t().products.piece }}</p>
                           @if (b.gtsNo) {
                             <p class="text-xs text-gray-500 font-mono">GTS: {{ b.gtsNo }}</p>
                           }
+                          @if (supplierName(b)) {
+                            <p class="text-xs text-blue-500"><i class="pi pi-truck mr-1" style="font-size:10px;"></i>{{ supplierName(b) }}</p>
+                          }
                           <p class="text-xs" [class]="batchDateClass(b)">
                             @if (b.expiryDate) {
-                              SKT: {{ b.expiryDate.toDate() | date:'dd.MM.yyyy' }}
-                              <span class="text-gray-400 ml-1">({{ daysLeft(b) }} gün)</span>
+                              {{ t().products.formExpiry }}: {{ b.expiryDate.toDate() | date:'dd.MM.yyyy' }}
+                              <span class="text-gray-400 ml-1">({{ daysLeft(b) }} {{ t().common.piece === 'pcs' ? 'd' : 'gün' }})</span>
                             } @else {
-                              <span class="text-gray-400">SKT yok</span>
+                              <span class="text-gray-400">{{ t().products.noExpiry }}</span>
                             }
                           </p>
                         </div>
@@ -316,14 +320,14 @@ import { Batch, Product, StockMovement } from '../../../shared/models/product.mo
     <!-- Stok Dialog -->
     <p-dialog
       [(visible)]="dialogVisible"
-      [header]="dialogMode() === 'in' ? 'Stok Ekle' : 'Stok Çıkar'"
+      [header]="dialogMode() === 'in' ? t().products.dialogAddStock : t().products.dialogRemoveStock"
       [modal]="true"
       [style]="{ width: '360px' }"
       [draggable]="false"
     >
       <div class="flex flex-col gap-4 py-2">
         <div class="flex flex-col gap-1.5">
-          <label class="text-sm font-semibold text-gray-700">Miktar</label>
+          <label class="text-sm font-semibold text-gray-700">{{ t().products.dialogQty }}</label>
           <p-inputNumber
             [(ngModel)]="dialogQty"
             [min]="1"
@@ -337,22 +341,35 @@ import { Batch, Product, StockMovement } from '../../../shared/models/product.mo
           />
         </div>
         <div class="flex flex-col gap-1.5">
-          <label class="text-sm font-semibold text-gray-700">Neden <span class="text-gray-400 font-normal">(opsiyonel)</span></label>
-          <input pInputText [(ngModel)]="dialogReason" placeholder="Örn: Sayım, iade, tedarik..." class="w-full" />
+          <label class="text-sm font-semibold text-gray-700">{{ t().products.dialogReason }} <span class="text-gray-400 font-normal">({{ t().common.optional }})</span></label>
+          <input pInputText [(ngModel)]="dialogReason" [placeholder]="t().products.dialogReasonPlaceholder" class="w-full" />
         </div>
         @if (dialogMode() === 'in') {
           <div class="flex flex-col gap-1.5">
-            <label class="text-sm font-semibold text-gray-700">GTS No <span class="text-gray-400 font-normal">(opsiyonel)</span></label>
-            <input pInputText [(ngModel)]="dialogGtsNo" placeholder="Bu partinin GTS numarası" class="w-full font-mono" />
+            <label class="text-sm font-semibold text-gray-700">{{ t().products.dialogSupplier }} <span class="text-gray-400 font-normal">({{ t().common.optional }})</span></label>
+            <p-select
+              [(ngModel)]="dialogSupplierId"
+              [options]="suppliers()"
+              optionLabel="name"
+              optionValue="id"
+              [placeholder]="t().products.dialogSelectSupplier"
+              [showClear]="true"
+              styleClass="w-full"
+              appendTo="body"
+            />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="text-sm font-semibold text-gray-700">Son Kullanma Tarihi <span class="text-gray-400 font-normal">(opsiyonel)</span></label>
+            <label class="text-sm font-semibold text-gray-700">{{ t().products.dialogGts }} <span class="text-gray-400 font-normal">({{ t().common.optional }})</span></label>
+            <input pInputText [(ngModel)]="dialogGtsNo" [placeholder]="t().products.dialogGtsPlaceholder" class="w-full font-mono" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-semibold text-gray-700">{{ t().products.dialogExpiry }} <span class="text-gray-400 font-normal">({{ t().common.optional }})</span></label>
             <p-datepicker
               [(ngModel)]="dialogExpiryDate"
               dateFormat="dd.mm.yy"
               [showIcon]="true"
               [showButtonBar]="true"
-              placeholder="GG.AA.YYYY"
+              [placeholder]="t().products.dialogExpiryPlaceholder"
               styleClass="w-full"
               appendTo="body"
             />
@@ -360,9 +377,9 @@ import { Batch, Product, StockMovement } from '../../../shared/models/product.mo
         }
       </div>
       <ng-template pTemplate="footer">
-        <p-button label="İptal" severity="secondary" [outlined]="true" (onClick)="dialogVisible = false" />
+        <p-button [label]="t().common.cancel" severity="secondary" [outlined]="true" (onClick)="dialogVisible = false" />
         <p-button
-          [label]="dialogMode() === 'in' ? 'Ekle' : 'Çıkar'"
+          [label]="dialogMode() === 'in' ? t().products.dialogAdd : t().products.dialogRemove"
           [severity]="dialogMode() === 'in' ? 'success' : 'warn'"
           [loading]="saving()"
           (onClick)="confirmAdjust()"
@@ -374,14 +391,17 @@ import { Batch, Product, StockMovement } from '../../../shared/models/product.mo
 export class ProductDetailPage implements OnInit {
   private readonly store = inject(ProductStore);
   private readonly svc = inject(ProductService);
+  private readonly supplierSvc = inject(SupplierService);
   private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(MessageService);
+  readonly t = inject(LangService).t;
 
   readonly product = signal<Product | null>(null);
   readonly movements = signal<StockMovement[]>([]);
   readonly saving = signal(false);
   readonly dialogMode = signal<'in' | 'out'>('in');
   readonly isEditing = signal(false);
+  readonly suppliers = signal<Supplier[]>([]);
   editForm = { name: '', barcode: '', brand: '', category: '', minStock: 0, purchasePrice: 0, salePrice: 0, vatRateStr: '', description: '' };
 
   vatSuggestions: string[] = [];
@@ -434,6 +454,7 @@ export class ProductDetailPage implements OnInit {
   dialogReason = '';
   dialogGtsNo = '';
   dialogExpiryDate: Date | null = null;
+  dialogSupplierId: string | null = null;
 
   constructor() {
     effect(() => {
@@ -455,6 +476,7 @@ export class ProductDetailPage implements OnInit {
     }
 
     this.svc.getMovements$(id).subscribe(m => this.movements.set(m));
+    this.supplierSvc.getAll$().subscribe(s => this.suppliers.set(s));
   }
 
   startEdit(): void {
@@ -497,9 +519,9 @@ export class ProductDetailPage implements OnInit {
       await this.svc.update(p.id, changes);
       this.product.set({ ...p, ...changes });
       this.isEditing.set(false);
-      this.toast.add({ severity: 'success', summary: '', detail: 'Ürün güncellendi', life: 2500 });
+      this.toast.add({ severity: 'success', summary: '', detail: this.t().products.updated, life: 2500 });
     } catch {
-      this.toast.add({ severity: 'error', summary: 'Hata', detail: 'Güncelleme başarısız', life: 3000 });
+      this.toast.add({ severity: 'error', summary: this.t().common.error, detail: this.t().products.updateFailed, life: 3000 });
     } finally {
       this.saving.set(false);
     }
@@ -511,6 +533,7 @@ export class ProductDetailPage implements OnInit {
     this.dialogReason = '';
     this.dialogGtsNo = '';
     this.dialogExpiryDate = null;
+    this.dialogSupplierId = null;
     this.dialogVisible = true;
   }
 
@@ -520,15 +543,16 @@ export class ProductDetailPage implements OnInit {
     this.saving.set(true);
     try {
       const delta = this.dialogMode() === 'in' ? this.dialogQty : -this.dialogQty;
-      const reason = this.dialogReason.trim() || (this.dialogMode() === 'in' ? 'Stok girişi' : 'Stok çıkışı');
+      const reason = this.dialogReason.trim() || (this.dialogMode() === 'in' ? this.t().products.stockIn : this.t().products.stockOut);
       const expiryDate = this.dialogMode() === 'in' ? this.dialogExpiryDate : null;
       const gtsNo = this.dialogMode() === 'in' ? this.dialogGtsNo.trim() || null : null;
-      await this.svc.adjustStock(p, delta, reason, null, expiryDate, gtsNo);
-      this.product.set({ ...p, stock: p.stock + delta });
+      const supplierId = this.dialogMode() === 'in' ? this.dialogSupplierId : null;
+      await this.svc.adjustStock(p, delta, reason, null, expiryDate, gtsNo, supplierId);
       this.dialogVisible = false;
-      this.toast.add({ severity: 'success', summary: 'Başarılı', detail: `Stok güncellendi: ${p.stock + delta} adet`, life: 3000 });
+      this.toast.add({ severity: 'success', summary: this.t().common.success, detail: `${this.t().products.stockUpdated}: ${p.stock + delta} ${this.t().products.piece}`, life: 3000 });
+      this.svc.getById$(p.id).subscribe(updated => { if (updated) this.product.set(updated); });
     } catch {
-      this.toast.add({ severity: 'error', summary: 'Hata', detail: 'Stok güncellenemedi', life: 3000 });
+      this.toast.add({ severity: 'error', summary: this.t().common.error, detail: this.t().products.stockFailed, life: 3000 });
     } finally {
       this.saving.set(false);
     }
@@ -537,14 +561,15 @@ export class ProductDetailPage implements OnInit {
   infoRows(): { label: string; value: string; class?: string }[] {
     const p = this.product();
     if (!p) return [];
+    const pr = this.t().products;
     return [
-      { label: 'Kategori', value: p.category || '-' },
-      { label: 'Barkod', value: p.barcode || '-', class: 'font-mono' },
-      { label: 'Marka', value: p.brand || '-' },
-      { label: 'Min. Stok', value: p.minStock + ' adet' },
-      ...(p.vatRate != null ? [{ label: 'KDV Oranı', value: '%' + p.vatRate }] : []),
-      ...(p.expiryDate ? [{ label: 'Son Kullanma', value: p.expiryDate.toDate().toLocaleDateString('tr-TR') }] : []),
-      ...(p.description ? [{ label: 'Açıklama', value: p.description }] : []),
+      { label: pr.infoCategory, value: p.category || '-' },
+      { label: pr.infoBarcode, value: p.barcode || '-', class: 'font-mono' },
+      { label: pr.infoBrand, value: p.brand || '-' },
+      { label: pr.infoMinStock, value: p.minStock + ' ' + pr.piece },
+      ...(p.vatRate != null ? [{ label: pr.infoVat, value: '%' + p.vatRate }] : []),
+      ...(p.expiryDate ? [{ label: pr.infoExpiry, value: p.expiryDate.toDate().toLocaleDateString('tr-TR') }] : []),
+      ...(p.description ? [{ label: pr.infoDescription, value: p.description }] : []),
     ];
   }
 
@@ -603,6 +628,12 @@ export class ProductDetailPage implements OnInit {
     if (d <= 7) return 'bg-red-500';
     if (d <= 30) return 'bg-amber-400';
     return 'bg-green-500';
+  }
+
+  supplierName(b: Batch): string | null {
+    const sid = (b as any).supplierId;
+    if (!sid) return null;
+    return this.suppliers().find(s => s.id === sid)?.name ?? null;
   }
 
   batchDateClass(b: Batch): string {

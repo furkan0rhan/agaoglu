@@ -35,6 +35,7 @@ export interface Sale {
   interestRate: number | null;
   installmentCount: number | null;
   installmentAmount: number | null;
+  totalWithInterest: number | null;
   createdAt: Timestamp;
   createdBy: string;
   cancelledAt: Timestamp | null;

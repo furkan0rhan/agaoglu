@@ -2,6 +2,7 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { AuthService } from '../../../core/auth/services/auth.service';
+import { LangService } from '../../../core/i18n/lang.service';
 
 @Component({
   selector: 'app-verify-email',
@@ -16,11 +17,11 @@ import { AuthService } from '../../../core/auth/services/auth.service';
             <i class="pi pi-envelope" style="color:white; font-size:28px;"></i>
           </div>
 
-          <h1 class="text-2xl font-bold text-gray-800 mb-2">E-postanı Doğrula</h1>
+          <h1 class="text-2xl font-bold text-gray-800 mb-2">{{ t().auth.verifyTitle }}</h1>
           <p class="text-gray-400 text-sm mb-2">
-            <strong class="text-gray-600">{{ email() }}</strong> adresine doğrulama maili gönderdik.
+            <strong class="text-gray-600">{{ email() }}</strong>
           </p>
-          <p class="text-gray-400 text-sm mb-8">Maildeki linke tıkladıktan sonra aşağıdaki butona bas.</p>
+          <p class="text-gray-400 text-sm mb-8">{{ t().auth.verifySubtitle }}</p>
 
           @if (errorMsg()) {
             <div class="bg-red-50 border border-red-100 rounded-xl px-4 py-3 flex items-center gap-2 mb-4 text-left">
@@ -31,7 +32,7 @@ import { AuthService } from '../../../core/auth/services/auth.service';
 
           <div class="flex flex-col gap-3">
             <p-button
-              label="Doğruladım, Devam Et"
+              [label]="t().auth.verifyConfirm"
               icon="pi pi-check-circle"
               severity="success"
               styleClass="w-full"
@@ -40,7 +41,7 @@ import { AuthService } from '../../../core/auth/services/auth.service';
             ></p-button>
 
             <p-button
-              label="Tekrar Gönder"
+              [label]="t().auth.resendEmail"
               icon="pi pi-refresh"
               severity="secondary"
               [text]="true"
@@ -50,7 +51,7 @@ import { AuthService } from '../../../core/auth/services/auth.service';
             ></p-button>
 
             <p-button
-              label="Farklı hesapla giriş yap"
+              [label]="t().auth.otherAccount"
               icon="pi pi-sign-out"
               severity="danger"
               [text]="true"
@@ -67,6 +68,7 @@ import { AuthService } from '../../../core/auth/services/auth.service';
 export class VerifyEmailPage implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  readonly t = inject(LangService).t;
 
   readonly checking = signal(false);
   readonly resending = signal(false);
@@ -94,7 +96,7 @@ export class VerifyEmailPage implements OnInit {
       if (this.auth.isEmailVerified()) {
         await this.router.navigate(['/dashboard']);
       } else {
-        this.errorMsg.set('E-posta henüz doğrulanmadı. Maildeki linke tıkladıktan sonra tekrar dene.');
+        this.errorMsg.set(this.t().auth.notVerifiedYet);
       }
     } finally {
       this.checking.set(false);
@@ -107,7 +109,7 @@ export class VerifyEmailPage implements OnInit {
     try {
       await this.auth.resendVerificationEmail();
     } catch {
-      this.errorMsg.set('Mail gönderilemedi, biraz bekleyip tekrar dene.');
+      this.errorMsg.set(this.t().auth.resendFailed);
     } finally {
       this.resending.set(false);
     }

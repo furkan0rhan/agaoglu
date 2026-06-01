@@ -8,6 +8,7 @@ import { InputIconModule } from 'primeng/inputicon';
 import { CustomerService } from '../../customers/services/customer.service';
 import { Customer } from '../../../shared/models/customer.model';
 import { CurrencyTrPipe } from '../../../shared/pipes/currency-tr.pipe';
+import { LangService } from '../../../core/i18n/lang.service';
 
 @Component({
   selector: 'app-credit-list',
@@ -18,15 +19,15 @@ import { CurrencyTrPipe } from '../../../shared/pipes/currency-tr.pipe';
 
       <!-- Header -->
       <div class="bg-white border-b border-gray-100 px-6 py-4 flex-shrink-0">
-        <h1 class="text-xl font-bold text-gray-800">Veresiye / Cari</h1>
-        <p class="text-sm text-gray-400 mt-0.5">{{ debtors().length }} müşteri borçlu</p>
+        <h1 class="text-xl font-bold text-gray-800">{{ t().credit.title }}</h1>
+        <p class="text-sm text-gray-400 mt-0.5">{{ debtors().length }} {{ t().credit.debtors }}</p>
       </div>
 
       <!-- Search -->
       <div class="bg-white border-b border-gray-100 px-6 py-3 flex-shrink-0">
         <p-iconfield class="w-full max-w-md">
           <p-inputicon styleClass="pi pi-search" />
-          <input pInputText (input)="search($any($event.target).value)" placeholder="Müşteri ara..." class="w-full text-sm" />
+          <input pInputText (input)="search($any($event.target).value)" [placeholder]="t().credit.searchPlaceholder" class="w-full text-sm" />
         </p-iconfield>
       </div>
 
@@ -46,7 +47,7 @@ import { CurrencyTrPipe } from '../../../shared/pipes/currency-tr.pipe';
                 <p class="text-xs text-gray-400 mt-0.5">{{ c.phone }}</p>
               </div>
               <div class="text-right flex-shrink-0">
-                <p class="text-xs text-gray-400 mb-1">Borç</p>
+                <p class="text-xs text-gray-400 mb-1">{{ t().credit.debt }}</p>
                 <p-tag [value]="c.balance | currencyTr" severity="danger" styleClass="text-xs font-bold"></p-tag>
               </div>
             </a>
@@ -54,7 +55,7 @@ import { CurrencyTrPipe } from '../../../shared/pipes/currency-tr.pipe';
           @if (debtors().length === 0) {
             <div class="flex flex-col items-center justify-center h-48 text-gray-400 gap-3">
               <i class="pi pi-check-circle text-4xl text-green-300"></i>
-              <p class="text-sm">Veresiyeli müşteri yok</p>
+              <p class="text-sm">{{ t().credit.noDebtors }}</p>
             </div>
           }
         </div>
@@ -65,6 +66,7 @@ import { CurrencyTrPipe } from '../../../shared/pipes/currency-tr.pipe';
 })
 export class CreditListPage implements OnInit {
   private readonly svc = inject(CustomerService);
+  readonly t = inject(LangService).t;
   readonly customers = signal<Customer[]>([]);
   readonly q = signal('');
 

@@ -15,6 +15,7 @@ import { CartStore } from '../../pos/store/cart.store';
 import { CurrencyTrPipe } from '../../../shared/pipes/currency-tr.pipe';
 import { BarcodeInputDirective } from '../../../shared/directives/barcode-input.directive';
 import { Product } from '../../../shared/models/product.model';
+import { LangService } from '../../../core/i18n/lang.service';
 
 @Component({
   selector: 'app-product-list',
@@ -31,8 +32,8 @@ import { Product } from '../../../shared/models/product.model';
 
       <!-- Header -->
       <div class="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between flex-shrink-0">
-        <h1 class="text-xl font-bold text-gray-800">Ürünler</h1>
-        <p-button label="Yeni Ürün" icon="pi pi-plus" [routerLink]="['new']" severity="success" size="small"></p-button>
+        <h1 class="text-xl font-bold text-gray-800">{{ t().products.title }}</h1>
+        <p-button [label]="t().products.newProduct" icon="pi pi-plus" [routerLink]="['new']" severity="success" size="small"></p-button>
       </div>
 
       <!-- Filters -->
@@ -43,7 +44,7 @@ import { Product } from '../../../shared/models/product.model';
             pInputText
             [(ngModel)]="searchVal"
             (ngModelChange)="store.setSearch($event)"
-            placeholder="Ürün adı, barkod veya marka ara..."
+            [placeholder]="t().products.searchPlaceholder"
             class="w-full text-sm"
           />
         </p-iconfield>
@@ -56,7 +57,7 @@ import { Product } from '../../../shared/models/product.model';
             [class.text-white]="!store.selectedCategory()"
             [class.bg-gray-100]="store.selectedCategory()"
             [class.text-gray-600]="store.selectedCategory()"
-          >Tümü</button>
+          >{{ t().common.all }}</button>
           @for (cat of uniqueCategories(); track cat) {
             <button
               (click)="store.setCategory(cat)"
@@ -75,7 +76,7 @@ import { Product } from '../../../shared/models/product.model';
             [class.bg-gray-100]="!store.showLowStockOnly()"
             [class.text-gray-600]="!store.showLowStockOnly()"
           >
-            <i class="pi pi-exclamation-triangle text-xs"></i> Kritik Stok
+            <i class="pi pi-exclamation-triangle text-xs"></i> {{ t().products.criticalStock }}
           </button>
           <button
             (click)="store.toggleExpiring()"
@@ -85,7 +86,7 @@ import { Product } from '../../../shared/models/product.model';
             [class.bg-gray-100]="!store.showExpiringOnly()"
             [class.text-gray-600]="!store.showExpiringOnly()"
           >
-            <i class="pi pi-calendar-times text-xs"></i> Yakın SKT
+            <i class="pi pi-calendar-times text-xs"></i> {{ t().products.nearExpiry }}
           </button>
         </div>
       </div>
@@ -96,7 +97,7 @@ import { Product } from '../../../shared/models/product.model';
           <div class="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
             <i class="pi pi-exclamation-circle text-red-500 text-lg"></i>
             <div>
-              <p class="text-sm font-semibold text-red-700 m-0">Ürünler yüklenemedi</p>
+              <p class="text-sm font-semibold text-red-700 m-0">{{ t().products.loadError }}</p>
               <p class="text-xs text-red-500 m-0">{{ store.error() }}</p>
             </div>
           </div>
@@ -114,8 +115,8 @@ import { Product } from '../../../shared/models/product.model';
         } @else if (store.filteredProducts().length === 0) {
           <div class="flex flex-col items-center justify-center h-64 text-gray-400 gap-3">
             <i class="pi pi-box text-5xl opacity-30"></i>
-            <p class="text-base">Ürün bulunamadı</p>
-            <p-button label="Ürün Ekle" icon="pi pi-plus" [routerLink]="['new']" severity="success" outlined size="small"></p-button>
+            <p class="text-base">{{ t().products.noProducts }}</p>
+            <p-button [label]="t().products.addFirst" icon="pi pi-plus" [routerLink]="['new']" severity="success" outlined size="small"></p-button>
           </div>
         } @else {
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -130,7 +131,7 @@ import { Product } from '../../../shared/models/product.model';
                 <div class="flex items-start justify-between mb-2">
                   <p class="font-semibold text-gray-800 text-sm leading-snug">{{ product.name }}</p>
                   <p-tag
-                    [value]="product.stock + ' adet'"
+                    [value]="product.stock + ' ' + t().products.piece"
                     [severity]="getTagSeverity(product.stock, product.minStock)"
                     styleClass="text-xs ml-2 flex-shrink-0"
                   ></p-tag>
@@ -153,7 +154,7 @@ import { Product } from '../../../shared/models/product.model';
                 }
                 <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
                   <div class="flex flex-col">
-                    <span class="text-xs text-gray-400">Satış Fiyatı</span>
+                    <span class="text-xs text-gray-400">{{ t().products.salePrice }}</span>
                     <span class="text-sm font-bold text-green-700">{{ product.salePrice | currencyTr }}</span>
                   </div>
                   @if (cartQty(product.id) === 0) {
@@ -168,7 +169,7 @@ import { Product } from '../../../shared/models/product.model';
                       [class.cursor-not-allowed]="product.stock <= 0"
                     >
                       <i class="pi pi-cart-plus text-xs"></i>
-                      Sepete Ekle
+                      {{ t().products.addToCart }}
                     </button>
                   } @else {
                     <div
@@ -198,7 +199,7 @@ import { Product } from '../../../shared/models/product.model';
                 </div>
                 @if (product.stock <= product.minStock) {
                   <div class="flex items-center gap-1 mt-2 text-amber-600 text-xs font-semibold">
-                    <i class="pi pi-exclamation-triangle text-xs"></i> Kritik stok
+                    <i class="pi pi-exclamation-triangle text-xs"></i> {{ t().products.criticalStockWarn }}
                   </div>
                 }
               </a>
@@ -213,6 +214,7 @@ export class ProductListPage implements OnInit {
   readonly store = inject(ProductStore);
   private readonly cart = inject(CartStore);
   private readonly toast = inject(MessageService);
+  readonly t = inject(LangService).t;
   readonly uniqueCategories = computed(() =>
     [...new Set(this.store.products().map(p => p.category).filter(Boolean))].sort()
   );
@@ -241,7 +243,7 @@ export class ProductListPage implements OnInit {
       totalPrice: product.salePrice,
       stock: product.stock,
     });
-    this.toast.add({ severity: 'success', summary: '', detail: `${product.name} sepete eklendi`, life: 2000 });
+    this.toast.add({ severity: 'success', summary: '', detail: `${product.name} ${this.t().pos.added}`, life: 2000 });
   }
 
   increase(product: Product, event: Event): void {
@@ -269,9 +271,10 @@ export class ProductListPage implements OnInit {
   expiryText(product: Product): string | null {
     const d = this.expiryDays(product);
     if (d === null) return null;
-    if (d < 0) return 'SKT geçmiş';
-    if (d === 0) return 'Bugün son';
-    return `SKT: ${d} gün`;
+    const p = this.t().products;
+    if (d < 0) return p.expired;
+    if (d === 0) return p.expiresToday;
+    return `${p.daysLeftPrefix} ${d} ${this.t().common.piece === 'pcs' ? 'd' : 'gün'}`;
   }
 
   expiryUrgent(product: Product): boolean {

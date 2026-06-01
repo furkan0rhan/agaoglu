@@ -61,6 +61,18 @@ export const routes: Routes = [
         loadChildren: () => import('./features/expenses/expenses.routes').then(m => m.expenseRoutes),
       },
       {
+        path: 'suppliers',
+        canActivate: [roleGuard],
+        data: { roles: ['admin'] },
+        loadChildren: () => import('./features/suppliers/suppliers.routes').then(m => m.supplierRoutes),
+      },
+      {
+        path: 'stock-count',
+        canActivate: [roleGuard],
+        data: { roles: ['admin'] },
+        loadComponent: () => import('./features/stock-count/stock-count.page').then(m => m.StockCountPage),
+      },
+      {
         path: 'settings',
         canActivate: [roleGuard],
         data: { roles: ['admin'] },

@@ -6,6 +6,7 @@ import { ChipModule } from 'primeng/chip';
 import { CurrencyTrPipe } from '../../shared/pipes/currency-tr.pipe';
 import { DashboardStore } from './store/dashboard.store';
 import { ProductStore } from '../products/store/product.store';
+import { LangService } from '../../core/i18n/lang.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -17,8 +18,8 @@ import { ProductStore } from '../products/store/product.store';
       <!-- Page header -->
       <div class="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div>
-          <h1 class="text-xl font-bold text-gray-800">Dashboard</h1>
-          <p class="text-sm text-gray-400 mt-0.5">{{ today }}</p>
+          <h1 class="text-xl font-bold text-gray-800">{{ t().dashboard.title }}</h1>
+          <p class="text-sm text-gray-400 mt-0.5">{{ today() }}</p>
         </div>
       </div>
 
@@ -33,16 +34,16 @@ import { ProductStore } from '../products/store/product.store';
               <div class="w-11 h-11 rounded-xl bg-green-50 flex items-center justify-center">
                 <i class="pi pi-dollar text-green-600 text-lg"></i>
               </div>
-              <span class="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Bugün</span>
+              <span class="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{{ t().dashboard.todayLabel }}</span>
             </div>
             @if (dashStore.loading()) {
               <p-skeleton height="28px" styleClass="mb-1"></p-skeleton>
               <p-skeleton height="14px" width="60%"></p-skeleton>
             } @else {
               <p class="text-2xl font-bold text-gray-800">{{ dashStore.dailySales() | currencyTr }}</p>
-              <p class="text-xs text-gray-400 mt-1">{{ dashStore.todaySaleCount() }} işlem</p>
+              <p class="text-xs text-gray-400 mt-1">{{ dashStore.todaySaleCount() }} {{ t().dashboard.transactions }}</p>
             }
-            <p class="text-sm font-medium text-gray-500 mt-2">Bugünkü Satış</p>
+            <p class="text-sm font-medium text-gray-500 mt-2">{{ t().dashboard.todaySales }}</p>
           </div>
 
           <div class="bg-white rounded-2xl p-5 shadow-soft border border-gray-50">
@@ -52,8 +53,8 @@ import { ProductStore } from '../products/store/product.store';
               </div>
             </div>
             <p class="text-2xl font-bold text-gray-800">{{ productStore.filteredProducts().length }}</p>
-            <p class="text-xs text-gray-400 mt-1">aktif ürün</p>
-            <p class="text-sm font-medium text-gray-500 mt-2">Toplam Ürün</p>
+            <p class="text-xs text-gray-400 mt-1">{{ t().dashboard.activeProducts }}</p>
+            <p class="text-sm font-medium text-gray-500 mt-2">{{ t().dashboard.totalProducts }}</p>
           </div>
 
           <div class="bg-white rounded-2xl p-5 shadow-soft border border-gray-50"
@@ -64,14 +65,14 @@ import { ProductStore } from '../products/store/product.store';
                 <i class="pi pi-exclamation-triangle text-amber-500 text-lg"></i>
               </div>
               @if (productStore.lowStockCount() > 0) {
-                <span class="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Uyarı</span>
+                <span class="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">{{ t().dashboard.warning }}</span>
               }
             </div>
             <p class="text-2xl font-bold" [class.text-amber-600]="productStore.lowStockCount() > 0" [class.text-gray-800]="productStore.lowStockCount() === 0">
               {{ productStore.lowStockCount() }}
             </p>
-            <p class="text-xs text-gray-400 mt-1">ürün</p>
-            <p class="text-sm font-medium text-gray-500 mt-2">Kritik Stok</p>
+            <p class="text-xs text-gray-400 mt-1">{{ t().dashboard.items }}</p>
+            <p class="text-sm font-medium text-gray-500 mt-2">{{ t().dashboard.criticalStock }}</p>
           </div>
 
           <div class="bg-white rounded-2xl p-5 shadow-soft border border-gray-50"
@@ -82,14 +83,14 @@ import { ProductStore } from '../products/store/product.store';
                 <i class="pi pi-calendar-times text-red-500 text-lg"></i>
               </div>
               @if (productStore.expiringProducts().length > 0) {
-                <span class="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">Dikkat</span>
+                <span class="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">{{ t().dashboard.attention }}</span>
               }
             </div>
             <p class="text-2xl font-bold" [class.text-red-600]="productStore.expiringProducts().length > 0" [class.text-gray-800]="productStore.expiringProducts().length === 0">
               {{ productStore.expiringProducts().length }}
             </p>
-            <p class="text-xs text-gray-400 mt-1">30 gün içinde</p>
-            <p class="text-sm font-medium text-gray-500 mt-2">Son Kullanma</p>
+            <p class="text-xs text-gray-400 mt-1">{{ t().dashboard.in30Days }}</p>
+            <p class="text-sm font-medium text-gray-500 mt-2">{{ t().dashboard.expiryDate }}</p>
           </div>
         </div>
 
@@ -100,12 +101,12 @@ import { ProductStore } from '../products/store/product.store';
               <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
                 <i class="pi pi-exclamation-triangle text-amber-600 text-sm"></i>
               </div>
-              <h3 class="font-semibold text-gray-800">Kritik Stok Uyarısı</h3>
+              <h3 class="font-semibold text-gray-800">{{ t().dashboard.criticalStockWarning }}</h3>
             </div>
             <div class="flex flex-wrap gap-2">
               @for (p of lowStockProducts(); track p.id) {
                 <p-chip
-                  [label]="p.name + ' — ' + p.stock + ' adet'"
+                  [label]="p.name + ' — ' + p.stock + ' ' + t().common.piece"
                   [class]="p.stock === 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'"
                 ></p-chip>
               }
@@ -120,7 +121,7 @@ import { ProductStore } from '../products/store/product.store';
               <div class="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
                 <i class="pi pi-calendar-times text-red-600 text-sm"></i>
               </div>
-              <h3 class="font-semibold text-gray-800">Son Kullanma Tarihi Yaklaşan Ürünler</h3>
+              <h3 class="font-semibold text-gray-800">{{ t().dashboard.expiringProducts }}</h3>
             </div>
             <div class="flex flex-col gap-2">
               @for (p of productStore.expiringProducts(); track p.id) {
@@ -149,10 +150,13 @@ import { ProductStore } from '../products/store/product.store';
 export class DashboardPage implements OnInit {
   readonly dashStore = inject(DashboardStore);
   readonly productStore = inject(ProductStore);
+  readonly t = inject(LangService).t;
 
-  readonly today = new Date().toLocaleDateString('tr-TR', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-  });
+  today(): string {
+    return new Date().toLocaleDateString(this.t().dashboard.dateFormat, {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    });
+  }
 
   ngOnInit(): void {
     this.dashStore.loadStats();
@@ -169,9 +173,10 @@ export class DashboardPage implements OnInit {
 
   expiryText(p: { expiryDate: any }): string {
     const d = this.expiryDays(p);
-    if (d < 0) return 'SKT geçmiş';
-    if (d === 0) return 'Bugün son';
-    return `${d} gün kaldı`;
+    const dash = this.t().dashboard;
+    if (d < 0) return dash.expired;
+    if (d === 0) return dash.expiresToday;
+    return `${d} ${dash.daysLeft}`;
   }
 
   expiryUrgent(p: { expiryDate: any }): boolean {

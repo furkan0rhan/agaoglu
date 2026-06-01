@@ -6,6 +6,7 @@ import { ProductStore } from '../../products/store/product.store';
 import { Sale } from '../../../shared/models/sale.model';
 import { LoggerService } from '../../../core/logging/logger.service';
 import { applyFEFO, nearestExpiry } from '../../../shared/utils/batch.utils';
+import { NetworkService } from '../../../core/offline/network.service';
 
 @Injectable({ providedIn: 'root' })
 export class SaleService {
@@ -14,6 +15,7 @@ export class SaleService {
   private readonly cart = inject(CartStore);
   private readonly productStore = inject(ProductStore);
   private readonly logger = inject(LoggerService);
+  private readonly network = inject(NetworkService);
 
   async completeSale(creditOptions?: { interestRate: number | null; installmentCount: number | null; installmentAmount: number | null; totalWithInterest: number | null }): Promise<string> {
     const tenantId = this.auth.currentTenantId();
@@ -40,6 +42,7 @@ export class SaleService {
       interestRate: creditOptions?.interestRate ?? null,
       installmentCount: creditOptions?.installmentCount ?? null,
       installmentAmount: creditOptions?.installmentAmount ?? null,
+      totalWithInterest: creditOptions?.totalWithInterest ?? null,
       createdAt: serverTimestamp() as any,
       createdBy: this.auth.currentUserId(),
       cancelledAt: null,
@@ -109,7 +112,11 @@ export class SaleService {
       });
     }
 
-    await batch.commit();
+    if (this.network.isOnline()) {
+      await batch.commit();
+    } else {
+      batch.commit(); // fire-and-forget: Firebase queue'lar, online olunca sync eder
+    }
     this.cart.clearCart();
     return saleRef.id;
   }

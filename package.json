@@ -30,6 +30,7 @@
     "@ngrx/store": "^21.1.0",
     "@primeng/themes": "^21.0.4",
     "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-notification": "^2.3.3",
     "@zxing/browser": "^0.2.0",
     "@zxing/library": "^0.23.0",
     "autoprefixer": "^10.5.0",

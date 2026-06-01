@@ -5,27 +5,28 @@ import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { CustomerService } from '../services/customer.service';
+import { LangService } from '../../../core/i18n/lang.service';
 
 @Component({
   selector: 'app-customer-form',
   standalone: true,
   imports: [ReactiveFormsModule, RouterLink, ButtonModule, InputTextModule, TextareaModule],
   template: `
-    <div style="display:flex; flex-direction:column; height:100%; background:#f8fafc; overflow:hidden;">
+    <div style="display:flex; flex-direction:column; height:100%; background:var(--bg-page); overflow:hidden;">
 
       <!-- Header -->
-      <div style="background:#fff; border-bottom:1px solid #f1f5f9; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
+      <div style="background:var(--bg-surface); border-bottom:1px solid var(--border); padding:14px 20px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
         <div style="display:flex; align-items:center; gap:12px;">
-          <a routerLink="/customers" style="width:36px; height:36px; border-radius:10px; background:#f1f5f9; display:flex; align-items:center; justify-content:center; text-decoration:none; color:#64748b; flex-shrink:0;">
+          <a routerLink="/customers" style="width:36px; height:36px; border-radius:10px; background:var(--bg-muted); display:flex; align-items:center; justify-content:center; text-decoration:none; color:var(--text-secondary); flex-shrink:0;">
             <i class="pi pi-arrow-left" style="font-size:14px;"></i>
           </a>
           <div>
-            <h1 style="font-size:17px; font-weight:700; color:#1e293b; margin:0;">{{ isEdit ? 'Müşteriyi Düzenle' : 'Yeni Müşteri' }}</h1>
-            <p style="font-size:12px; color:#94a3b8; margin:0;">{{ isEdit ? 'Müşteri bilgilerini güncelleyin' : 'Yeni müşteri ekleyin' }}</p>
+            <h1 style="font-size:17px; font-weight:700; color:var(--text-primary); margin:0;">{{ isEdit ? t().customers.editCustomer : t().customers.addCustomer }}</h1>
+            <p style="font-size:12px; color:var(--text-muted); margin:0;">{{ isEdit ? t().customers.editSubtitle : t().customers.addSubtitle }}</p>
           </div>
         </div>
         <p-button
-          label="Kaydet"
+          [label]="t().common.save"
           icon="pi pi-check"
           severity="success"
           [loading]="saving()"
@@ -42,53 +43,53 @@ import { CustomerService } from '../services/customer.service';
 
             <!-- Ad -->
             <div style="display:flex; flex-direction:column; gap:6px;">
-              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">Ad *</label>
-              <input pInputText formControlName="firstName" placeholder="Müşteri adı" style="width:100%;" />
+              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().customers.firstName }}</label>
+              <input pInputText formControlName="firstName" [placeholder]="t().customers.firstNamePlaceholder" style="width:100%;" />
               @if (form.get('firstName')?.invalid && form.get('firstName')?.touched) {
-                <p style="font-size:11px; color:#ef4444; margin:0;">Ad zorunlu</p>
+                <p style="font-size:11px; color:#ef4444; margin:0;">{{ t().customers.firstNameRequired }}</p>
               }
             </div>
 
             <!-- Soyad -->
             <div style="display:flex; flex-direction:column; gap:6px;">
-              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">Soyad *</label>
-              <input pInputText formControlName="lastName" placeholder="Müşteri soyadı" style="width:100%;" />
+              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().customers.lastName }}</label>
+              <input pInputText formControlName="lastName" [placeholder]="t().customers.lastNamePlaceholder" style="width:100%;" />
               @if (form.get('lastName')?.invalid && form.get('lastName')?.touched) {
-                <p style="font-size:11px; color:#ef4444; margin:0;">Soyad zorunlu</p>
+                <p style="font-size:11px; color:#ef4444; margin:0;">{{ t().customers.lastNameRequired }}</p>
               }
             </div>
 
             <!-- Telefon -->
             <div style="display:flex; flex-direction:column; gap:6px;">
-              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">Telefon *</label>
-              <input pInputText type="tel" formControlName="phone" placeholder="05xx xxx xx xx" style="width:100%;" />
+              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().customers.phone }}</label>
+              <input pInputText type="tel" formControlName="phone" [placeholder]="t().customers.phonePlaceholder" style="width:100%;" />
               @if (form.get('phone')?.invalid && form.get('phone')?.touched) {
-                <p style="font-size:11px; color:#ef4444; margin:0;">Telefon zorunlu</p>
+                <p style="font-size:11px; color:#ef4444; margin:0;">{{ t().customers.phoneRequired }}</p>
               }
             </div>
 
             <!-- E-posta -->
             <div style="display:flex; flex-direction:column; gap:6px;">
-              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">E-posta</label>
-              <input pInputText type="email" formControlName="email" placeholder="ornek@mail.com" style="width:100%;" />
+              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().customers.email }}</label>
+              <input pInputText type="email" formControlName="email" [placeholder]="t().customers.emailPlaceholder" style="width:100%;" />
             </div>
 
             <!-- TC No -->
             <div style="display:flex; flex-direction:column; gap:6px;">
-              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">TC No</label>
-              <input pInputText formControlName="tcNo" placeholder="11 haneli TC kimlik no" maxlength="11" style="width:100%;" />
+              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().customers.tcNo }}</label>
+              <input pInputText formControlName="tcNo" [placeholder]="t().customers.tcNoPlaceholder" maxlength="11" style="width:100%;" />
             </div>
 
             <!-- Adres -->
             <div style="grid-column:1/-1; display:flex; flex-direction:column; gap:6px;">
-              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">Adres</label>
-              <textarea pTextarea formControlName="address" rows="2" placeholder="Müşteri adresi" style="width:100%; resize:vertical;"></textarea>
+              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().customers.address }}</label>
+              <textarea pTextarea formControlName="address" rows="2" [placeholder]="t().customers.addressPlaceholder" style="width:100%; resize:vertical;"></textarea>
             </div>
 
             <!-- Notlar -->
             <div style="grid-column:1/-1; display:flex; flex-direction:column; gap:6px;">
-              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">Notlar</label>
-              <textarea pTextarea formControlName="notes" rows="2" placeholder="Ek notlar" style="width:100%; resize:vertical;"></textarea>
+              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().customers.notes }}</label>
+              <textarea pTextarea formControlName="notes" rows="2" [placeholder]="t().customers.notesPlaceholder" style="width:100%; resize:vertical;"></textarea>
             </div>
 
           </div>
@@ -102,6 +103,7 @@ export class CustomerFormPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
+  readonly t = inject(LangService).t;
 
   readonly saving = signal(false);
   isEdit = false;

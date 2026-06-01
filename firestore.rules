@@ -62,5 +62,12 @@ service cloud.firestore {
       allow create: if isAuth() && request.resource.data.tenantId == request.auth.uid;
       allow update: if isAuth() && resource.data.tenantId == request.auth.uid;
     }
+
+    // Suppliers
+    match /suppliers/{supplierId} {
+      allow read: if isAuth() && resource.data.tenantId == request.auth.uid;
+      allow create: if isAuth() && request.resource.data.tenantId == request.auth.uid;
+      allow update, delete: if isAuth() && resource.data.tenantId == request.auth.uid;
+    }
   }
 }

@@ -15,6 +15,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ExpenseService } from './services/expense.service';
 import { Expense } from '../../shared/models/expense.model';
 import { CurrencyTrPipe } from '../../shared/pipes/currency-tr.pipe';
+import { LangService } from '../../core/i18n/lang.service';
 
 type Period = 'month' | 'week' | 'all';
 
@@ -31,29 +32,29 @@ type Period = 'month' | 'week' | 'all';
     <p-toast position="top-right" />
     <p-confirmDialog />
 
-    <div style="display:flex; flex-direction:column; height:100%; background:#f8fafc; overflow:hidden;">
+    <div style="display:flex; flex-direction:column; height:100%; background:var(--bg-page); overflow:hidden;">
 
       <!-- Header -->
-      <div style="background:#fff; border-bottom:1px solid #f1f5f9; padding:16px 24px; display:flex; align-items:center; gap:12px; flex-shrink:0;">
+      <div style="background:var(--bg-surface); border-bottom:1px solid var(--border); padding:16px 24px; display:flex; align-items:center; gap:12px; flex-shrink:0;">
         <div style="width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg,#f97316,#ea580c); display:flex; align-items:center; justify-content:center;">
           <i class="pi pi-wallet" style="color:white; font-size:16px;"></i>
         </div>
         <div style="flex:1;">
-          <h1 style="font-size:18px; font-weight:700; color:#1e293b; margin:0;">Giderler</h1>
-          <p style="font-size:12px; color:#64748b; margin:0;">Kira, elektrik, su ve diğer giderler</p>
+          <h1 style="font-size:18px; font-weight:700; color:var(--text-primary); margin:0;">{{ t().expenses.title }}</h1>
+          <p style="font-size:12px; color:var(--text-secondary); margin:0;">{{ t().expenses.subtitle }}</p>
         </div>
-        <p-button label="Gider Ekle" icon="pi pi-plus" severity="warn" size="small" (onClick)="openDialog()" />
+        <p-button [label]="t().expenses.addExpense" icon="pi pi-plus" severity="warn" size="small" (onClick)="openDialog()" />
       </div>
 
-      <!-- Period + özet -->
-      <div style="background:#fff; border-bottom:1px solid #f1f5f9; padding:12px 24px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; gap:12px;">
+      <!-- Period + total -->
+      <div style="background:var(--bg-surface); border-bottom:1px solid var(--border); padding:12px 24px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; gap:12px;">
         <div style="display:flex; gap:8px;">
-          @for (p of periods; track p.value) {
+          @for (p of periods(); track p.value) {
             <button
               (click)="period.set(p.value)"
               [style]="period() === p.value
                 ? 'padding:6px 16px; border-radius:20px; border:none; background:#f97316; color:#fff; font-size:13px; font-weight:600; cursor:pointer;'
-                : 'padding:6px 16px; border-radius:20px; border:1px solid #e2e8f0; background:#fff; color:#64748b; font-size:13px; font-weight:500; cursor:pointer;'"
+                : 'padding:6px 16px; border-radius:20px; border:1px solid var(--border-mid); background:var(--bg-surface); color:var(--text-secondary); font-size:13px; font-weight:500; cursor:pointer;'"
             >{{ p.label }}</button>
           }
         </div>
@@ -63,13 +64,13 @@ type Period = 'month' | 'week' | 'all';
         </div>
       </div>
 
-      <!-- Liste -->
+      <!-- List -->
       <div style="flex:1; overflow-y:auto; padding:16px 24px;">
 
         @if (loading()) {
           <div style="display:flex; flex-direction:column; gap:10px;">
             @for (i of [1,2,3,4]; track i) {
-              <div style="background:#fff; border-radius:14px; border:1px solid #f1f5f9; padding:16px; display:flex; gap:12px; align-items:center;">
+              <div style="background:var(--bg-surface); border-radius:14px; border:1px solid var(--border); padding:16px; display:flex; gap:12px; align-items:center;">
                 <p-skeleton shape="circle" size="40px" />
                 <div style="flex:1;"><p-skeleton height="14px" styleClass="mb-2" /><p-skeleton height="12px" width="50%" /></div>
                 <p-skeleton height="18px" width="70px" />
@@ -77,28 +78,28 @@ type Period = 'month' | 'week' | 'all';
             }
           </div>
         } @else if (filtered().length === 0) {
-          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:80px 0; gap:10px; color:#94a3b8;">
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:80px 0; gap:10px; color:var(--text-muted);">
             <i class="pi pi-wallet" style="font-size:48px; opacity:0.2;"></i>
-            <p style="font-size:15px; margin:0; font-weight:600; color:#64748b;">Henüz gider eklenmedi</p>
-            <p style="font-size:13px; margin:0; color:#94a3b8;">Kira, elektrik gibi giderlerinizi buradan takip edin</p>
+            <p style="font-size:15px; margin:0; font-weight:600; color:var(--text-secondary);">{{ t().expenses.noExpenses }}</p>
+            <p style="font-size:13px; margin:0; color:var(--text-muted);">{{ t().expenses.subtitle }}</p>
             <div style="margin-top:8px;">
-              <p-button label="Gider Ekle" icon="pi pi-plus" severity="warn" [outlined]="true" size="small" (onClick)="openDialog()" />
+              <p-button [label]="t().expenses.addExpense" icon="pi pi-plus" severity="warn" [outlined]="true" size="small" (onClick)="openDialog()" />
             </div>
           </div>
         } @else {
           <div style="display:flex; flex-direction:column; gap:8px;">
             @for (e of filtered(); track e.id) {
-              <div style="background:#fff; border-radius:14px; border:1px solid #f1f5f9; padding:14px 16px; display:flex; align-items:center; gap:12px;">
+              <div style="background:var(--bg-surface); border-radius:14px; border:1px solid var(--border); padding:14px 16px; display:flex; align-items:center; gap:12px;">
                 <div [style]="catIconBg(e.category)" style="width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                   <i [class]="'pi ' + catIcon(e.category)" style="font-size:16px;"></i>
                 </div>
                 <div style="flex:1; min-width:0;">
-                  <p style="font-size:14px; font-weight:600; color:#1e293b; margin:0 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ e.title }}</p>
+                  <p style="font-size:14px; font-weight:600; color:var(--text-primary); margin:0 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ e.title }}</p>
                   <div style="display:flex; align-items:center; gap:8px;">
                     <span style="font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px; background:#fff7ed; color:#ea580c;">{{ e.category }}</span>
-                    <span style="font-size:12px; color:#94a3b8;">{{ e.date.toDate() | date:'dd.MM.yyyy' }}</span>
+                    <span style="font-size:12px; color:var(--text-muted);">{{ e.date.toDate() | date:'dd.MM.yyyy' }}</span>
                     @if (e.note) {
-                      <span style="font-size:12px; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;">{{ e.note }}</span>
+                      <span style="font-size:12px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;">{{ e.note }}</span>
                     }
                   </div>
                 </div>
@@ -117,21 +118,21 @@ type Period = 'month' | 'week' | 'all';
       </div>
     </div>
 
-    <!-- Gider Ekle Dialog -->
+    <!-- Add Expense Dialog -->
     <p-dialog
       [(visible)]="dialogVisible"
-      header="Yeni Gider"
+      [header]="t().expenses.addExpenseTitle"
       [modal]="true"
       [style]="{ width: '400px' }"
       [draggable]="false"
     >
       <div style="display:flex; flex-direction:column; gap:14px; padding:4px 0;">
         <div style="display:flex; flex-direction:column; gap:6px;">
-          <label style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Başlık</label>
-          <input pInputText [(ngModel)]="form.title" placeholder="Örn: Ekim ayı kirası" style="width:100%;" />
+          <label style="font-size:12px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">{{ t().expenses.expenseName }}</label>
+          <input pInputText [(ngModel)]="form.title" [placeholder]="t().expenses.expenseNamePlaceholder" style="width:100%;" />
         </div>
         <div style="display:flex; flex-direction:column; gap:6px;">
-          <label style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Kategori</label>
+          <label style="font-size:12px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">{{ t().expenses.category }}</label>
           <p-autocomplete
             [(ngModel)]="form.category"
             [suggestions]="categorySuggestions"
@@ -139,37 +140,37 @@ type Period = 'month' | 'week' | 'all';
             [forceSelection]="false"
             [dropdown]="true"
             appendTo="body"
-            placeholder="Kategori seçin veya yazın"
+            [placeholder]="t().expenses.category"
             styleClass="w-full"
           />
         </div>
         <div style="display:flex; gap:12px;">
           <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
-            <label style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Tutar (₺)</label>
+            <label style="font-size:12px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">{{ t().expenses.amount }}</label>
             <p-inputNumber [(ngModel)]="form.amount" [min]="0" [minFractionDigits]="2" [maxFractionDigits]="2" mode="decimal" locale="tr-TR" styleClass="w-full" />
           </div>
           <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
-            <label style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Tarih</label>
+            <label style="font-size:12px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">{{ t().expenses.date }}</label>
             <p-datepicker [(ngModel)]="form.date" dateFormat="dd.mm.yy" [showIcon]="true" appendTo="body" styleClass="w-full" />
           </div>
         </div>
         <div style="display:flex; flex-direction:column; gap:6px;">
-          <label style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Not <span style="font-weight:400; text-transform:none;">(opsiyonel)</span></label>
-          <input pInputText [(ngModel)]="form.note" placeholder="Ek bilgi..." style="width:100%;" />
+          <label style="font-size:12px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">{{ t().expenses.note }} <span style="font-weight:400; text-transform:none;">({{ t().common.optional }})</span></label>
+          <input pInputText [(ngModel)]="form.note" [placeholder]="t().expenses.notePlaceholder" style="width:100%;" />
         </div>
 
-        <div style="display:flex; align-items:center; justify-content:space-between; background:#f8fafc; border-radius:12px; padding:12px 14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-page); border-radius:12px; padding:12px 14px;">
           <div>
-            <p style="font-size:13px; font-weight:600; color:#1e293b; margin:0 0 2px;">Tekrarlayan Gider</p>
-            <p style="font-size:12px; color:#94a3b8; margin:0;">Seçilen tarihten itibaren 12 ay boyunca ekler</p>
+            <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 2px;">{{ t().expenses.recurring }}</p>
+            <p style="font-size:12px; color:var(--text-muted); margin:0;">{{ t().expenses.recurringDesc }}</p>
           </div>
           <p-toggleswitch [(ngModel)]="form.recurring" />
         </div>
       </div>
       <ng-template pTemplate="footer">
-        <p-button label="İptal" severity="secondary" [outlined]="true" (onClick)="dialogVisible = false" />
+        <p-button [label]="t().common.cancel" severity="secondary" [outlined]="true" (onClick)="dialogVisible = false" />
         <p-button
-          label="Kaydet"
+          [label]="t().common.save"
           icon="pi pi-check"
           severity="warn"
           [loading]="saving()"
@@ -184,6 +185,7 @@ export class ExpensesPage implements OnInit {
   private readonly svc = inject(ExpenseService);
   private readonly toast = inject(MessageService);
   private readonly confirm = inject(ConfirmationService);
+  readonly t = inject(LangService).t;
 
   readonly loading = signal(true);
   readonly saving = signal(false);
@@ -212,11 +214,15 @@ export class ExpensesPage implements OnInit {
       this.categorySuggestions = filtered;
     }
   }
-  readonly periods = [
-    { value: 'month' as Period, label: 'Bu Ay' },
-    { value: 'week' as Period, label: 'Bu Hafta' },
-    { value: 'all' as Period, label: 'Tümü' },
-  ];
+
+  readonly periods = computed(() => {
+    const e = this.t().expenses;
+    return [
+      { value: 'month' as Period, label: e.month },
+      { value: 'week' as Period, label: e.week },
+      { value: 'all' as Period, label: e.all },
+    ];
+  });
 
   readonly filtered = computed(() => {
     const list = this.expenses();
@@ -268,15 +274,15 @@ export class ExpensesPage implements OnInit {
           return this.svc.create({ ...base, date: d });
         });
         await Promise.all(promises);
-        this.toast.add({ severity: 'success', summary: '', detail: '12 aylık gider eklendi', life: 3000 });
+        this.toast.add({ severity: 'success', summary: '', detail: this.t().expenses.added, life: 3000 });
       } else {
         await this.svc.create({ ...base, date: this.form.date });
-        this.toast.add({ severity: 'success', summary: '', detail: 'Gider eklendi', life: 2500 });
+        this.toast.add({ severity: 'success', summary: '', detail: this.t().expenses.added, life: 2500 });
       }
 
       this.dialogVisible = false;
     } catch {
-      this.toast.add({ severity: 'error', summary: '', detail: 'Gider eklenemedi', life: 3000 });
+      this.toast.add({ severity: 'error', summary: '', detail: this.t().common.error, life: 3000 });
     } finally {
       this.saving.set(false);
     }
@@ -284,11 +290,11 @@ export class ExpensesPage implements OnInit {
 
   confirmDelete(e: Expense): void {
     this.confirm.confirm({
-      message: `"${e.title}" giderini silmek istediğinize emin misiniz?`,
-      header: 'Gider Sil',
+      message: `"${e.title}" ${this.t().expenses.deleteConfirm}`,
+      header: this.t().expenses.deleteTitle,
       icon: 'pi pi-trash',
-      acceptLabel: 'Sil',
-      rejectLabel: 'İptal',
+      acceptLabel: this.t().expenses.deleteYes,
+      rejectLabel: this.t().expenses.deleteNo,
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => this.delete(e.id),
     });
@@ -297,9 +303,9 @@ export class ExpensesPage implements OnInit {
   private async delete(id: string): Promise<void> {
     try {
       await this.svc.delete(id);
-      this.toast.add({ severity: 'success', summary: '', detail: 'Gider silindi', life: 2500 });
+      this.toast.add({ severity: 'success', summary: '', detail: this.t().expenses.deleted, life: 2500 });
     } catch {
-      this.toast.add({ severity: 'error', summary: '', detail: 'Silinemedi', life: 3000 });
+      this.toast.add({ severity: 'error', summary: '', detail: this.t().common.error, life: 3000 });
     }
   }
 
@@ -322,7 +328,7 @@ export class ExpensesPage implements OnInit {
       'Personel': 'background:#fdf4ff; color:#a855f7;',
       'Nakliye': 'background:#f0fdf4; color:#059669;',
       'Bakım & Onarım': 'background:#fef2f2; color:#ef4444;',
-      'Vergi': 'background:#f8fafc; color:#64748b;',
+      'Vergi': 'background:var(--bg-page); color:var(--text-secondary);',
     };
     return m[cat] ?? 'background:#fff7ed; color:#ea580c;';
   }

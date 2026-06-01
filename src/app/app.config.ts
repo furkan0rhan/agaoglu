@@ -7,7 +7,7 @@ registerLocaleData(localeTr);
 import { provideHttpClient } from '@angular/common/http';
 import { provideIonicAngular } from '@ionic/angular/standalone';
 import { provideFirebaseApp, initializeApp } from '@angular/fire/app';
-import { provideFirestore, getFirestore } from '@angular/fire/firestore';
+import { provideFirestore, initializeFirestore, persistentLocalCache } from '@angular/fire/firestore';
 import { provideAuth, getAuth } from '@angular/fire/auth';
 import { provideStorage, getStorage } from '@angular/fire/storage';
 import { providePrimeNG } from 'primeng/config';
@@ -17,20 +17,22 @@ import { routes } from './app.routes';
 import { environment } from '../environments/environment';
 import { GlobalErrorHandler } from './core/error/global-error-handler';
 
+const firebaseApp = initializeApp(environment.firebase);
+
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes, withPreloading(PreloadAllModules)),
     provideHttpClient(),
     provideIonicAngular({ mode: 'md', animated: false }),
-    providePrimeNG({ theme: { preset: Aura, options: { prefix: 'p', darkModeSelector: 'none', cssLayer: false } } }),
+    providePrimeNG({ theme: { preset: Aura, options: { prefix: 'p', darkModeSelector: '.dark', cssLayer: false } } }),
     MessageService,
     ConfirmationService,
 
-    provideFirebaseApp(() => initializeApp(environment.firebase)),
-    provideAuth(() => getAuth()),
-    provideFirestore(() => getFirestore()),
-    provideStorage(() => getStorage()),
+    provideFirebaseApp(() => firebaseApp),
+    provideAuth(() => getAuth(firebaseApp)),
+    provideFirestore(() => initializeFirestore(firebaseApp, { localCache: persistentLocalCache() })),
+    provideStorage(() => getStorage(firebaseApp)),
 
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
     { provide: LOCALE_ID, useValue: 'tr' },

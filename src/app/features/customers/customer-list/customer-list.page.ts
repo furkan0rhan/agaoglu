@@ -10,6 +10,7 @@ import { Customer } from '../../../shared/models/customer.model';
 import { CurrencyTrPipe } from '../../../shared/pipes/currency-tr.pipe';
 import { MessageService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
+import { LangService } from '../../../core/i18n/lang.service';
 import { retry, timer, EMPTY } from 'rxjs';
 
 @Component({
@@ -23,15 +24,15 @@ import { retry, timer, EMPTY } from 'rxjs';
 
       <!-- Header -->
       <div class="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between flex-shrink-0">
-        <h1 class="text-xl font-bold text-gray-800">Müşteriler</h1>
-        <p-button label="Yeni Müşteri" icon="pi pi-plus" [routerLink]="['new']" severity="success" size="small"></p-button>
+        <h1 class="text-xl font-bold text-gray-800">{{ t().customers.title }}</h1>
+        <p-button [label]="t().customers.newCustomer" icon="pi pi-plus" [routerLink]="['new']" severity="success" size="small"></p-button>
       </div>
 
       <!-- Search -->
       <div class="bg-white border-b border-gray-100 px-6 py-3 flex-shrink-0">
         <p-iconfield class="w-full max-w-md">
           <p-inputicon styleClass="pi pi-search" />
-          <input pInputText (input)="search($any($event.target).value)" placeholder="Ad, soyad veya telefon ara..." class="w-full text-sm" />
+          <input pInputText (input)="search($any($event.target).value)" [placeholder]="t().customers.searchPlaceholder" class="w-full text-sm" />
         </p-iconfield>
       </div>
 
@@ -60,7 +61,7 @@ import { retry, timer, EMPTY } from 'rxjs';
           @if (filtered().length === 0) {
             <div class="flex flex-col items-center justify-center h-48 text-gray-400 gap-3">
               <i class="pi pi-users text-4xl opacity-30"></i>
-              <p class="text-sm">Müşteri bulunamadı</p>
+              <p class="text-sm">{{ t().customers.noCustomers }}</p>
             </div>
           }
         </div>
@@ -72,6 +73,7 @@ import { retry, timer, EMPTY } from 'rxjs';
 export class CustomerListPage implements OnInit {
   private readonly svc = inject(CustomerService);
   private readonly toast = inject(MessageService);
+  readonly t = inject(LangService).t;
   readonly customers = signal<Customer[]>([]);
   readonly q = signal('');
 
@@ -86,7 +88,7 @@ export class CustomerListPage implements OnInit {
       })
     ).subscribe({
       next: c => this.customers.set(c),
-      error: () => this.toast.add({ severity: 'error', summary: 'Hata', detail: 'Müşteriler yüklenemedi' }),
+      error: () => this.toast.add({ severity: 'error', summary: this.t().common.error, detail: this.t().customers.loadError }),
     });
   }
 

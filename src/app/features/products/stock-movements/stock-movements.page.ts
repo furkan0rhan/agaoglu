@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal, computed } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
@@ -6,6 +6,7 @@ import { SkeletonModule } from 'primeng/skeleton';
 import { ProductService } from '../services/product.service';
 import { ProductStore } from '../store/product.store';
 import { StockMovement } from '../../../shared/models/product.model';
+import { LangService } from '../../../core/i18n/lang.service';
 
 type Filter = 'all' | 'in' | 'out';
 
@@ -14,41 +15,41 @@ type Filter = 'all' | 'in' | 'out';
   standalone: true,
   imports: [RouterLink, DatePipe, ButtonModule, SkeletonModule],
   template: `
-    <div style="display:flex; flex-direction:column; height:100%; background:#f8fafc; overflow:hidden;">
+    <div style="display:flex; flex-direction:column; height:100%; background:var(--bg-page); overflow:hidden;">
 
       <!-- Header -->
-      <div style="background:#fff; border-bottom:1px solid #f1f5f9; padding:16px 24px; display:flex; align-items:center; gap:12px; flex-shrink:0;">
+      <div style="background:var(--bg-surface); border-bottom:1px solid var(--border); padding:16px 24px; display:flex; align-items:center; gap:12px; flex-shrink:0;">
         <a [routerLink]="['/products', productId]"
-           style="width:36px; height:36px; border-radius:10px; background:#f8fafc; border:1px solid #f1f5f9; display:flex; align-items:center; justify-content:center; color:#64748b; text-decoration:none; flex-shrink:0;">
+           style="width:36px; height:36px; border-radius:10px; background:var(--bg-page); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--text-secondary); text-decoration:none; flex-shrink:0;">
           <i class="pi pi-arrow-left" style="font-size:13px;"></i>
         </a>
         <div style="flex:1; min-width:0;">
-          <h1 style="font-size:17px; font-weight:700; color:#1e293b; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-            Stok Hareketleri
+          <h1 style="font-size:17px; font-weight:700; color:var(--text-primary); margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            {{ t().products.viewMovements }}
           </h1>
-          <p style="font-size:12px; color:#64748b; margin:0;">{{ productName() }}</p>
+          <p style="font-size:12px; color:var(--text-secondary); margin:0;">{{ productName() }}</p>
         </div>
       </div>
 
       <!-- Özet kartları -->
       <div style="padding:16px 24px 0; display:flex; gap:12px; flex-shrink:0;">
-        <div style="flex:1; background:#fff; border-radius:14px; border:1px solid #f1f5f9; padding:14px 16px;">
-          <p style="font-size:11px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; margin:0 0 4px;">Toplam</p>
-          <p style="font-size:22px; font-weight:700; color:#1e293b; margin:0;">{{ movements().length }}</p>
+        <div style="flex:1; background:var(--bg-surface); border-radius:14px; border:1px solid var(--border); padding:14px 16px;">
+          <p style="font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin:0 0 4px;">{{ t().products.totalMovements }}</p>
+          <p style="font-size:22px; font-weight:700; color:var(--text-primary); margin:0;">{{ movements().length }}</p>
         </div>
         <div style="flex:1; background:#f0fdf4; border-radius:14px; border:1px solid #bbf7d0; padding:14px 16px;">
-          <p style="font-size:11px; font-weight:600; color:#16a34a; text-transform:uppercase; letter-spacing:0.5px; margin:0 0 4px;">Giriş</p>
+          <p style="font-size:11px; font-weight:600; color:#16a34a; text-transform:uppercase; letter-spacing:0.5px; margin:0 0 4px;">{{ t().products.movementsIn }}</p>
           <p style="font-size:22px; font-weight:700; color:#15803d; margin:0;">+{{ totalIn() }}</p>
         </div>
         <div style="flex:1; background:#fff7ed; border-radius:14px; border:1px solid #fed7aa; padding:14px 16px;">
-          <p style="font-size:11px; font-weight:600; color:#ea580c; text-transform:uppercase; letter-spacing:0.5px; margin:0 0 4px;">Çıkış</p>
+          <p style="font-size:11px; font-weight:600; color:#ea580c; text-transform:uppercase; letter-spacing:0.5px; margin:0 0 4px;">{{ t().products.movementsOut }}</p>
           <p style="font-size:22px; font-weight:700; color:#c2410c; margin:0;">-{{ totalOut() }}</p>
         </div>
       </div>
 
       <!-- Filtreler -->
       <div style="padding:12px 24px; display:flex; gap:8px; flex-shrink:0;">
-        @for (f of filters; track f.key) {
+        @for (f of filters(); track f.key) {
           <button
             (click)="activeFilter.set(f.key)"
             [style]="filterBtnStyle(f.key)"
@@ -62,7 +63,7 @@ type Filter = 'all' | 'in' | 'out';
         @if (loading()) {
           <div style="display:flex; flex-direction:column; gap:10px;">
             @for (i of [1,2,3,4,5]; track i) {
-              <div style="background:#fff; border-radius:14px; border:1px solid #f1f5f9; padding:16px; display:flex; gap:12px; align-items:center;">
+              <div style="background:var(--bg-surface); border-radius:14px; border:1px solid var(--border); padding:16px; display:flex; gap:12px; align-items:center;">
                 <p-skeleton shape="circle" size="40px" />
                 <div style="flex:1;">
                   <p-skeleton height="14px" styleClass="mb-2" />
@@ -73,14 +74,14 @@ type Filter = 'all' | 'in' | 'out';
             }
           </div>
         } @else if (filtered().length === 0) {
-          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 0; gap:12px; color:#94a3b8;">
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 0; gap:12px; color:var(--text-muted);">
             <i class="pi pi-history" style="font-size:40px; opacity:0.3;"></i>
-            <p style="font-size:14px; margin:0;">Hareket bulunamadı</p>
+            <p style="font-size:14px; margin:0;">{{ t().products.noMovements }}</p>
           </div>
         } @else {
           <div style="display:flex; flex-direction:column; gap:8px;">
             @for (m of filtered(); track m.id) {
-              <div style="background:#fff; border-radius:14px; border:1px solid #f1f5f9; padding:14px 16px; display:flex; align-items:center; gap:12px;">
+              <div style="background:var(--bg-surface); border-radius:14px; border:1px solid var(--border); padding:14px 16px; display:flex; align-items:center; gap:12px;">
 
                 <!-- İkon -->
                 <div [style]="iconBgStyle(m.type)" style="width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
@@ -89,11 +90,11 @@ type Filter = 'all' | 'in' | 'out';
 
                 <!-- Bilgi -->
                 <div style="flex:1; min-width:0;">
-                  <p style="font-size:14px; font-weight:600; color:#1e293b; margin:0 0 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ m.reason }}</p>
+                  <p style="font-size:14px; font-weight:600; color:var(--text-primary); margin:0 0 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ m.reason }}</p>
                   <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="font-size:12px; color:#94a3b8;">{{ m.createdAt.toDate() | date:'dd.MM.yyyy HH:mm' }}</span>
+                    <span style="font-size:12px; color:var(--text-muted);">{{ m.createdAt.toDate() | date:'dd.MM.yyyy HH:mm' }}</span>
                     <span style="font-size:11px; color:#cbd5e1;">•</span>
-                    <span style="font-size:12px; color:#64748b;">{{ m.previousStock }} → {{ m.newStock }} adet</span>
+                    <span style="font-size:12px; color:var(--text-secondary);">{{ m.previousStock }} → {{ m.newStock }} {{ t().products.piece }}</span>
                   </div>
                 </div>
 
@@ -115,6 +116,7 @@ export class StockMovementsPage implements OnInit {
   private readonly svc = inject(ProductService);
   private readonly store = inject(ProductStore);
   private readonly route = inject(ActivatedRoute);
+  readonly t = inject(LangService).t;
 
   readonly movements = signal<StockMovement[]>([]);
   readonly loading = signal(true);
@@ -122,11 +124,11 @@ export class StockMovementsPage implements OnInit {
 
   productId = '';
 
-  readonly filters: { key: Filter; label: string }[] = [
-    { key: 'all', label: 'Tümü' },
-    { key: 'in',  label: 'Girişler' },
-    { key: 'out', label: 'Çıkışlar' },
-  ];
+  readonly filters = computed<{ key: Filter; label: string }[]>(() => [
+    { key: 'all', label: this.t().common.all },
+    { key: 'in',  label: this.t().products.movementsIn },
+    { key: 'out', label: this.t().products.movementsOut },
+  ]);
 
   readonly filtered = computed(() => {
     const f = this.activeFilter();
@@ -175,6 +177,6 @@ export class StockMovementsPage implements OnInit {
 
   filterBtnStyle(key: Filter): string {
     const active = this.activeFilter() === key;
-    return `padding:6px 16px; border-radius:20px; border:1px solid ${active ? '#16a34a' : '#e2e8f0'}; background:${active ? '#f0fdf4' : '#fff'}; color:${active ? '#15803d' : '#64748b'}; font-size:13px; font-weight:${active ? '600' : '500'}; cursor:pointer; transition:all 0.15s;`;
+    return `padding:6px 16px; border-radius:20px; border:1px solid ${active ? '#16a34a' : 'var(--border-mid)'}; background:${active ? '#f0fdf4' : 'var(--bg-surface)'}; color:${active ? '#15803d' : 'var(--text-secondary)'}; font-size:13px; font-weight:${active ? '600' : '500'}; cursor:pointer; transition:all 0.15s;`;
   }
 }

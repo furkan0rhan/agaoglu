@@ -14,6 +14,7 @@ import { MessageService } from 'primeng/api';
 import { ProductService } from '../services/product.service';
 import { ProductStore } from '../store/product.store';
 import { Timestamp } from '@angular/fire/firestore';
+import { LangService } from '../../../core/i18n/lang.service';
 
 @Component({
   selector: 'app-product-form',
@@ -24,6 +25,7 @@ import { Timestamp } from '@angular/fire/firestore';
     TextareaModule, ToggleSwitchModule, DatePickerModule,
     ToastModule, AutoCompleteModule,
   ],
+  providers: [MessageService],
   template: `
     <p-toast position="top-right"></p-toast>
     <div class="flex flex-col h-full bg-gray-50">
@@ -36,12 +38,12 @@ import { Timestamp } from '@angular/fire/firestore';
             <i class="pi pi-arrow-left text-sm"></i>
           </a>
           <div>
-            <h1 class="text-lg font-bold text-gray-800 m-0">{{ isEdit ? 'Ürünü Düzenle' : 'Yeni Ürün Ekle' }}</h1>
-            <p class="text-xs text-gray-400 m-0">{{ isEdit ? 'Ürün bilgilerini güncelleyin' : 'Yeni ürün bilgilerini girin' }}</p>
+            <h1 class="text-lg font-bold text-gray-800 m-0">{{ isEdit ? t().products.editProduct : t().products.addProduct }}</h1>
+            <p class="text-xs text-gray-400 m-0">{{ isEdit ? t().products.editSubtitle : t().products.addSubtitle }}</p>
           </div>
         </div>
         <p-button
-          label="Kaydet"
+          [label]="t().common.save"
           icon="pi pi-check"
           severity="success"
           [loading]="saving()"
@@ -58,28 +60,28 @@ import { Timestamp } from '@angular/fire/firestore';
 
             <!-- Ürün Adı -->
             <div class="md:col-span-2 xl:col-span-3 flex flex-col gap-1.5">
-              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ürün Adı *</label>
-              <input pInputText formControlName="name" placeholder="Ürün adını girin" class="w-full" />
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.formName }}</label>
+              <input pInputText formControlName="name" [placeholder]="t().products.infoName" class="w-full" />
               @if (form.get('name')?.invalid && form.get('name')?.touched) {
-                <p class="text-xs text-red-500 m-0">Ürün adı zorunlu</p>
+                <p class="text-xs text-red-500 m-0">{{ t().products.formNameRequired }}</p>
               }
             </div>
 
             <!-- Barkod -->
             <div class="flex flex-col gap-1.5">
-              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Barkod</label>
-              <input pInputText formControlName="barcode" placeholder="Barkod numarası" class="w-full font-mono" />
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.formBarcode }}</label>
+              <input pInputText formControlName="barcode" [placeholder]="t().products.formBarcodePlaceholder" class="w-full font-mono" />
             </div>
 
             <!-- Marka -->
             <div class="flex flex-col gap-1.5">
-              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Marka</label>
-              <input pInputText formControlName="brand" placeholder="Marka adı" class="w-full" />
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.formBrand }}</label>
+              <input pInputText formControlName="brand" [placeholder]="t().products.formBrandPlaceholder" class="w-full" />
             </div>
 
             <!-- Kategori -->
             <div class="flex flex-col gap-1.5">
-              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Kategori *</label>
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.formCategory }}</label>
               <p-autocomplete
                 [(ngModel)]="categoryStr"
                 [ngModelOptions]="{standalone: true}"
@@ -87,19 +89,19 @@ import { Timestamp } from '@angular/fire/firestore';
                 (completeMethod)="searchCategory($event)"
                 [forceSelection]="false"
                 [dropdown]="true"
-                placeholder="Kategori seçin veya yazın"
+                [placeholder]="t().products.formCategoryPlaceholder"
                 styleClass="w-full"
               />
             </div>
 
-            <!-- Ayırıcı: Fiyatlar -->
+            <!-- Fiyatlar -->
             <div class="md:col-span-2 xl:col-span-3 border-t border-gray-100 pt-4 mt-1">
-              <p class="text-xs font-bold text-gray-400 uppercase tracking-widest m-0">Fiyatlandırma</p>
+              <p class="text-xs font-bold text-gray-400 uppercase tracking-widest m-0">{{ t().products.formPricing }}</p>
             </div>
 
             <!-- Alış Fiyatı -->
             <div class="flex flex-col gap-1.5">
-              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Alış Fiyatı (₺) *</label>
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.purchasePrice }} (₺) *</label>
               <p-inputnumber
                 formControlName="purchasePrice"
                 [minFractionDigits]="2"
@@ -113,7 +115,7 @@ import { Timestamp } from '@angular/fire/firestore';
 
             <!-- Satış Fiyatı -->
             <div class="flex flex-col gap-1.5">
-              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Satış Fiyatı (₺) *</label>
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.salePrice }} (₺) *</label>
               <p-inputnumber
                 formControlName="salePrice"
                 [minFractionDigits]="2"
@@ -127,7 +129,7 @@ import { Timestamp } from '@angular/fire/firestore';
 
             <!-- KDV Oranı -->
             <div class="flex flex-col gap-1.5">
-              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">KDV Oranı (%)</label>
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.formVat }}</label>
               <p-autocomplete
                 [(ngModel)]="vatRateStr"
                 [ngModelOptions]="{standalone: true}"
@@ -135,19 +137,19 @@ import { Timestamp } from '@angular/fire/firestore';
                 (completeMethod)="searchVat($event)"
                 [forceSelection]="false"
                 [dropdown]="true"
-                placeholder="Örn: 8, 18, 20"
+                [placeholder]="t().products.formVatPlaceholder"
                 styleClass="w-full"
               />
             </div>
 
-            <!-- Ayırıcı: Stok -->
+            <!-- Stok -->
             <div class="md:col-span-2 xl:col-span-3 border-t border-gray-100 pt-4 mt-1">
-              <p class="text-xs font-bold text-gray-400 uppercase tracking-widest m-0">Stok Bilgileri</p>
+              <p class="text-xs font-bold text-gray-400 uppercase tracking-widest m-0">{{ t().products.formStockInfo }}</p>
             </div>
 
             <!-- Stok Miktarı -->
             <div class="flex flex-col gap-1.5">
-              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Stok Miktarı *</label>
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.formStockQty }}</label>
               <p-inputnumber
                 formControlName="stock"
                 [min]="0"
@@ -158,7 +160,7 @@ import { Timestamp } from '@angular/fire/firestore';
 
             <!-- Minimum Stok -->
             <div class="flex flex-col gap-1.5">
-              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Minimum Stok</label>
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.formMinStock }}</label>
               <p-inputnumber
                 formControlName="minStock"
                 [min]="0"
@@ -167,26 +169,26 @@ import { Timestamp } from '@angular/fire/firestore';
               />
             </div>
 
-            <!-- Ayırıcı: İlk Parti -->
+            <!-- İlk Parti -->
             <div class="md:col-span-2 xl:col-span-3 border-t border-gray-100 pt-4 mt-1">
-              <p class="text-xs font-bold text-gray-400 uppercase tracking-widest m-0">İlk Parti Bilgileri <span class="normal-case font-normal text-gray-300">(stok > 0 ise)</span></p>
+              <p class="text-xs font-bold text-gray-400 uppercase tracking-widest m-0">{{ t().products.formFirstBatch }} <span class="normal-case font-normal text-gray-300">({{ t().common.optional }})</span></p>
             </div>
 
             <!-- GTS No -->
             <div class="flex flex-col gap-1.5">
-              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">GTS No</label>
-              <input pInputText formControlName="gtsNo" placeholder="Bu partinin GTS numarası" class="w-full font-mono" />
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.formGtsNo }}</label>
+              <input pInputText formControlName="gtsNo" [placeholder]="t().products.formGtsPlaceholder" class="w-full font-mono" />
             </div>
 
             <!-- Son Kullanma Tarihi -->
             <div class="flex flex-col gap-1.5">
-              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Son Kullanma Tarihi</label>
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.formExpiry }}</label>
               <p-datepicker
                 formControlName="expiryDateVal"
                 dateFormat="dd.mm.yy"
                 [showIcon]="true"
                 [showButtonBar]="true"
-                placeholder="Tarih seçin"
+                [placeholder]="t().products.formExpiryPlaceholder"
                 styleClass="w-full"
                 appendTo="body"
               />
@@ -194,16 +196,16 @@ import { Timestamp } from '@angular/fire/firestore';
 
             <!-- Açıklama -->
             <div class="md:col-span-2 xl:col-span-3 flex flex-col gap-1.5">
-              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Açıklama</label>
-              <textarea pTextarea formControlName="description" rows="3" placeholder="Ürün açıklaması (opsiyonel)" class="w-full resize-y"></textarea>
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ t().products.formDescription }}</label>
+              <textarea pTextarea formControlName="description" rows="3" [placeholder]="t().products.formDescriptionPlaceholder" class="w-full resize-y"></textarea>
             </div>
 
             <!-- Aktif toggle -->
             <div class="md:col-span-2 xl:col-span-3 flex items-center gap-3 bg-white border border-gray-100 rounded-xl px-4 py-3">
               <p-toggleswitch formControlName="isActive" />
               <div>
-                <p class="text-sm font-semibold text-gray-800 m-0">Ürün Aktif</p>
-                <p class="text-xs text-gray-400 m-0">Kapalıysa ürün listede ve satışta görünmez</p>
+                <p class="text-sm font-semibold text-gray-800 m-0">{{ t().products.formIsActive }}</p>
+                <p class="text-xs text-gray-400 m-0">{{ t().products.formIsActiveDesc }}</p>
               </div>
             </div>
 
@@ -220,6 +222,7 @@ export class ProductFormPage implements OnInit {
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly messageSvc = inject(MessageService);
+  readonly t = inject(LangService).t;
 
   readonly saving = signal(false);
   isEdit = false;
@@ -321,13 +324,13 @@ export class ProductFormPage implements OnInit {
       const stock = Number(v.stock);
       const gtsNo = v.gtsNo?.trim() || null;
       const initialBatches = stock > 0
-        ? [{ id: crypto.randomUUID(), quantity: stock, expiryDate: expiryDate ?? null, gtsNo, addedAt: Timestamp.now() }]
+        ? [{ id: crypto.randomUUID(), quantity: stock, expiryDate: expiryDate ?? null, gtsNo, addedAt: Timestamp.now(), supplierId: null }]
         : [];
 
       const data = {
         name: v.name!,
         barcode: v.barcode ?? '',
-        category: this.categoryStr || 'Diğer',
+        category: this.categoryStr || this.t().products.categoryOther,
         brand: v.brand || null,
         purchasePrice: Number(v.purchasePrice),
         salePrice: Number(v.salePrice),
@@ -346,19 +349,15 @@ export class ProductFormPage implements OnInit {
       } else {
         await this.svc.create(data);
       }
-      this.messageSvc.add({ severity: 'success', summary: '', detail: this.isEdit ? 'Ürün güncellendi' : 'Ürün eklendi', life: 2000 });
+      this.messageSvc.add({ severity: 'success', summary: '', detail: this.isEdit ? this.t().products.updated : this.t().products.added, life: 2000 });
       await this.router.navigate(['/products']);
     } catch (err: any) {
       const detail = err?.message?.includes('permission') || err?.code === 'permission-denied'
-        ? 'Yetki hatası — Firebase kurallarını kontrol edin'
-        : (err?.message ?? 'Ürün kaydedilemedi');
-      this.messageSvc.add({ severity: 'error', summary: 'Hata', detail, life: 5000 });
+        ? this.t().products.permissionError
+        : (err?.message ?? this.t().products.updateFailed);
+      this.messageSvc.add({ severity: 'error', summary: this.t().common.error, detail, life: 5000 });
     } finally {
       this.saving.set(false);
     }
-  }
-
-  private toast(message: string, severity: 'success' | 'error' | 'warn'): void {
-    this.messageSvc.add({ severity, summary: '', detail: message, life: 2500 });
   }
 }

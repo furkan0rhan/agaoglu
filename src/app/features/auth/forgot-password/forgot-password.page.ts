@@ -1,96 +1,81 @@
 import { Component, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  IonButton, IonContent, IonIcon, IonInput,
-  IonItem, IonLabel, IonSpinner, IonText,
-} from '@ionic/angular/standalone';
-import { addIcons } from 'ionicons';
-import { leafOutline, mailOutline, arrowBackOutline } from 'ionicons/icons';
+import { ButtonModule } from 'primeng/button';
+import { InputTextModule } from 'primeng/inputtext';
+import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../core/auth/services/auth.service';
+import { LangService } from '../../../core/i18n/lang.service';
 
 @Component({
   selector: 'app-forgot-password',
   standalone: true,
-  imports: [
-    ReactiveFormsModule, RouterLink,
-    IonContent, IonItem, IonLabel, IonInput,
-    IonButton, IonIcon, IonText, IonSpinner,
-  ],
+  imports: [RouterLink, FormsModule, ButtonModule, InputTextModule],
   template: `
-    <ion-content class="auth-content">
-      <div class="auth-container">
-        <div class="auth-card">
-          <div class="auth-header">
-            <ion-icon name="leaf-outline" class="brand-icon"></ion-icon>
-            <h1>Şifremi Unuttum</h1>
-            <p>E-postanıza sıfırlama bağlantısı gönderilecek</p>
+    <div class="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center p-4">
+      <div class="w-full max-w-md">
+        <div class="bg-white rounded-3xl shadow-card p-8 border border-gray-100 text-center">
+
+          <div style="width:72px; height:72px; border-radius:20px; background:linear-gradient(135deg,#4ade80,#16a34a); display:flex; align-items:center; justify-content:center; margin:0 auto 20px;">
+            <i class="pi pi-lock" style="color:white; font-size:28px;"></i>
           </div>
 
-          @if (!sent()) {
-            <form [formGroup]="form" (ngSubmit)="onSubmit()">
-              <ion-item>
-                <ion-icon name="mail-outline" slot="start"></ion-icon>
-                <ion-label position="floating">E-posta</ion-label>
-                <ion-input formControlName="email" type="email"></ion-input>
-              </ion-item>
+          <h1 class="text-2xl font-bold text-gray-800 mb-2">{{ t().auth.forgotTitle }}</h1>
+          <p class="text-gray-400 text-sm mb-8">{{ t().auth.forgotSubtitle }}</p>
 
-              <ion-button expand="block" type="submit" [disabled]="form.invalid || loading()" class="submit-btn">
-                @if (loading()) { <ion-spinner name="crescent"></ion-spinner> }
-                @else { Sıfırlama Gönder }
-              </ion-button>
-            </form>
+          @if (!sent()) {
+            <div class="flex flex-col gap-4 text-left">
+              <div class="flex flex-col gap-1.5">
+                <label class="text-sm font-semibold text-gray-700">{{ t().auth.email }}</label>
+                <input
+                  pInputText
+                  [(ngModel)]="email"
+                  type="email"
+                  [placeholder]="t().auth.emailPlaceholder"
+                  class="w-full"
+                />
+              </div>
+              <p-button
+                [label]="t().auth.sendReset"
+                icon="pi pi-send"
+                severity="success"
+                styleClass="w-full"
+                [loading]="loading()"
+                [disabled]="!email.trim()"
+                (onClick)="onSubmit()"
+              ></p-button>
+            </div>
           } @else {
-            <div class="success-msg">
-              <ion-text color="success">
-                <p>✓ Sıfırlama bağlantısı e-postanıza gönderildi.</p>
-              </ion-text>
+            <div class="bg-green-50 border border-green-100 rounded-xl p-4 flex items-center gap-3 text-left mb-4">
+              <i class="pi pi-check-circle text-green-500 text-xl flex-shrink-0"></i>
+              <span class="text-sm text-green-700 font-medium">{{ t().auth.resetSent }}</span>
             </div>
           }
 
-          <div class="auth-links">
-            <ion-icon name="arrow-back-outline"></ion-icon>
-            <a [routerLink]="['/auth/login']">Giriş sayfasına dön</a>
+          <div class="flex items-center justify-center gap-2 mt-6">
+            <i class="pi pi-arrow-left text-sm text-gray-400"></i>
+            <a [routerLink]="['/auth/login']" class="text-sm text-green-600 font-semibold hover:text-green-700">
+              {{ t().auth.backToLogin }}
+            </a>
           </div>
+
         </div>
       </div>
-    </ion-content>
+    </div>
   `,
-  styles: [`
-    .auth-content { --background: linear-gradient(135deg, #1a472a 0%, #2d6a4f 100%); }
-    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100%; padding: 24px; }
-    .auth-card { background: white; border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-    .auth-header { text-align: center; margin-bottom: 32px; }
-    .brand-icon { font-size: 3rem; color: var(--ion-color-primary); }
-    .auth-header h1 { font-size: 1.6rem; font-weight: 700; margin: 8px 0 4px; }
-    .auth-header p { color: #666; margin: 0; font-size: 0.9rem; }
-    ion-item { --border-radius: 10px; --background: #f8f9fa; margin-bottom: 12px; }
-    .submit-btn { margin-top: 20px; --border-radius: 10px; height: 48px; }
-    .success-msg { padding: 16px; background: #f0fff4; border-radius: 10px; text-align: center; }
-    .auth-links { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 20px; font-size: 0.9rem; }
-    .auth-links a { color: var(--ion-color-primary); text-decoration: none; }
-  `],
 })
 export class ForgotPasswordPage {
   private readonly authService = inject(AuthService);
-  private readonly fb = inject(FormBuilder);
+  readonly t = inject(LangService).t;
 
+  email = '';
   readonly loading = signal(false);
   readonly sent = signal(false);
 
-  readonly form = this.fb.group({
-    email: ['', [Validators.required, Validators.email]],
-  });
-
-  constructor() {
-    addIcons({ leafOutline, mailOutline, arrowBackOutline });
-  }
-
   async onSubmit(): Promise<void> {
-    if (this.form.invalid) return;
+    if (!this.email.trim()) return;
     this.loading.set(true);
     try {
-      await this.authService.resetPassword(this.form.value.email!);
+      await this.authService.resetPassword(this.email.trim());
       this.sent.set(true);
     } finally {
       this.loading.set(false);
