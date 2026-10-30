@@ -1,47 +1,56 @@
-# Tarim Market — Geliştirme Özeti
+# Sürüm Geçmişi
 
-## Müşteriler
-- Yeni müşteri ekleyince listede gözükmüyordu → Firestore composite index düzeltildi (`tenantId + isActive + firstName`)
-- Customer list'e retry logic ve error toast eklendi
+Biçim: [Keep a Changelog](https://keepachangelog.com/tr/1.1.0/). Sürümler `npm run release -- x.y.z` ile
+etiketlenir; derlenmiş Windows (exe/msi) ve Android (apk) dosyaları GitHub Releases'ta yayınlanır.
 
-## Ürünler Sayfası
-- Ürün kartlarında **alış fiyatı gizlendi**, sadece satış fiyatı görünüyor
-- Her karta **"Sepete Ekle"** butonu eklendi
-  - Sepette yoksa: turuncu "Sepete Ekle" butonu
-  - Sepette varsa: `[-] [adet] [+]` kontrolü
-  - Stoktan fazla artırılamıyor, `+` pasif oluyor
-- **"Yakın SKT"** filtre butonu eklendi
-  - 30 gün içindeki ürünlerde kart üstünde badge
-  - 7 gün ve altı → kırmızı, 7-30 gün → amber
+## [Yayınlanmamış]
 
-## Sepet / POS
-- **Yeni akış**: Ürünler sayfasından sepete ekle → Sepet sayfasında ödeme
-- POS sayfası tam genişlik sepete dönüştürüldü
-  - Sol: ürün listesi (miktar kontrolü + sil)
-  - Sağ: sipariş özeti + ödeme butonları
-  - Sepet boşken "Ürünlere Git" linki
-- **Müşteri seçimi** gerçek liste ile yapılıyor (arama destekli dialog)
-- Miktar değişince `totalPrice` doğru hesaplanıyor (bug fix)
-- Veresiye bakiyesi Firestore `increment()` ile atomik güncelleniyor (bug fix)
-- Barkod okuyucu POS sayfasında çalışmaya devam ediyor
+### Eklendi
+- Kamera ile barkod / karekod okuma (masaüstü ve web: ZXing, Android: Tauri barcode-scanner); GS1 karekoddan GTIN, SKT ve parti no çözümleme.
+- Partilerde şarj/parti no (`lotNo`).
+- Ürün turu (ilk kullanımda ekran ekran tanıtım).
 
-## Sidebar
-- Sepet (POS) ikonunda **kırmızı badge** — sepetteki ürün adedini gösteriyor
-- Role göre menü filtreleme düzeltildi
-  - Firestore'da `role` alanı yoksa `admin` varsayılan
-  - Auth yüklenirken tüm menü itemları görünür
+### Değişti
+- README Türkçe olarak yeniden yazıldı; eski `memory/` notları kaldırıldı, GTS rehberi `docs/GTS-KAREKOD.md` oldu.
 
-## Dashboard
-- **Son kullanma tarihi yaklaşan ürünler** listesi eklendi
-  - Kritik stok uyarısının altında, kalan günle birlikte gösteriliyor
-  - 7 gün altı kırmızı, 30 güne kadar amber
+### Kaldırıldı
+- Kullanılmayan Dexie / SyncQueue çevrimdışı kuyruk kodu ve `dexie` paketi (çevrimdışı çalışma Firestore'un kalıcı önbelleğiyle sağlanıyor).
+- Kullanılmayan çeviri anahtarları, `stockStatus` pipe'ı ve `/account` yönlendirme kalıntısı.
 
-## Profil / Ayarlar
-- **Ad soyad güncelleme**: Firebase Auth + Firestore güncelleniyor, sidebar'a anında yansıyor
-- **Şifre değiştirme**: Mevcut şifre doğrulama (reauthenticate) + yeni şifre
+## [1.1.0] — 2026-10-30
 
-## Firestore Index
-```json
-customers: tenantId (ASC) + isActive (ASC) + firstName (ASC)
-```
-→ Firebase Console'dan deploy edildi, Enabled durumda.
+### Eklendi
+- **Tasarım v2 "Saha / Komuta"**: tüm ekranlar yeniden tasarlandı; ayarlar merkezi, açık/koyu tema, yazı boyutu.
+- **POS**: hızlı arama, ondalık miktar ve birimler, F tuşları, kart onayı, 58/80 mm fiş, satış bekletme, karışık ödeme, taksitli veresiye.
+- **Satış geçmişi**, iptal/iade; kasa özeti.
+- **Mevzuat**: e-reçete kaydı, ruhsat bilgileri, satışta GTS kaydı ve fişe yazılması, SKT'si geçmiş ürün engeli.
+- **Veresiye**: vade, taksit takvimi, peşinat, hasatta ödeme, gecikmiş alacak listesi, ekstre PDF, WhatsApp/SMS hatırlatma.
+- **KVKK**: aydınlatma metni, rıza kaydı, TC maskeleme, müşteri verisi dışa aktarma ve anonimleştirme.
+- **Alış faturası**, tedarikçi cari hesabı, yedekleme (JSON/Excel) ve boş işletmeye geri yükleme.
+- **Ekip ve roller** (yönetici / kasiyer / personel), davetle katılım.
+- **Superadmin paneli**: işletmeler, lisans yönetimi, destek modu ve erişim kaydı.
+- **Çiftçi modülü** (MVP): davet + PIN ile giriş, tarla/sezon, ilaçlama defteri ve hasat aralığı, ambar, borç, bayi önerisi, hava durumu.
+- Firebase Emulator ile yerel test ortamı, Firestore kural testleri, ESLint.
+- Windows exe/msi için GitHub Actions sürüm iş akışı ve `npm run release`.
+
+### Değişti
+- Yeni Firestore güvenlik kuralları (tenant üyeliği, superadmin, lisans, çiftçi ve alış blokları).
+- Ionic kaldırıldı; Tauri'de release'de devtools kapalı, CSP eklendi.
+
+### Düzeltildi
+- Eski hesaplarda girişte "profil okunamadı" ile çıkış yapılması (eski kurallarla uyumluluk, geçici hatada yeniden deneme).
+- Çok sayıda kritik hata (stok/veresiye transaction'ları, hesaplamalar).
+
+## [1.0.0] — 2026-06-01
+
+İlk sürüm (Angular + PrimeNG + Firebase + Tauri; Windows ve Android APK).
+
+- Ürün ve stok yönetimi, parti bazlı GTS no ve SKT takibi, kritik stok uyarıları.
+- POS: barkodla satış, nakit / kart / veresiye.
+- Müşteriler ve veresiye takibi, tahsilat.
+- Tedarikçiler, giderler, stok sayımı, raporlar.
+- Türkçe / İngilizce arayüz, karanlık mod, çevrimdışı çalışma.
+- Mobil alt menü ve güvenli alan desteği; GitHub Actions ile Android APK derlemesi.
+
+[Yayınlanmamış]: https://github.com/furkan0rhan/agaoglu/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/furkan0rhan/agaoglu/releases/tag/v1.1.0

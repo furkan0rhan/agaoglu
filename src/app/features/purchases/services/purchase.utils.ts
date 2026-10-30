@@ -1,11 +1,11 @@
 import type { Timestamp } from '@angular/fire/firestore';
 import type { Batch, Product } from '../../../shared/models/product.model';
 import type { SupplierTransactionType } from '../../../shared/models/supplier.model';
-import { consumeFEFO, duplicateValues, nearestExpiry, roundQty } from '../../../shared/utils/batch.utils';
+import { consumeFEFO, duplicateValues, nearestExpiry, normalizeLotNo, roundQty, withLot } from '../../../shared/utils/batch.utils';
 
 /**
  * Alış belgesi saf hesapları (Firestore'a bağımlı değil → test edilebilir).
- * Parti kuralları ProductService.adjustStock ile aynıdır (memory/URUNLER-GTS.md):
+ * Parti kuralları ProductService.adjustStock ile aynıdır (docs/GTS-KAREKOD.md):
  *  - GTS listesi doluysa her GTS = quantity:1 ayrı parti, miktar = GTS sayısı
  *  - GTS yoksa tek quantity:N parti (gtsNo:null)
  *  - Aynı üründe stokta olan bir GTS tekrar eklenemez
@@ -96,6 +96,8 @@ export interface StockApplyInput {
   quantity: number;
   expiryDate: Timestamp | null;
   gtsNumbers: readonly string[];
+  /** Parti / şarj no — eklenen tüm partilere yazılır */
+  lotNo?: string | null;
 }
 
 export interface StockState {
@@ -125,9 +127,10 @@ export function applyPurchaseItem(
   const quantity = gts.length > 0 ? gts.length : roundQty(item.quantity);
   if (!(quantity > 0)) throw new PurchaseError('invalid-quantity');
 
+  const lot = normalizeLotNo(item.lotNo);
   const added: Batch[] = gts.length > 0
-    ? gts.map(g => ({ id: newId(), quantity: 1, expiryDate: item.expiryDate, gtsNo: g, addedAt, supplierId }))
-    : [{ id: newId(), quantity, expiryDate: item.expiryDate, gtsNo: null, addedAt, supplierId }];
+    ? gts.map(g => withLot({ id: newId(), quantity: 1, expiryDate: item.expiryDate, gtsNo: g, addedAt, supplierId }, lot))
+    : [withLot({ id: newId(), quantity, expiryDate: item.expiryDate, gtsNo: null, addedAt, supplierId }, lot)];
   const batches = [...current, ...added];
   return {
     stock: roundQty((Number(product.stock) || 0) + quantity),

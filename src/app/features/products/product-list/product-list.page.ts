@@ -18,6 +18,7 @@ import { AddItemResult, CartStore } from '../../pos/store/cart.store';
 import { cartItemFromProduct, findByCode } from '../../pos/services/cart-item.utils';
 import { isPlantProtection } from '../../../shared/utils/regulatory.utils';
 import { BarcodeInputDirective } from '../../../shared/directives/barcode-input.directive';
+import { gtinMatches, ScanButtonComponent, ScanResult } from '../../../shared/scanner';
 import { Product } from '../../../shared/models/product.model';
 import { LangService } from '../../../core/i18n/lang.service';
 import { daysUntilExpiry, expiryInfo } from '../../../shared/utils/batch.utils';
@@ -30,7 +31,7 @@ import { productUnit } from '../../../shared/models/product.model';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { SumStripComponent, SumStripItem } from '../components/sum-strip.component';
 import {
-  chipClass, chipCountClass, CRIT_EDGE, isCritical, markupPct, productIcon, stockBarClass, stockPct,
+  chipClass, chipCountClass, CRIT_EDGE, formatPct, isCritical, markupPct, productIcon, stockBarClass, stockPct,
 } from '../inventory-ui';
 
 /** Telefonda kart listesinde ilk etapta gösterilen ürün sayısı ("Daha fazla göster" ile artar) */
@@ -40,7 +41,7 @@ const MOBILE_PAGE = 30;
   selector: 'app-product-list',
   standalone: true,
   imports: [
-    RouterLink, NgTemplateOutlet, FormsModule, BarcodeInputDirective,
+    RouterLink, NgTemplateOutlet, FormsModule, BarcodeInputDirective, ScanButtonComponent,
     ButtonModule, InputTextModule, SkeletonModule, IconFieldModule, InputIconModule, ToastModule,
     TableModule, MultiSelectModule,
     PageHeaderComponent, EmptyStateComponent, StatusBadgeComponent, IconButtonComponent, MoneyComponent, SumStripComponent,
@@ -56,7 +57,9 @@ const MOBILE_PAGE = 30;
           <p-button [label]="inv().stockCount" icon="pi pi-check-square" severity="secondary" routerLink="/stock-count" class="hidden lg:inline-flex" />
           <p-button [label]="inv().stockEntry" icon="pi pi-truck" severity="secondary" routerLink="/purchases/new" class="hidden sm:inline-flex" />
         }
-        <p-button [label]="t().products.newProduct" icon="pi pi-plus" routerLink="new" />
+        @if (isAdmin) {
+          <p-button [label]="t().products.newProduct" icon="pi pi-plus" routerLink="new" />
+        }
       </ui-page-header>
 
       <div class="page-body">
@@ -78,12 +81,15 @@ const MOBILE_PAGE = 30;
           <!-- Filtreler: arama + durum çipleri / kategori çipleri -->
           <div class="flex flex-col gap-2.5 border-b border-line p-3 sm:px-4 sm:py-3.5">
             <div class="flex flex-col gap-2.5 md:flex-row md:flex-wrap md:items-center">
-              <p-iconfield class="block w-full md:w-80">
+              <div class="flex w-full items-center gap-2 md:w-auto">
+              <p-iconfield class="block min-w-0 flex-1 md:w-80 md:flex-none">
                 <p-inputicon styleClass="pi pi-search" />
                 <input pInputText type="search" [(ngModel)]="searchVal" (ngModelChange)="store.setSearch($event)"
                        (keydown.enter)="onSearchEnter($event)" enterkeyhint="search"
                        [placeholder]="inv().searchPlaceholder" [attr.aria-label]="t().common.search" class="w-full min-w-0" />
               </p-iconfield>
+              <ui-scan-button (scanned)="onCameraScan($event)" />
+              </div>
               <div class="-mx-3 flex gap-2 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-0"
                    role="toolbar" [attr.aria-label]="inv().statusFilters">
                 <button type="button" [class]="chip(store.showLowStockOnly(), true)" [attr.aria-pressed]="store.showLowStockOnly()"
@@ -187,9 +193,13 @@ const MOBILE_PAGE = 30;
                     <th pSortableColumn="category" class="hidden xl:table-cell">{{ inv().colCategory }} <p-sortIcon field="category" /></th>
                     <th pSortableColumn="stock">{{ inv().colStock }} <p-sortIcon field="stock" /></th>
                     <th>{{ inv().colExpiry }}</th>
-                    <th pSortableColumn="purchasePrice" class="hidden text-right lg:table-cell">{{ inv().colPurchase }} <p-sortIcon field="purchasePrice" /></th>
+                    @if (isAdmin) {
+                      <th pSortableColumn="purchasePrice" class="hidden text-right lg:table-cell">{{ inv().colPurchase }} <p-sortIcon field="purchasePrice" /></th>
+                    }
                     <th pSortableColumn="salePrice" class="text-right">{{ inv().colSale }} <p-sortIcon field="salePrice" /></th>
-                    <th class="hidden text-right lg:table-cell">{{ inv().colMarkup }}</th>
+                    @if (isAdmin) {
+                      <th class="hidden text-right lg:table-cell">{{ inv().colMarkup }}</th>
+                    }
                     <th class="w-40 text-right"><span class="sr-only">{{ t().products.addToCart }}</span></th>
                   </tr>
                   @if (showFilters()) {
@@ -205,9 +215,9 @@ const MOBILE_PAGE = 30;
                       </th>
                       <th><p-columnFilter type="numeric" field="stock" [showMenu]="true" [showClearButton]="false" /></th>
                       <th></th>
-                      <th class="hidden lg:table-cell"></th>
+                      @if (isAdmin) { <th class="hidden lg:table-cell"></th> }
                       <th><p-columnFilter type="numeric" field="salePrice" [showMenu]="true" [showClearButton]="false" /></th>
-                      <th class="hidden lg:table-cell"></th>
+                      @if (isAdmin) { <th class="hidden lg:table-cell"></th> }
                       <th></th>
                     </tr>
                   }
@@ -255,9 +265,13 @@ const MOBILE_PAGE = 30;
                         <span class="text-fg-muted">—</span>
                       }
                     </td>
-                    <td class="hidden text-right lg:table-cell"><ui-money class="num text-sm text-fg-secondary" [value]="product.purchasePrice" /></td>
+                    @if (isAdmin) {
+                      <td class="hidden text-right lg:table-cell"><ui-money class="num text-sm text-fg-secondary" [value]="product.purchasePrice" /></td>
+                    }
                     <td class="text-right"><ui-money class="num text-sm font-extrabold text-fg" [value]="product.salePrice" /></td>
-                    <td class="num hidden text-right text-sm text-fg-secondary lg:table-cell">{{ markup(product) }}</td>
+                    @if (isAdmin) {
+                      <td class="num hidden text-right text-sm text-fg-secondary lg:table-cell">{{ markup(product) }}</td>
+                    }
                     <td class="text-right">
                       <div class="flex justify-end">
                         @if (showPassive()) {
@@ -325,12 +339,16 @@ export class ProductListPage implements OnInit {
     const i = this.inv();
     const crit = this.store.lowStockCount();
     const exp = this.store.expiringProducts().length;
-    return [
+    const items: SumStripItem[] = [
       { icon: 'pi-box', tone: 'success', label: i.totalProducts, value: this.store.products().length },
       { icon: 'pi-exclamation-triangle', tone: 'danger', label: i.criticalStock, value: crit, valueTone: crit ? 'danger' : null },
       { icon: 'pi-clock', tone: 'warning', label: i.expiringSoon(this.store.expiryWarnDays()), value: exp, valueTone: exp ? 'warning' : null },
-      { icon: 'pi-wallet', tone: 'accent', label: i.stockValue, value: new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(this.store.totalInventoryValue()) + ' ₺' },
     ];
+    // Y5: stok değeri (alış) yalnız yöneticiye
+    if (this.isAdmin) {
+      items.push({ icon: 'pi-wallet', tone: 'accent', label: i.stockValue, value: new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(this.store.totalInventoryValue()) + ' ₺' });
+    }
+    return items;
   });
 
   /** Kategori çipleri (ada göre, sayaçlı) */
@@ -404,8 +422,7 @@ export class ProductListPage implements OnInit {
   qtyNum(n: number): string { return formatQty(n, this.t().products.locale); }
 
   markup(p: Product): string {
-    const m = markupPct(p);
-    return m === null ? '—' : `%${m}`;
+    return formatPct(markupPct(p), this.t().products.locale);
   }
 
   /** Henüz geçmemiş en yakın SKT tarihi (gg.aa.yyyy) */
@@ -440,6 +457,17 @@ export class ProductListPage implements OnInit {
   goToDetail(product: Product): void { this.router.navigate(['/products', product.id]); }
 
   /** Okuyucu: barkod/GTS bir ürüne tam eşleşiyorsa sepete ekle, değilse aramaya yaz. */
+  /** Kamerayla okut → aramaya yaz: kayıtlı GTS/barkod ise kendisi, karekodsa GTIN'e uyan ürünün barkodu. */
+  onCameraScan(r: ScanResult): void {
+    const products = this.store.products();
+    const gtin = r.gs1?.gtin ?? null;
+    const q = findByCode(products, r.code) || !gtin
+      ? r.code
+      : products.find(p => gtinMatches(p.barcode, gtin))?.barcode ?? r.gs1?.ean13 ?? gtin;
+    this.searchVal = q;
+    this.store.setSearch(q);
+  }
+
   onBarcode(barcode: string): void {
     const hit = this.showPassive() ? null : findByCode(this.store.products(), barcode);
     if (!hit) {

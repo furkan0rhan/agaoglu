@@ -4,6 +4,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputNumberModule } from 'primeng/inputnumber';
+import { SelectModule } from 'primeng/select';
 import { TextareaModule } from 'primeng/textarea';
 import { MessageService } from 'primeng/api';
 import { LangService } from '../../../core/i18n/lang.service';
@@ -27,7 +28,7 @@ const DUE_PRESETS = [15, 30, 60, 90] as const;
   selector: 'app-credit-section',
   standalone: true,
   imports: [
-    FormsModule, ButtonModule, InputNumberModule, TextareaModule,
+    FormsModule, ButtonModule, InputNumberModule, TextareaModule, SelectModule,
     GlassCardComponent, SettingsRowComponent, SegmentedComponent, StatusBadgeComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -55,6 +56,21 @@ const DUE_PRESETS = [15, 30, 60, 90] as const;
             [ariaLabel]="s().dueDaysAria" />
           <span class="text-sm text-fg-muted">{{ s().days }}</span>
         </span>
+      </ui-settings-row>
+
+      <ui-settings-row [title]="s().harvest" [description]="s().harvestDesc">
+        <span class="inline-flex items-center gap-2">
+          <p-inputNumber inputId="cr-harvest-day" [ngModel]="draft().harvestDay" (ngModelChange)="patch({ harvestDay: $event ?? 15 })"
+            [min]="1" [max]="28" [useGrouping]="false" inputStyleClass="num w-[60px] text-center" [ariaLabel]="s().harvestDayAria" />
+          <p-select [options]="monthOptions()" optionLabel="label" optionValue="value" [ngModel]="draft().harvestMonth"
+            (ngModelChange)="patch({ harvestMonth: $event ?? 7 })" [ariaLabel]="s().harvestMonthAria" styleClass="w-[140px]" appendTo="body" />
+        </span>
+      </ui-settings-row>
+
+      <ui-settings-row [title]="s().defaultRate" [description]="s().defaultRateDesc" labelFor="cr-rate">
+        <p-inputNumber inputId="cr-rate" [ngModel]="draft().defaultInterestRate" (ngModelChange)="patch({ defaultInterestRate: $event ?? 0 })"
+          locale="tr-TR" [min]="lim.interestRate.min" [max]="lim.interestRate.max" [minFractionDigits]="0" [maxFractionDigits]="2" suffix=" %"
+          inputStyleClass="num w-[96px] text-right" />
       </ui-settings-row>
 
       <ui-settings-row [title]="s().defaultLimit" [description]="s().defaultLimitDesc" labelFor="cr-limit">
@@ -108,6 +124,7 @@ export class CreditSectionComponent implements OnInit {
   readonly dueOptions = computed<UiSegmentOption<number>[]>(() => [
     ...DUE_PRESETS.map(d => ({ value: d as number, label: `${d}` })),
   ]);
+  readonly monthOptions = computed(() => this.s().months.map((label, i) => ({ label, value: i + 1 })));
   readonly duePreset = computed(() => (DUE_PRESETS as readonly number[]).includes(this.draft().defaultDueDays) ? this.draft().defaultDueDays : null);
 
   readonly dirty = computed(() => JSON.stringify(this.draft()) !== JSON.stringify(this.settings.credit()));
@@ -168,7 +185,13 @@ export class CreditSectionComponent implements OnInit {
     this.saving.set(true);
     try {
       await this.settings.update({
-        credit: { defaultDueDays: due, defaultCreditLimit: d.defaultCreditLimit && d.defaultCreditLimit > 0 ? d.defaultCreditLimit : null, reminderTemplate: d.reminderTemplate.trim() },
+        credit: {
+          defaultDueDays: due, defaultCreditLimit: d.defaultCreditLimit && d.defaultCreditLimit > 0 ? d.defaultCreditLimit : null,
+          reminderTemplate: d.reminderTemplate.trim(),
+          harvestMonth: Math.min(12, Math.max(1, Math.round(d.harvestMonth) || 7)),
+          harvestDay: Math.min(28, Math.max(1, Math.round(d.harvestDay) || 15)),
+          defaultInterestRate: Math.min(this.lim.interestRate.max, Math.max(0, Math.round((d.defaultInterestRate || 0) * 100) / 100)),
+        },
       });
       this.touched = false;
       this.toast.add({ severity: 'success', summary: '', detail: this.s().saved, life: 2500 });

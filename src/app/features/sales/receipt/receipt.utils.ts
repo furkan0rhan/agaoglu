@@ -1,7 +1,11 @@
-import { Sale, SaleReceipt } from '../../../shared/models/sale.model';
+import { PaymentReceiptInfo, Sale, SaleReceipt } from '../../../shared/models/sale.model';
+import { addMonthsClamped, buildInstallmentPlan } from '../../credit/services/credit.utils';
+
+const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 /** Firestore satış dokümanından fiş verisi. */
 export function saleToReceipt(sale: Sale): SaleReceipt {
+  const dueDate = toDate(sale.creditDueDate);
   return {
     saleNumber: sale.saleNumber,
     date: sale.createdAt?.toDate?.() ?? new Date(),
@@ -18,8 +22,80 @@ export function saleToReceipt(sale: Sale): SaleReceipt {
     totalWithInterest: sale.totalWithInterest ?? null,
     installmentCount: sale.installmentCount ?? null,
     prescriptionNo: sale.prescriptionNo ?? null,
-    dueDate: toDate(sale.creditDueDate),
+    dueDate,
     downPayment: sale.downPayment ?? null,
+    installments: saleInstallments(sale, dueDate),
+  };
+}
+
+/**
+ * Y12: satışın taksit planı (fişte tarih + tutar). Satış dokümanı planı saklamaz; POS ile aynı hesapla
+ * (`buildInstallmentPlan`, kuruş farkı son taksitte) borç tutarı + taksit sayısı + son vadeden aylık aralıkla türetilir.
+ * Vadesi olmayan (eski) veresiyede null.
+ */
+export function saleInstallments(
+  sale: Pick<Sale, 'creditAmount' | 'totalWithInterest' | 'installmentCount'>, lastDue: Date | null,
+): { no: number; dueDate: Date; amount: number }[] | null {
+  const financed = r2(sale.totalWithInterest ?? sale.creditAmount ?? 0);
+  if (!(financed > 0) || !lastDue) return null;
+  const n = Math.min(36, Math.max(1, Math.floor(Number(sale.installmentCount) || 1)));
+  const first = addMonthsClamped(lastDue, -(n - 1));
+  const plan = buildInstallmentPlan(financed, n, first, 0, 1);
+  return plan.installments.map(i => ({ no: i.no, dueDate: i.dueDate, amount: i.amount }));
+}
+
+export interface VatRow {
+  /** % oran; null = satışta oran kaydı yok (eski satış). */
+  rate: number | null;
+  /** KDV hariç tutar (matrah). */
+  base: number;
+  vat: number;
+  /** KDV dahil. */
+  gross: number;
+}
+
+/**
+ * Y12: fiş KDV dökümü (oran bazında). Fiyatlar KDV dahildir; genel (sepet) indirimi satırlara
+ * oransal dağıtılır (rapor hesabı `saleVat` ile aynı kural). Oransız kalemler `rate: null` satırında.
+ */
+export function receiptVatBreakdown(r: Pick<SaleReceipt, 'items' | 'totalAmount'>): VatRow[] {
+  const total = r.totalAmount ?? 0;
+  const lines = r.items.map(i => i.totalPrice ?? 0);
+  const sum = lines.reduce((a, b) => a + b, 0);
+  if (!(sum > 0) || !(total > 0)) return [];
+  const factor = total / sum;
+  const map = new Map<number | null, number>();
+  r.items.forEach((i, idx) => {
+    const rate = typeof i.vatRate === 'number' && Number.isFinite(i.vatRate) && i.vatRate >= 0 ? i.vatRate : null;
+    map.set(rate, (map.get(rate) ?? 0) + lines[idx] * factor);
+  });
+  const rows: VatRow[] = [...map.entries()].map(([rate, g]) => {
+    const gross = r2(g);
+    const base = rate ? r2(gross / (1 + rate / 100)) : gross;
+    return { rate, base, vat: r2(gross - base), gross };
+  });
+  // Yuvarlama farkı brüt toplamı fiş toplamına eşitlesin (en büyük satıra)
+  const diff = r2(total - rows.reduce((a, x) => a + x.gross, 0));
+  if (diff !== 0 && rows.length) {
+    const big = rows.reduce((m, x) => (x.gross > m.gross ? x : m), rows[0]);
+    big.gross = r2(big.gross + diff);
+    big.base = big.rate ? r2(big.gross / (1 + big.rate / 100)) : big.gross;
+    big.vat = r2(big.gross - big.base);
+  }
+  return rows.sort((a, b) => (a.rate ?? 999) - (b.rate ?? 999));
+}
+
+/** Y11: veresiye tahsilat makbuzu (aynı termal fiş düzeni, kalemsiz). */
+export function paymentToReceipt(
+  info: PaymentReceiptInfo, customerName: string, receiptNo: string, date: Date = new Date(),
+): SaleReceipt {
+  return {
+    kind: 'payment', payment: info,
+    saleNumber: receiptNo, date, customerName, items: [],
+    subtotal: info.amount, totalDiscount: 0, totalAmount: info.amount,
+    paymentMethod: info.method === 'card' ? 'card' : 'cash',
+    cashPaid: info.method === 'cash' ? info.amount : 0, cardPaid: info.method === 'card' ? info.amount : 0,
+    creditAmount: 0, change: 0, totalWithInterest: null, installmentCount: null,
   };
 }
 
@@ -41,8 +117,8 @@ export function sampleReceipt(customerName: string, itemNames: readonly string[]
     customerName,
     items: [
       { productName: a, quantity: 2, unit: 'adet', unitPrice: 485, discount: 0, discountType: 'amount', totalPrice: 970,
-        licenseNo: '1452/2019', gtsNos: ['8690000123457-0041', '8690000123457-0042'] },
-      { productName: b, quantity: 4, unit: 'adet', unitPrice: 1150, discount: 0, discountType: 'amount', totalPrice: 4600 },
+        licenseNo: '1452/2019', gtsNos: ['8690000123457-0041', '8690000123457-0042'], lotNos: ['L2405A'], vatRate: 20 },
+      { productName: b, quantity: 4, unit: 'adet', unitPrice: 1150, discount: 0, discountType: 'amount', totalPrice: 4600, vatRate: 1 },
     ],
     subtotal: 5570, totalDiscount: 0, totalAmount: 5570,
     paymentMethod: 'cash', cashPaid: 5570, cardPaid: 0, creditAmount: 0, change: 0,

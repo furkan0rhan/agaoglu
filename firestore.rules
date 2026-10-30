@@ -93,6 +93,72 @@ service cloud.firestore {
         || supportOk(resource.data.tenantId);
     }
 
+    // ---- Rol bazlı yetki (Y5) — src/app/core/auth/permissions.ts ile aynı tablo ----
+    // Alış fiyatı / kâr içeren veriler (alışlar, tedarikçiler, giderler) ve ürün tanımı yalnız işletme
+    // yöneticisinde (ve destek modunda). Kasiyer / personel üründe yalnız stok alanlarına dokunur (satış, iptal).
+    function isAdminOf(t) {
+      return isTenantAdmin(t) || supportOk(t);
+    }
+    function canAdminRead() {
+      return isAdminOf(resource.data.tenantId);
+    }
+    function canAdminCreate() {
+      return (isTenantAdmin(request.resource.data.tenantId) && licenseOk(request.resource.data.tenantId))
+        || supportOk(request.resource.data.tenantId);
+    }
+    function canAdminUpdate() {
+      return request.resource.data.tenantId == resource.data.tenantId
+        && (
+          (isTenantAdmin(resource.data.tenantId) && licenseOk(resource.data.tenantId))
+          || supportOk(resource.data.tenantId)
+        );
+    }
+    function canAdminDelete() {
+      return (isTenantAdmin(resource.data.tenantId) && licenseOk(resource.data.tenantId))
+        || supportOk(resource.data.tenantId);
+    }
+    function stockOnlyUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['stock', 'batches', 'expiryDate', 'updatedAt']);
+    }
+
+    // ---- Satış iptali (Y4) — src/app/features/sales/services/cancel-policy.ts ile aynı ----
+    // Neden zorunlu (3-200 karakter), iptal eden = istek sahibi, aynı yazımda auditLogs/sale_cancel_{saleId}.
+    // Yönetici / destek: her satış. Kasiyer: yalnız kendi ve aynı gün (Türkiye saati, UTC+3) satışı. Personel: hayır.
+    function saleCancelLogPath(saleId) {
+      return /databases/$(database)/documents/auditLogs/$('sale_cancel_' + saleId);
+    }
+    function cashierCanCancel() {
+      return userDoc().role == 'cashier'
+        && resource.data.get('createdBy', '') == request.auth.uid
+        && resource.data.get('createdAt', null) is timestamp
+        && (resource.data.createdAt + duration.value(3, 'h')).date() == (request.time + duration.value(3, 'h')).date();
+    }
+    function validSaleCancel(saleId) {
+      return resource.data.get('status', 'completed') == 'completed'
+        && request.resource.data.status == 'cancelled'
+        && request.resource.data.get('cancelReason', null) is string
+        && request.resource.data.cancelReason.size() >= 3
+        && request.resource.data.cancelReason.size() <= 200
+        && request.resource.data.get('cancelledBy', null) == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'cancelledAt', 'cancelledBy', 'cancelReason', 'updatedAt'])
+        && existsAfter(saleCancelLogPath(saleId))
+        && (isTenantAdmin(resource.data.tenantId) || cashierCanCancel() || supportOk(resource.data.tenantId));
+    }
+    // auditLogs/sale_cancel_{saleId}: satışın işletmesinin üyesi, satış aynı yazımda iptal ediliyor
+    function validSaleCancelLog(logId) {
+      return request.resource.data.get('action', '') == 'sale_cancel'
+        && request.resource.data.get('saleId', null) is string
+        && logId == 'sale_cancel_' + request.resource.data.saleId
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.tenantId is string
+        && request.resource.data.createdAt == request.time
+        && (inTenant(request.resource.data.tenantId) || supportOk(request.resource.data.tenantId))
+        && getAfter(/databases/$(database)/documents/sales/$(request.resource.data.saleId)).data.tenantId == request.resource.data.tenantId
+        && getAfter(/databases/$(database)/documents/sales/$(request.resource.data.saleId)).data.status == 'cancelled';
+    }
+
     // Yeni işletme: yalnız deneme lisansıyla (en fazla 31 gün, en fazla 3 kullanıcı)
     function validNewTenantLicense(d) {
       return d.get('plan', '') == 'trial'
@@ -145,11 +211,12 @@ service cloud.firestore {
         );
 
       allow update: if isAuth() && (
-        // Kullanıcı kendi profilinde sadece görünen ad / e-posta / son giriş
+        // Kullanıcı kendi profilinde sadece görünen ad / e-posta / son giriş / ürün turu durumu (onboarding: harita)
         (
           request.auth.uid == userId
           && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['displayName', 'email', 'lastLogin'])
+               .hasOnly(['displayName', 'email', 'lastLogin', 'onboarding'])
+          && (!('onboarding' in request.resource.data) || request.resource.data.onboarding is map)
         )
         // Aynı işletmenin admini: rol / aktiflik (sahip ve kendisi hariç)
         || (
@@ -251,22 +318,26 @@ service cloud.firestore {
     // ------------------------------------------------------------------
     match /auditLogs/{logId} {
       allow read: if isTenantAdmin(resource.data.tenantId) || isSuperAdmin();
-      allow create: if isSuperAdmin()
-        && request.resource.data.actorUid == request.auth.uid
-        && request.resource.data.tenantId is string
-        && request.resource.data.action in ['support_start', 'support_end', 'license_change', 'user_change']
-        && request.resource.data.createdAt == request.time;
+      allow create: if (
+          isSuperAdmin()
+          && request.resource.data.actorUid == request.auth.uid
+          && request.resource.data.tenantId is string
+          && request.resource.data.action in ['support_start', 'support_end', 'license_change', 'user_change']
+          && request.resource.data.createdAt == request.time
+        )
+        || validSaleCancelLog(logId);
       allow update, delete: if false;
     }
 
     // ------------------------------------------------------------------
     // Veri koleksiyonları
     // ------------------------------------------------------------------
+    // Y5: ürün tanımı (ekleme, fiyat, bilgi, silme) yalnız yönetici; kasiyer/personel yalnız stok alanları
     match /products/{productId} {
       allow read: if canRead();
-      allow create: if canCreate();
-      allow update: if canUpdate();
-      allow delete: if canDelete();
+      allow create: if canAdminCreate();
+      allow update: if canUpdate() && (stockOnlyUpdate() || isAdminOf(resource.data.tenantId));
+      allow delete: if canAdminDelete();
     }
 
     // Stok hareketleri: değişmez defter (update/delete yok)
@@ -275,11 +346,15 @@ service cloud.firestore {
       allow create: if canCreate();
     }
 
-    // Satışlar: iptal/iade için update açık, silme yok
+    // Satışlar: silme yok. Durum değişikliği yalnız kurallı iptal (Y4: neden + denetim kaydı + rol/gün kısıtı).
     match /sales/{saleId} {
       allow read: if canRead();
       allow create: if canCreate() && nonNegative(request.resource.data, 'totalAmount');
-      allow update: if canUpdate() && nonNegative(request.resource.data, 'totalAmount');
+      allow update: if canUpdate() && nonNegative(request.resource.data, 'totalAmount')
+        && (
+          request.resource.data.get('status', 'completed') == resource.data.get('status', 'completed')
+          || validSaleCancel(saleId)
+        );
     }
 
     match /customers/{customerId} {
@@ -289,11 +364,12 @@ service cloud.firestore {
       allow delete: if canDelete();
     }
 
+    // Y5: giderler yalnız yönetici
     match /expenses/{expenseId} {
-      allow read: if canRead();
-      allow create: if canCreate() && nonNegative(request.resource.data, 'amount');
-      allow update: if canUpdate() && nonNegative(request.resource.data, 'amount');
-      allow delete: if canDelete();
+      allow read: if canAdminRead();
+      allow create: if canAdminCreate() && nonNegative(request.resource.data, 'amount');
+      allow update: if canAdminUpdate() && nonNegative(request.resource.data, 'amount');
+      allow delete: if canAdminDelete();
     }
 
     // Veresiye hareketleri: değişmez defter. Düzeltme/iptal = yeni (ters) kayıt.
@@ -308,24 +384,26 @@ service cloud.firestore {
         );
     }
 
+    // Y5: tedarikçiler (borç, alış) yalnız yönetici
     match /suppliers/{supplierId} {
-      allow read: if canRead();
-      allow create: if canCreate();
-      allow update: if canUpdate();
-      allow delete: if canDelete();
+      allow read: if canAdminRead();
+      allow create: if canAdminCreate();
+      allow update: if canAdminUpdate();
+      allow delete: if canAdminDelete();
     }
 
     // ===== SATIN ALMA =====
     // Yardımcılar (canRead/canCreate/canUpdate) superadmin destek erişimini ve lisans kontrolünü içerir.
     // Alış belgesi: tenant üyesi okur/oluşturur. Düzenleme yok; yalnız 'active' → 'cancelled' iptali
     // (stok/cari ters kayıtları aynı transaction'da yazılır). Silme yok.
+    // Y5: alış belgeleri (birim maliyetler) yalnız yönetici
     match /purchases/{purchaseId} {
-      allow read: if canRead();
-      allow create: if canCreate()
+      allow read: if canAdminRead();
+      allow create: if canAdminCreate()
         && nonNegative(request.resource.data, 'grandTotal')
         && nonNegative(request.resource.data, 'discount')
         && request.resource.data.get('status', 'active') in ['active', 'cancelled'];
-      allow update: if canUpdate()
+      allow update: if canAdminUpdate()
         && resource.data.get('status', 'active') == 'active'
         && request.resource.data.status == 'cancelled'
         && request.resource.data.diff(resource.data).affectedKeys()
@@ -335,8 +413,8 @@ service cloud.firestore {
     // Tedarikçi cari hareketleri: değişmez defter (update/delete yok). Düzeltme/iptal = yeni (ters) kayıt.
     // amount >= 0; yalnız ters kayıt (isReversal == true) negatif olabilir.
     match /supplierTransactions/{txId} {
-      allow read: if canRead();
-      allow create: if canCreate()
+      allow read: if canAdminRead();
+      allow create: if canAdminCreate()
         && request.resource.data.type in ['purchase', 'payment']
         && request.resource.data.amount is number
         && (
@@ -516,7 +594,7 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Bağlantı: açık rızayla (davet) kurulur; çiftçi izinleri değiştirir / koparır, bayi yalnız bakiye anlık değerini yazar.
+    // Bağlantı: açık rızayla (davet) kurulur; çiftçi izinleri değiştirir / koparır, bayi yalnız bakiye + vade özetinin (nextDue, overdueAmount, schedule) anlık değerini yazar.
     match /farmerLinks/{linkId} {
       allow read: if isFarmerOf(resource.data.farmerId) || isDealerStaffOf(resource.data.tenantId) || isSuperAdmin();
       allow create: if linkId == request.resource.data.tenantId + '_' + request.resource.data.farmerId
@@ -538,7 +616,7 @@ service cloud.firestore {
         || (
           inTenant(resource.data.tenantId)
           && resource.data.status == 'active'
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['balance', 'balanceUpdatedAt', 'tenantName'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['balance', 'balanceUpdatedAt', 'tenantName', 'nextDue', 'overdueAmount', 'schedule'])
         );
       allow delete: if false;
     }

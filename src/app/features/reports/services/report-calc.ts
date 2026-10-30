@@ -3,14 +3,18 @@ import { Product } from '../../../shared/models/product.model';
 import { CreditTransaction } from '../../../shared/models/credit.model';
 import { Expense } from '../../../shared/models/expense.model';
 import { Period } from '../../../shared/utils/date-range.util';
+import { productNetCost, vatRateOf } from '../../../shared/utils/pricing';
 
 /**
  * Rapor hesaplama kuralları (tek yer):
  * - Sadece status == 'completed' satışlar sayılır; status alanı olmayan eski kayıtlar completed kabul edilir.
- * - Ciro = Σ sale.totalAmount (indirimler düşülmüş, vade farkı HARİÇ).
+ * - Ciro (KDV dahil) = Σ sale.totalAmount (indirimler düşülmüş, vade farkı HARİÇ).
+ * - Net satış (KDV hariç) = Σ satır toplamı / (1 + kdv). Genel (sepet) indirimi satırlara oransal dağıtılır
+ *   (satır × totalAmount / Σ satır). KDV oranı satış anındaki `item.vatRate` snapshot'ıdır; eski satışlarda
+ *   yoksa ürünün güncel vatRate'i kullanılır (tahmini). KDV = Ciro − Net satış.
  * - Vade farkı geliri = Σ max(0, totalWithInterest − creditAmount) (faizli veresiye satışlarında).
- * - Maliyet = Σ costPrice × qty; costPrice yoksa ürünün güncel purchasePrice'ı (tahmini).
- * - Brüt kâr = Ciro − Maliyet. Net kâr = Brüt kâr − dönem giderleri.
+ * - Maliyet (KDV hariç) = Σ costPrice × qty; costPrice yoksa ürünün güncel net alış fiyatı (tahmini).
+ * - Brüt kâr = Net satış − Maliyet. Net kâr = Brüt kâr − dönem giderleri.
  * - Nakit = Σ (cashPaid − change), Kart = Σ cardPaid, Veresiye = Σ creditAmount.
  */
 
@@ -55,15 +59,57 @@ export function saleCost(s: Sale, products: ReadonlyMap<string, Product>): CostR
       cost += i.costPrice * i.quantity;
     } else {
       estimated = true;
-      cost += (products.get(i.productId)?.purchasePrice ?? 0) * i.quantity;
+      const p = products.get(i.productId);
+      cost += (p ? productNetCost(p) : 0) * i.quantity;
     }
   }
   return { cost, estimated };
 }
 
+export interface VatResult {
+  /** KDV hariç net satış. */
+  net: number;
+  /** Satıştaki KDV (= totalAmount − net). */
+  vat: number;
+  /** En az bir kalemde KDV oranı snapshot'ı yok (ürünün güncel oranı kullanıldı). */
+  estimated: boolean;
+}
+
+/** Bir satışın KDV dökümü (genel indirim satırlara oransal dağıtılır). */
+export function saleVat(s: Sale, products: ReadonlyMap<string, Product>): VatResult {
+  const total = s.totalAmount ?? 0;
+  const items = s.items ?? [];
+  const lines = items.map(i => (typeof i.totalPrice === 'number' ? i.totalPrice : itemNet(i)));
+  const linesSum = lines.reduce((a, b) => a + b, 0);
+  if (!items.length || !(linesSum > 0) || !(total > 0)) return { net: round2(total), vat: 0, estimated: false };
+  const factor = total / linesSum;
+  let net = 0;
+  let estimated = false;
+  items.forEach((i, idx) => {
+    let rate: number;
+    if (i.vatRate === undefined) {
+      estimated = true;
+      rate = vatRateOf(products.get(i.productId)?.vatRate);
+    } else {
+      rate = vatRateOf(i.vatRate);
+    }
+    const gross = lines[idx] * factor;
+    net += rate ? gross / (1 + rate / 100) : gross;
+  });
+  net = round2(net);
+  return { net, vat: round2(total - net), estimated };
+}
+
 export interface SalesSummary {
   saleCount: number;
+  /** Ciro (KDV dahil). */
   revenue: number;
+  /** Net satış (KDV hariç). */
+  netRevenue: number;
+  /** Satışlardaki KDV. */
+  vat: number;
+  /** KDV oranı bazı eski satışlarda yok → ürünün güncel oranı kullanıldı. */
+  vatEstimated: boolean;
   cost: number;
   grossProfit: number;
   costEstimated: boolean;
@@ -75,13 +121,17 @@ export interface SalesSummary {
 
 export function summarizeSales(sales: Sale[], products: ReadonlyMap<string, Product>): SalesSummary {
   const r: SalesSummary = {
-    saleCount: 0, revenue: 0, cost: 0, grossProfit: 0, costEstimated: false,
+    saleCount: 0, revenue: 0, netRevenue: 0, vat: 0, vatEstimated: false, cost: 0, grossProfit: 0, costEstimated: false,
     interestIncome: 0, cash: 0, card: 0, credit: 0,
   };
   for (const s of sales) {
     if (!isCompletedSale(s)) continue;
     r.saleCount++;
     r.revenue += s.totalAmount ?? 0;
+    const v = saleVat(s, products);
+    r.netRevenue += v.net;
+    r.vat += v.vat;
+    if (v.estimated) r.vatEstimated = true;
     const c = saleCost(s, products);
     r.cost += c.cost;
     if (c.estimated) r.costEstimated = true;
@@ -90,25 +140,27 @@ export function summarizeSales(sales: Sale[], products: ReadonlyMap<string, Prod
     r.card += s.cardPaid ?? 0;
     r.credit += s.creditAmount ?? 0;
   }
-  r.grossProfit = r.revenue - r.cost;
-  for (const k of ['revenue', 'cost', 'grossProfit', 'interestIncome', 'cash', 'card', 'credit'] as const) {
+  r.grossProfit = r.netRevenue - r.cost;
+  for (const k of ['revenue', 'netRevenue', 'vat', 'cost', 'grossProfit', 'interestIncome', 'cash', 'card', 'credit'] as const) {
     r[k] = round2(r[k]);
   }
   return r;
 }
 
-export interface CollectionSummary { total: number; cash: number; card: number; count: number }
+/** Tahsilatlar. Havale/EFT (Y11) kasaya girmez: `transfer` ayrı tutulur, `cash` yalnız elden nakit. */
+export interface CollectionSummary { total: number; cash: number; card: number; transfer: number; count: number }
 
 export function summarizeCollections(tx: CreditTransaction[]): CollectionSummary {
-  const r: CollectionSummary = { total: 0, cash: 0, card: 0, count: 0 };
+  const r: CollectionSummary = { total: 0, cash: 0, card: 0, transfer: 0, count: 0 };
   for (const t of tx) {
     if (t.type !== 'payment') continue;
     r.count++;
     r.total += t.amount ?? 0;
     if (t.paymentMethod === 'card') r.card += t.amount ?? 0;
+    else if (t.paymentMethod === 'transfer') r.transfer += t.amount ?? 0;
     else r.cash += t.amount ?? 0;
   }
-  r.total = round2(r.total); r.cash = round2(r.cash); r.card = round2(r.card);
+  r.total = round2(r.total); r.cash = round2(r.cash); r.card = round2(r.card); r.transfer = round2(r.transfer);
   return r;
 }
 
@@ -189,7 +241,7 @@ export interface ChartColors { text: string; grid: string; series: string[] }
 export function readChartColors(): ChartColors {
   const css = getComputedStyle(document.documentElement);
   const v = (name: string, fb: string) => css.getPropertyValue(name).trim() || fb;
-  const fallback = ['#16a34a', '#3b82f6', '#ef4444', '#f59e0b', '#a855f7', '#14b8a6'];
+  const fallback = ['#7fae86', '#86a6c9', '#e09486', '#e3a979', '#b4a0cf', '#c9b46a'];
   return {
     text: v('--text-secondary', '#64748b'),
     grid: v('--border-mid', '#e2e8f0'),

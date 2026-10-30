@@ -58,6 +58,8 @@ export interface PosTexts {
   whatsapp: string;
   newSale: string;
   cancelSale: string;
+  /** Y10: sepet boşaltma geri al */
+  cartCleared: (n: number) => string; undo: string;
   detail: string;
   waText: (business: string, saleNo: string, total: string, credit: string | null) => string;
   mobileCart: string;
@@ -68,15 +70,11 @@ export interface PosTexts {
   modeInstallment: string;
   modeHarvest: string;
   downPayment: string;
-  downPaymentHint: string;
   firstDue: string;
   harvestDate: string;
   interval: string;
   months: (n: number) => string;
   planTitle: string;
-  planNo: string;
-  planDue: string;
-  planAmount: string;
   financed: string;
   currentDebt: string;
   newBalance: string;
@@ -150,6 +148,8 @@ export const POS_TR: PosTexts = {
   whatsapp: 'WhatsApp',
   newSale: 'Yeni Satış',
   cancelSale: 'Satışı iptal et',
+  cartCleared: n => `Sepet boşaltıldı (${n} kalem)`,
+  undo: 'Geri al',
   detail: 'Satış detayı',
   waText: (business, saleNo, total, credit) =>
     [`${business ? business + ' · ' : ''}Satış ${saleNo}`, `Toplam: ${total}`, credit ? `Veresiye: ${credit}` : '', 'Teşekkür ederiz.']
@@ -161,15 +161,11 @@ export const POS_TR: PosTexts = {
   modeInstallment: 'Taksitli',
   modeHarvest: 'Hasatta öde',
   downPayment: 'Peşinat (nakit)',
-  downPaymentHint: 'Peşinat nakit tahsil edilmiş sayılır.',
   firstDue: 'İlk vade',
   harvestDate: 'Hasat (ödeme) tarihi',
   interval: 'Taksit aralığı',
   months: n => `${n} ay`,
   planTitle: 'Ödeme planı',
-  planNo: 'Taksit',
-  planDue: 'Vade',
-  planAmount: 'Tutar',
   financed: 'Veresiyeye yazılacak',
   currentDebt: 'Mevcut borç',
   newBalance: 'Yeni bakiye',
@@ -242,6 +238,8 @@ export const POS_EN: PosTexts = {
   whatsapp: 'WhatsApp',
   newSale: 'New sale',
   cancelSale: 'Cancel sale',
+  cartCleared: n => `Cart cleared (${n} items)`,
+  undo: 'Undo',
   detail: 'Sale detail',
   waText: (business, saleNo, total, credit) =>
     [`${business ? business + ' · ' : ''}Sale ${saleNo}`, `Total: ${total}`, credit ? `On credit: ${credit}` : '', 'Thank you.']
@@ -253,15 +251,11 @@ export const POS_EN: PosTexts = {
   modeInstallment: 'Installments',
   modeHarvest: 'Pay at harvest',
   downPayment: 'Down payment (cash)',
-  downPaymentHint: 'The down payment is recorded as cash.',
   firstDue: 'First due date',
   harvestDate: 'Harvest (due) date',
   interval: 'Interval',
   months: n => `${n} mo`,
   planTitle: 'Payment plan',
-  planNo: 'No.',
-  planDue: 'Due',
-  planAmount: 'Amount',
   financed: 'Recorded as credit',
   currentDebt: 'Current debt',
   newBalance: 'New balance',

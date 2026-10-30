@@ -80,6 +80,13 @@ describe('purchase.utils — alış stok artışı', () => {
     expect(r.batchIds).toEqual(['b1', 'b2', 'b3']);
   });
 
+  it('parti no (karekod AI 10) eklenen tüm partilere yazılır; yoksa alan yok', () => {
+    const r = applyPurchaseItem({ stock: 0, batches: [] }, { quantity: 1, expiryDate: null, gtsNumbers: ['G1', 'G2'], lotNo: ' lot1 ' }, null, NOW, seq());
+    expect(r.batches.map(b => b.lotNo)).toEqual(['LOT1', 'LOT1']);
+    const q = applyPurchaseItem({ stock: 0, batches: [] }, { quantity: 4, expiryDate: null, gtsNumbers: [] }, null, NOW, seq());
+    expect('lotNo' in q.batches[0]).toBe(false);
+  });
+
   it('stokta olan GTS tekrar eklenemez', () => {
     expect(() => applyPurchaseItem({ stock: 1, batches: [batch('x', 1, 'G1')] }, { quantity: 1, expiryDate: null, gtsNumbers: ['G1'] }, null, NOW))
       .toThrow(PurchaseError);

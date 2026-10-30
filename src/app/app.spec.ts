@@ -1,13 +1,21 @@
+import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { App } from './app';
+import { TourHostComponent } from './core/onboarding/tour-host.component';
+
+/** Ürün turu kökü Firebase ister; kök bileşen testinde boş taslak. */
+@Component({ selector: 'app-tour-host', template: '' })
+class TourHostStub {}
 
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
       providers: [provideRouter([])],
-    }).compileComponents();
+    })
+      .overrideComponent(App, { remove: { imports: [TourHostComponent] }, add: { imports: [TourHostStub] } })
+      .compileComponents();
   });
 
   it('should create the root component', () => {

@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { ApplicationType } from '../../../shared/models/farmer.model';
 import { LangService } from '../../../core/i18n/lang.service';
 import { TONE_SOFT, TONE_TINT, UiTone } from '../../../shared/ui/tone';
+import { FarmerStore } from '../services/farmer-store.service';
 
 /**
  * Çiftçi arayüzü ortakları — tasarım v2 "Saha / Komuta" (sıcak kâğıt / kömür tokenları, düz kartlar).
@@ -53,11 +54,13 @@ export const F = {
   card: 'block rounded-token-2xl border border-line bg-surface p-4 text-fg',
   /** Kart başlık şeridi (C "ch") — kartın içinde en üstte, `-m-4 mb-3` ile kenara yaslanır. */
   head: '-mx-4 -mt-4 mb-3 flex min-h-[52px] items-center gap-2.5 rounded-t-token-2xl border-b border-line bg-surface-muted bg-furrow px-4 py-2',
-  btn: 'flex min-h-[56px] w-full cursor-pointer items-center justify-center gap-2.5 rounded-token-xl border-0 bg-brand px-4 font-display text-18 font-bold text-brand-contrast no-underline shadow-[inset_0_-2px_0_rgba(0,0,0,0.18)] transition-[filter] hover:brightness-105 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-50',
+  btn: 'flex min-h-[56px] w-full cursor-pointer items-center justify-center gap-2.5 rounded-token-xl border-0 bg-brand px-4 font-display text-18 font-bold text-brand-contrast no-underline shadow-brand transition-[filter] hover:brightness-105 active:brightness-95 disabled:cursor-not-allowed disabled:shadow-none ui-btn-disabled-soft',
   btn2: 'flex min-h-[56px] w-full cursor-pointer items-center justify-center gap-2.5 rounded-token-xl border border-line-strong bg-surface px-4 font-display text-18 font-bold text-fg no-underline transition-colors hover:bg-surface-muted active:bg-surface-strong disabled:cursor-not-allowed disabled:opacity-50',
   btnDanger: 'flex min-h-[56px] w-full cursor-pointer items-center justify-center gap-2.5 rounded-token-xl border border-danger-line bg-danger-soft px-4 font-display text-18 font-bold text-danger-text transition-[filter] hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50',
   input: 'block min-h-[56px] w-full rounded-token-lg border border-line-strong bg-surface px-3.5 text-18 text-fg placeholder:text-fg-muted focus:border-brand focus:shadow-focus focus:outline-none',
   label: 'mb-1.5 block text-16 font-semibold text-fg-secondary',
+  /** `ui-date-field` (ortak bileşen) host'una: içteki girişi çiftçi ölçüsüne (56px, 18px yazı) büyütür. */
+  date: '[&_input]:min-h-[56px] [&_input]:text-18 [&_.p-datepicker-dropdown]:min-w-[56px] [&_.p-datepicker-input-icon-container]:text-18',
   /** Hatırlatma / dikkat (sarı). */
   note: 'rounded-token-lg border border-warning-line bg-warning-soft px-3.5 py-3 text-16 leading-snug text-warning-text',
   /** Hukuki bilgi: görünür ama sade (nötr kâğıt kutu). */
@@ -130,4 +133,28 @@ export class FarmerHeaderComponent {
   readonly back = input<string | null>(null);
   readonly t = inject(LangService).t;
   readonly location = inject(Location);
+}
+
+/**
+ * "Yenile" düğmesi (başlığın sağına, `<app-farmer-header>` içine konur): bayinin yeni yazdıklarını (satış, borç,
+ * öneri) sayfayı kapatıp açmadan getirir (rapor #4). 48px dokunma alanı, dönen ikon.
+ */
+@Component({
+  selector: 'app-farmer-refresh',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <button type="button" (click)="store.refresh()" [disabled]="store.refreshing()" [attr.aria-busy]="store.refreshing()"
+      [attr.aria-label]="compact() ? t().farmer.common.refresh : null" [title]="t().farmer.common.refresh"
+      class="flex min-h-[48px] min-w-[48px] shrink-0 cursor-pointer items-center justify-center gap-2 rounded-token-lg border border-line-strong bg-surface px-3 text-16 font-bold text-fg hover:bg-surface-muted disabled:cursor-wait">
+      <i class="pi pi-refresh text-18" [class.pi-spin]="store.refreshing()" aria-hidden="true"></i>
+      @if (!compact()) { <span>{{ store.refreshing() ? t().farmer.common.refreshing : t().farmer.common.refresh }}</span> }
+    </button>
+  `,
+})
+export class FarmerRefreshButtonComponent {
+  /** Yalnız ikon (dar başlıklarda) */
+  readonly compact = input(false);
+  readonly store = inject(FarmerStore);
+  readonly t = inject(LangService).t;
 }

@@ -25,7 +25,8 @@ export interface CreditTransaction {
   type: CreditTransactionType;
   amount: number;
   description: string;
-  paymentMethod: 'cash' | 'card' | null;
+  /** transfer: Havale/EFT (Y11) — kasaya girmez, raporda ayrı satır. */
+  paymentMethod: 'cash' | 'card' | 'transfer' | null;
   /** İşlem sonrası müşteri bakiyesi (koşan bakiye). Hem borç hem tahsilat kayıtlarında aynı anlam. */
   balance: number;
   originalAmount: number | null;

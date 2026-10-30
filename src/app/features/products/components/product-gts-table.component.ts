@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, input, model, output } from '@angular/core';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { DatePickerModule } from 'primeng/datepicker';
+import { DateFieldComponent } from '../../../shared/ui/date-field.component';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
@@ -18,6 +18,8 @@ export interface GtsRowSave {
   gtsNo: string;
   expiryDate: Date | null;
   supplierId: string | null;
+  /** Parti no (boş → null) */
+  lotNo: string | null;
 }
 
 /**
@@ -29,7 +31,7 @@ export interface GtsRowSave {
   selector: 'app-product-gts-table',
   standalone: true,
   imports: [
-    DatePipe, NgTemplateOutlet, FormsModule, DatePickerModule, InputTextModule, SelectModule, TableModule,
+    DatePipe, NgTemplateOutlet, FormsModule, DateFieldComponent, InputTextModule, SelectModule, TableModule,
     EmptyStateComponent, IconButtonComponent, StatusBadgeComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -51,6 +53,9 @@ export interface GtsRowSave {
                   <ng-container [ngTemplateOutlet]="codeCell" [ngTemplateOutletContext]="{ $implicit: b }" />
                   <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-secondary">
                     <ng-container [ngTemplateOutlet]="expiryCell" [ngTemplateOutletContext]="{ $implicit: b }" />
+                    @if (b.lotNo) {
+                      <span class="font-mono">{{ t().inventory.lotNo }}: {{ b.lotNo }}</span>
+                    }
                     @if (supplierName(b); as s) {
                       <span class="inline-flex items-center gap-1"><i class="pi pi-truck text-10 text-info-text" aria-hidden="true"></i>{{ s }}</span>
                     }
@@ -70,6 +75,7 @@ export interface GtsRowSave {
             <tr>
               <th class="w-12">#</th>
               <th>{{ t().products.gtsColCode }}</th>
+              <th class="w-32">{{ t().inventory.lotNo }}</th>
               <th class="w-44">{{ t().products.gtsColExpiry }}</th>
               <th class="w-48">{{ t().products.dialogSupplier }}</th>
               <th class="w-28">{{ t().products.gtsColAdded }}</th>
@@ -89,8 +95,17 @@ export interface GtsRowSave {
               </td>
               <td>
                 @if (editingId() === b.id) {
-                  <p-datepicker [(ngModel)]="editExpiry" dateFormat="dd.mm.yy" [showIcon]="true" [showButtonBar]="true" appendTo="body"
-                                styleClass="w-full" [ariaLabel]="t().products.gtsColExpiry" />
+                  <input pInputText [(ngModel)]="editLot" maxlength="20" class="w-full font-mono text-xs uppercase placeholder:normal-case"
+                         [attr.aria-label]="t().inventory.lotNo" />
+                } @else if (b.lotNo) {
+                  <span class="font-mono text-sm text-fg-secondary">{{ b.lotNo }}</span>
+                } @else {
+                  <span class="text-fg-muted">—</span>
+                }
+              </td>
+              <td>
+                @if (editingId() === b.id) {
+                  <ui-date-field [(ngModel)]="editExpiry" [ariaLabel]="t().products.gtsColExpiry" />
                 } @else {
                   <ng-container [ngTemplateOutlet]="expiryCell" [ngTemplateOutletContext]="{ $implicit: b }" />
                 }
@@ -150,7 +165,7 @@ export interface GtsRowSave {
         @if (editingId() === b.id) {
           <ui-icon-button icon="pi-check" tone="brand" variant="solid" size="sm" [disabled]="saving()" [ariaLabel]="t().common.save" (click)="save(b)" />
           <ui-icon-button icon="pi-times" size="sm" [ariaLabel]="t().common.cancel" (click)="cancel()" />
-        } @else {
+        } @else if (!readonly()) {
           <ui-icon-button icon="pi-pencil" size="sm" [ariaLabel]="t().common.edit" (click)="startEdit(b)" />
           <ui-icon-button icon="pi-trash" tone="danger" size="sm" [ariaLabel]="t().common.delete" (click)="removeRow.emit(b)" />
         }
@@ -162,9 +177,11 @@ export interface GtsRowSave {
       <div class="flex flex-col gap-2">
         <label [for]="'gts-edit-code-' + idx" class="text-sm font-semibold text-fg-secondary">{{ t().products.gtsColCode }}</label>
         <input pInputText [id]="'gts-edit-code-' + idx" [(ngModel)]="editGts" class="w-full font-mono" [placeholder]="t().products.gtsNone" />
+        <label [for]="'gts-edit-lot-' + idx" class="text-sm font-semibold text-fg-secondary">{{ t().inventory.lotNo }}</label>
+        <input pInputText [id]="'gts-edit-lot-' + idx" [(ngModel)]="editLot" maxlength="20" class="w-full font-mono uppercase placeholder:normal-case"
+               [placeholder]="t().inventory.lotNoPlaceholder" />
         <label [for]="'gts-edit-exp-' + idx" class="text-sm font-semibold text-fg-secondary">{{ t().products.gtsColExpiry }}</label>
-        <p-datepicker [inputId]="'gts-edit-exp-' + idx" [(ngModel)]="editExpiry" dateFormat="dd.mm.yy" [showIcon]="true" [showButtonBar]="true"
-                      appendTo="body" styleClass="w-full" />
+        <ui-date-field [inputId]="'gts-edit-exp-' + idx" [(ngModel)]="editExpiry" />
         <label [for]="'gts-edit-sup-' + idx" class="text-sm font-semibold text-fg-secondary">{{ t().products.dialogSupplier }}</label>
         <p-select [inputId]="'gts-edit-sup-' + idx" [(ngModel)]="editSupplierId" [options]="suppliers()" optionLabel="name" optionValue="id"
                   [placeholder]="t().products.dialogSelectSupplier" [showClear]="true" appendTo="body" styleClass="w-full" />
@@ -184,6 +201,8 @@ export class ProductGtsTableComponent {
   readonly suppliers = input<Supplier[]>([]);
   readonly product = input<Pick<Product, 'unit'> | null>(null);
   readonly saving = input(false);
+  /** Y5: yönetici dışı roller partileri yalnız görür */
+  readonly readonly = input(false);
   /** Düzenlenen satır (iki yönlü) */
   readonly editingId = model<string | null>(null);
 
@@ -193,12 +212,14 @@ export class ProductGtsTableComponent {
   editGts = '';
   editExpiry: Date | null = null;
   editSupplierId: string | null = null;
+  editLot = '';
 
   startEdit(b: Batch): void {
     this.editingId.set(b.id);
     this.editGts = b.gtsNo ?? '';
     this.editExpiry = b.expiryDate ? b.expiryDate.toDate() : null;
     this.editSupplierId = b.supplierId ?? null;
+    this.editLot = b.lotNo ?? '';
   }
 
   cancel(): void {
@@ -206,7 +227,7 @@ export class ProductGtsTableComponent {
   }
 
   save(b: Batch): void {
-    this.saveRow.emit({ batch: b, gtsNo: this.editGts.trim(), expiryDate: this.editExpiry, supplierId: this.editSupplierId });
+    this.saveRow.emit({ batch: b, gtsNo: this.editGts.trim(), expiryDate: this.editExpiry, supplierId: this.editSupplierId, lotNo: this.editLot.trim() || null });
   }
 
   qty(n: number): string {

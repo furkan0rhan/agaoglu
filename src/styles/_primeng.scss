@@ -106,3 +106,23 @@ html.density-compact {
   border-color: var(--border-strong);
   color: var(--text-primary);
 }
+
+// ---- Devre dışı dolu butonlar (14.12) -------------------------------------------------
+// PrimeNG varsayılanı opacity .6: adaçayı dolgu krem zeminde neredeyse kayboluyordu. Opaklık yerine
+// pastel zemin + soluk ama okunur metin (--disabled-text, ≥3:1). Outlined/text/link/secondary eski haliyle.
+.p-button:disabled:not(.p-button-secondary):not(.p-button-outlined):not(.p-button-text):not(.p-button-link),
+.p-button.p-disabled:not(.p-button-secondary):not(.p-button-outlined):not(.p-button-text):not(.p-button-link) {
+  opacity: 1;
+  background: var(--disabled-bg);
+  border-color: var(--disabled-line);
+  color: var(--disabled-text);
+  box-shadow: none;
+}
+// Elle yazılmış dolu butonlar (POS ödeme vb.): class="… ui-btn-disabled-soft"
+.ui-btn-disabled-soft:disabled {
+  opacity: 1;
+  background: var(--disabled-bg);
+  border-color: var(--disabled-line);
+  color: var(--disabled-text);
+  box-shadow: none;
+}

@@ -34,7 +34,7 @@ import { authErrorMessage } from '../auth-errors';
             </p-iconfield>
           </div>
       @if (error()) {
-        <div role="alert" class="flex items-start gap-2.5 rounded-token-lg border border-danger-line bg-danger-soft px-3.5 py-3 text-sm text-danger">
+        <div role="alert" class="flex items-start gap-2.5 rounded-token-lg border border-danger-line bg-danger-soft px-3.5 py-3 text-sm text-danger-text">
           <i class="pi pi-exclamation-circle mt-0.5 text-sm" aria-hidden="true"></i>
           <span>{{ error() }}</span>
         </div>
@@ -50,14 +50,14 @@ import { authErrorMessage } from '../auth-errors';
           ></p-button>
         </div>
       } @else {
-        <div role="status" class="flex items-center gap-3 rounded-token-lg border border-success-line bg-success-soft p-4 text-sm font-medium text-success">
+        <div role="status" class="flex items-center gap-3 rounded-token-lg border border-success-line bg-success-soft p-4 text-sm font-medium text-success-text">
           <i class="pi pi-check-circle text-xl" aria-hidden="true"></i>
           <span>{{ t().auth.resetSent }}</span>
         </div>
       }
 
       <div auth-footer>
-        <a [routerLink]="['/auth/login']" class="inline-flex min-h-[44px] items-center gap-2 font-semibold text-brand no-underline hover:underline">
+        <a [routerLink]="['/auth/login']" class="inline-flex min-h-[44px] items-center gap-2 font-semibold text-brand-text no-underline hover:underline">
           <i class="pi pi-arrow-left text-xs" aria-hidden="true"></i>{{ t().auth.backToLogin }}
         </a>
       </div>

@@ -2,9 +2,14 @@ import { ChangeDetectionStrategy, Component, inject, input, model } from '@angul
 import { FarmerConsent } from '../../../shared/models/farmer.model';
 import { LangService } from '../../../core/i18n/lang.service';
 
-type Toggle = 'fields' | 'logs' | 'notifications';
+type Toggle = 'fields' | 'logs';
 
-/** KVKK izinleri: ayrı ayrı işaretlenir; "alışveriş/borç" zorunlu ve kilitli. */
+/**
+ * KVKK izinleri: ayrı ayrı işaretlenir; "alışveriş/borç" zorunlu ve kilitli.
+ * "Bayim bana hatırlatma gönderebilir" (consent.notifications) arkasında henüz bir bildirim özelliği olmadığı için
+ * SORULMAZ (rapor #5: olmayan hizmete rıza alınmaz). Alan veri modelinde kalır (varsayılan false; eski kayıtlarla
+ * uyumlu, değeri korunur). Bildirim özelliği (V4: FCM / uygulama içi) gelince buraya geri eklenir.
+ */
 @Component({
   selector: 'app-farmer-consent-form',
   standalone: true,
@@ -33,8 +38,8 @@ export class FarmerConsentFormComponent {
   readonly consent = model.required<FarmerConsent>();
   readonly disabled = input(false);
   readonly idPrefix = input('fc-');
-  readonly keys: readonly Toggle[] = ['fields', 'logs', 'notifications'];
-  readonly icons: Record<Toggle, string> = { fields: '🌾', logs: '📒', notifications: '🔔' };
+  readonly keys: readonly Toggle[] = ['fields', 'logs'];
+  readonly icons: Record<Toggle, string> = { fields: '🌾', logs: '📒' };
 
   toggle(k: Toggle, ev: Event): void {
     const checked = (ev.target as HTMLInputElement).checked;

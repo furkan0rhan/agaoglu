@@ -1,4 +1,6 @@
 import { Injectable, inject } from '@angular/core';
+import { toObservable } from '@angular/core/rxjs-interop';
+import { TenantSettingsService } from '../../../core/settings/tenant-settings.service';
 import {
   Firestore, collection, doc, query, where, orderBy, onSnapshot, writeBatch, runTransaction,
   serverTimestamp, increment,
@@ -26,7 +28,7 @@ export class OverpaymentError extends Error {
 
 export interface PaymentInput {
   amount: number;
-  method: 'cash' | 'card';
+  method: 'cash' | 'card' | 'transfer';
   description: string;
 }
 
@@ -49,6 +51,8 @@ export class CreditService {
   private readonly net = inject(NetworkService);
   private readonly logger = inject(LoggerService);
   private readonly customers = inject(CustomerService);
+  private readonly settings = inject(TenantSettingsService);
+  private readonly creditSettings$ = toObservable(this.settings.credit);
 
   /**
    * POS veresiye dialogu için taksit planı (saf, statik; servis enjekte etmeden çağrılabilir).
@@ -94,8 +98,13 @@ export class CreditService {
    */
   statusByCustomer$(): Observable<Map<string, CustomerCreditStatus>> {
     // Borç sorgusu başarısız olursa (kural/indeks) liste yine bakiyelerle çalışır; vade bilgisi boş kalır
-    return combineLatest([this.customers.getAll$(), this.debts$().pipe(catchError(() => of([] as CreditTransaction[])))]).pipe(
-      map(([customers, debts]) => {
+    this.settings.ensureLoaded();
+    return combineLatest([
+      this.customers.getAll$(),
+      this.debts$().pipe(catchError(() => of([] as CreditTransaction[]))),
+      this.creditSettings$,
+    ]).pipe(
+      map(([customers, debts, cs]) => {
         const byCustomer = new Map<string, CreditTransaction[]>();
         for (const tx of debts) {
           const list = byCustomer.get(tx.customerId);
@@ -105,13 +114,20 @@ export class CreditService {
         const out = new Map<string, CustomerCreditStatus>();
         for (const c of customers) {
           if (!(roundKurus(c.balance ?? 0) > 0)) continue;
-          const st = creditStatus(buildSchedule(byCustomer.get(c.id) ?? [], c.balance), now);
+          // Y7: vadesiz borçlar Ayarlar → Veresiye "varsayılan vade" ile gecikmeye düşer
+          const st = creditStatus(buildSchedule(byCustomer.get(c.id) ?? [], c.balance, { defaultDueDays: cs.defaultDueDays }), now);
           out.set(c.id, { ...st, customer: c });
         }
         return out;
       }),
       shareReplay({ bufferSize: 1, refCount: true }),
     );
+  }
+
+  /** Vade takvimi seçenekleri (Y7: varsayılan vade). Bileşenler buildSchedule'a bunu verir. */
+  scheduleOptions(): { defaultDueDays: number } {
+    this.settings.ensureLoaded();
+    return { defaultDueDays: this.settings.credit().defaultDueDays };
   }
 
   /** Dashboard: toplam gecikmiş alacak ve gecikmiş borcu olan müşteri sayısı. */
@@ -121,7 +137,7 @@ export class CreditService {
 
   /** Tek müşterinin vade durumu (müşteri / veresiye detay). */
   customerStatus(customer: Customer, txs: CreditTransaction[], today = new Date()): CreditStatus & { schedule: ReturnType<typeof buildSchedule> } {
-    const schedule = buildSchedule(txs, customer.balance ?? 0);
+    const schedule = buildSchedule(txs, customer.balance ?? 0, this.scheduleOptions());
     return { ...creditStatus(schedule, today), schedule };
   }
 

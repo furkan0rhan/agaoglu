@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 /*
- * Tasarım v2 "Saha / Komuta" (docs/design/c-saha-komuta). Renkler src/styles/_tokens.scss içindeki CSS değişkenlerine bağlıdır; açık/koyu tema
+ * Tasarım v2 "Saha / Komuta" (docs/design/c-saha-komuta), renk v3 "Adaçayı & Krem" (docs/design/renk-secenekleri). Renkler src/styles/_tokens.scss içindeki CSS değişkenlerine bağlıdır; açık/koyu tema
  * otomatik. Ölçekli paletler (brand-50..950, accent-50..950) sabittir ve opaklık
  * değiştiricisini (`bg-brand-500/10`) destekler; token renkleri (`bg-surface`) desteklemez.
  * Kılavuz: src/app/shared/ui/README.md
@@ -15,27 +15,27 @@ module.exports = {
       colors: {
         // Eski (dönüştürülmemiş sayfalar kullanıyor)
         primary: {
-          50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 300: '#86efac', 400: '#4ade80',
-          500: '#22c55e', 600: '#16a34a', 700: '#15803d', 800: '#166534', 900: '#14532d',
+          50: '#f4f8f1', 100: '#e7f0e2', 200: '#d3e5cc', 300: '#b8d3b5', 400: '#9ec6a2', 500: '#8cba91',
+          600: '#6f9c76', 700: '#517d58', 800: '#3a6140', 900: '#2d5234', 950: '#1b3822',
         },
         brand: {
           DEFAULT: v('brand'), hover: v('brand-hover'), contrast: v('brand-contrast'),
           soft: v('brand-soft'), 'soft-hover': v('brand-soft-hover'), line: v('brand-line'), text: v('brand-text'),
-          50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7', 400: '#34d399', 500: '#10b981',
-          600: '#059669', 700: '#047857', 800: '#065f46', 900: '#064e3b', 950: '#022c22',
+          50: '#f4f8f1', 100: '#e7f0e2', 200: '#d3e5cc', 300: '#b8d3b5', 400: '#9ec6a2', 500: '#8cba91',
+          600: '#6f9c76', 700: '#517d58', 800: '#3a6140', 900: '#2d5234', 950: '#1b3822',
         },
         accent: {
           DEFAULT: v('accent'), hover: v('accent-hover'), contrast: v('accent-contrast'),
           soft: v('accent-soft'), line: v('accent-line'), text: v('accent-text'),
-          50: '#fff7ed', 100: '#ffedd5', 200: '#fed7aa', 300: '#fdba74', 400: '#fb923c', 500: '#f97316',
-          600: '#ea580c', 700: '#c2410c', 800: '#9a3412', 900: '#7c2d12', 950: '#431407',
+          50: '#fdf6f0', 100: '#f9ece0', 200: '#f3dcc8', 300: '#ebcbb1', 400: '#eab691', 500: '#e3a67b',
+          600: '#c9845a', 700: '#a2542a', 800: '#8a4520', 900: '#6a3418', 950: '#47230e',
         },
         success: { DEFAULT: v('success'), soft: v('success-soft'), line: v('success-line'), text: v('success-text') },
         warning: { DEFAULT: v('warning'), soft: v('warning-soft'), line: v('warning-line'), text: v('warning-text') },
         danger:  { DEFAULT: v('danger'),  soft: v('danger-soft'),  line: v('danger-line'),  text: v('danger-text') },
         info:    { DEFAULT: v('info'),    soft: v('info-soft'),    line: v('info-line'),    text: v('info-text') },
         neutral: { DEFAULT: v('neutral'), soft: v('neutral-soft'), line: v('neutral-line'), text: v('neutral-text') },
-        // Kalıcı koyu sidebar / mobil çubuklar (her iki temada koyu)
+        // Sidebar / mobil çubuklar / ciro kartı (v3: açık adaçayı panel; koyu temada zeytin)
         side: {
           DEFAULT: v('side-bg'), 2: v('side-2'), line: v('side-line'), text: v('side-text'),
           muted: v('side-muted'), hi: v('side-hi'), active: v('side-active'), 'active-text': v('side-active-text'),
@@ -46,6 +46,7 @@ module.exports = {
         sale: { DEFAULT: v('sale'), text: v('sale-text') },
 
         page: v('bg-page'),
+        'admin-page': v('admin-page'),
         surface: {
           DEFAULT: v('surface'), raised: v('surface-raised'), muted: v('surface-muted'),
           hover: v('surface-hover'), overlay: v('surface-overlay'), strong: v('surface-strong'),
@@ -76,8 +77,8 @@ module.exports = {
         'token-2xl': v('radius-2xl'),
       },
       boxShadow: {
-        soft: '0 2px 12px rgba(0,0,0,0.06)',
-        card: '0 4px 24px rgba(0,0,0,0.08)',
+        soft: '0 2px 12px rgba(42,44,37,0.06)',
+        card: '0 4px 24px rgba(42,44,37,0.08)',
         xs: v('shadow-xs'),
         glass: v('shadow-glass'),
         'glass-lg': v('shadow-glass-lg'),

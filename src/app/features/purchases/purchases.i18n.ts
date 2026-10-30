@@ -17,6 +17,8 @@ export interface PurchasesTexts {
   updatePrice: string; updatePriceHint: string; notes: string; save: string; saved: string;
   errNoSupplier: string; errNoItems: string; errInvalidLine: string; errDuplicateGts: string; errOffline: string;
   errTooMany: string; errProductNotFound: string; saveFailed: string; loadFailed: string;
+  /** Y3: bitki koruma ürünü kaleminde SKT zorunlu ({name}) */
+  errExpiryRequired: string; gtsSplit: (n: number) => string;
   detailTitle: string; cancel: string; cancelConfirm: string; cancelReason: string; cancelReasonPlaceholder: string;
   cancelled: string; cancelShortfall: string; cancelFailed: string; cancelledAt: string; alreadyCancelled: string;
   purchasePriceUpdated: string;
@@ -49,6 +51,8 @@ export const PURCHASES_TR: PurchasesTexts = {
   errNoSupplier: 'Tedarikçi seçin', errNoItems: 'En az bir kalem ekleyin', errInvalidLine: 'Miktar ve fiyatları kontrol edin',
   errDuplicateGts: 'GTS tekrar ediyor veya zaten stokta: {gts}', errOffline: 'Alış kaydı için internet bağlantısı gerekli',
   errTooMany: 'Bir belgede en fazla 200 kalem olabilir', errProductNotFound: 'Ürün bulunamadı (silinmiş olabilir)',
+  errExpiryRequired: '{name}: bitki koruma ürününde son kullanma tarihi (SKT) zorunlu. Karekodda yoksa kutudaki tarihi yazın.',
+  gtsSplit: n => `Farklı SKT / parti nolu karekodlar ${n} ayrı kaleme bölündü`,
   saveFailed: 'Alış kaydedilemedi', loadFailed: 'Alışlar yüklenemedi',
   detailTitle: 'Alış Belgesi', cancel: 'Alışı İptal Et',
   cancelConfirm: 'Bu alış iptal edilsin mi? Ürün stokları geri düşer ve tedarikçi carisine ters kayıt yazılır.',
@@ -87,6 +91,8 @@ export const PURCHASES_EN: PurchasesTexts = {
   errNoSupplier: 'Select a supplier', errNoItems: 'Add at least one item', errInvalidLine: 'Check quantities and prices',
   errDuplicateGts: 'GTS repeated or already in stock: {gts}', errOffline: 'An internet connection is required to save purchases',
   errTooMany: 'A document can have at most 200 items', errProductNotFound: 'Product not found (may be deleted)',
+  errExpiryRequired: '{name}: an expiry date is required for plant protection products. If the code has none, enter the date on the box.',
+  gtsSplit: n => `Codes with different expiry / lot were split into ${n} separate lines`,
   saveFailed: 'Purchase could not be saved', loadFailed: 'Purchases could not be loaded',
   detailTitle: 'Purchase Document', cancel: 'Cancel Purchase',
   cancelConfirm: 'Cancel this purchase? Product stock is reduced and a reversal is posted to the supplier account.',

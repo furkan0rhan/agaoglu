@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, OnInit, signal } from '@angular/core';
+import { SetupNudgeComponent } from '../../core/onboarding/setup-nudge.component';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
@@ -23,6 +24,7 @@ import {
   StatCardComponent, StatusBadgeComponent, TONE_SOFT, UiSegmentOption, UiTone,
 } from '../../shared/ui';
 import { SalesTrendChartComponent } from './sales-trend-chart.component';
+import { FarmersDashboardTileComponent } from '../farmers/farmers-dashboard-tile.component';
 import { dailySeries, percentChange, salesOfDay } from './home-calc';
 
 interface QuickAction { label: string; icon: string; link: string; hero?: boolean; kbd?: string }
@@ -39,7 +41,8 @@ interface AlertRow { id: string; icon: string; tone: UiTone; name: string; sub: 
   standalone: true,
   imports: [
     RouterLink, CurrencyTrPipe, PageHeaderComponent, StatCardComponent, GlassCardComponent, EmptyStateComponent,
-    StatusBadgeComponent, KbdComponent, SegmentedComponent, SalesTrendChartComponent,
+    StatusBadgeComponent, KbdComponent, SegmentedComponent, SalesTrendChartComponent, FarmersDashboardTileComponent,
+    SetupNudgeComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
@@ -81,6 +84,9 @@ interface AlertRow { id: string; icon: string; tone: UiTone; name: string; sub: 
         </div>
       }
 
+      <!-- Ürün turu sonrası: kurulum kısayolu (admin, kurulum eksikse) -->
+      <app-setup-nudge />
+
       <!-- 1. Ciro kartı (B) + durum blokları (C) -->
       <div class="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4">
         <section aria-labelledby="rev-title"
@@ -110,9 +116,9 @@ interface AlertRow { id: string; icon: string; tone: UiTone; name: string; sub: 
                 {{ h().saleCount(today().saleCount) }}@if (trend() !== null) { · {{ h().vsYesterday }} }
               </p>
               <div class="mt-3 flex flex-wrap gap-2 text-13.5 font-semibold">
-                <span class="rounded-token-md bg-black/25 px-2.5 py-1.5">{{ h().salesPart }} <span class="num">{{ today().revenue | currencyTr }}</span></span>
+                <span class="rounded-token-md bg-side-2 px-2.5 py-1.5">{{ h().salesPart }} <span class="num">{{ today().revenue | currencyTr }}</span></span>
                 @if (today().interestIncome > 0) {
-                  <span class="rounded-token-md bg-black/25 px-2.5 py-1.5">+ {{ h().interestPart }} <span class="num">{{ today().interestIncome | currencyTr }}</span></span>
+                  <span class="rounded-token-md bg-side-2 px-2.5 py-1.5">+ {{ h().interestPart }} <span class="num">{{ today().interestIncome | currencyTr }}</span></span>
                 }
               </div>
             }
@@ -131,11 +137,19 @@ interface AlertRow { id: string; icon: string; tone: UiTone; name: string; sub: 
         </section>
 
         <div class="grid grid-cols-2 gap-3 lg:gap-4">
-          <ui-stat-card icon="pi-percentage" tone="brand"
-            [label]="h().grossProfit"
-            [value]="dashStore.todayGrossProfit() | currencyTr"
-            [hint]="marginText()"
-            [highlight]="dashStore.todayGrossProfit() < 0" [loading]="dashStore.loading()" />
+          <!-- Y5: kâr ve aylık ciro yalnız yöneticiye; kasiyer bugünkü satış adedini görür -->
+          @if (isAdmin()) {
+            <ui-stat-card icon="pi-percentage" tone="brand"
+              [label]="h().grossProfit"
+              [value]="dashStore.todayGrossProfit() | currencyTr"
+              [hint]="marginText()"
+              [highlight]="dashStore.todayGrossProfit() < 0" [loading]="dashStore.loading()" />
+          } @else {
+            <ui-stat-card icon="pi-receipt" tone="brand"
+              [label]="t().dashboard.todaySales"
+              [value]="'' + dashStore.todaySaleCount()"
+              [loading]="dashStore.loading()" />
+          }
 
           @if (canSell()) {
             <ui-stat-card icon="pi-clock" [tone]="overdueTotal() > 0 ? 'danger' : 'brand'" [tinted]="overdueTotal() > 0"
@@ -143,9 +157,6 @@ interface AlertRow { id: string; icon: string; tone: UiTone; name: string; sub: 
               [value]="overdue() ? (overdueTotal() | currencyTr) : '—'"
               [hint]="overdueTotal() > 0 ? h().overdueCustomers(overdue()!.customerCount) : h().overdueNone"
               [loading]="overdue() === undefined" link="/credit" />
-          } @else {
-            <ui-stat-card icon="pi-calendar" tone="brand" [label]="t().dashboard.weekSales"
-              [value]="dashStore.weeklySales() | currencyTr" [loading]="dashStore.loading()" />
           }
 
           <ui-stat-card icon="pi-exclamation-triangle" [tone]="alertCount() > 0 ? 'danger' : 'brand'" [tinted]="alertCount() > 0"
@@ -160,16 +171,19 @@ interface AlertRow { id: string; icon: string; tone: UiTone; name: string; sub: 
             }
           </ui-stat-card>
 
-          <ui-stat-card icon="pi-calendar" tone="brand"
-            [label]="t().dashboard.monthSales"
-            [value]="dashStore.monthlySales() | currencyTr"
-            [hint]="t().dashboard.weekSales + ' ' + (dashStore.weeklySales() | currencyTr)"
-            [loading]="dashStore.loading()" />
+          @if (isAdmin()) {
+            <ui-stat-card icon="pi-calendar" tone="brand"
+              [label]="t().dashboard.monthSales"
+              [value]="dashStore.monthlySales() | currencyTr"
+              [hint]="t().dashboard.weekSales + ' ' + (dashStore.weeklySales() | currencyTr)"
+              [loading]="dashStore.loading()" />
+          }
         </div>
       </div>
 
       <!-- 2. Satış trendi + hızlı işlemler -->
-      <div class="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-4">
+      <div class="grid grid-cols-1 gap-3 lg:gap-4" [class]="isAdmin() ? 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]' : ''">
+        @if (isAdmin()) {
         <ui-glass-card [title]="h().trendTitle" [subtitle]="h().trendMeta" icon="pi-chart-bar" padding="none">
           <ui-segmented card-actions size="sm" [options]="periodOptions()" [(value)]="days" [ariaLabel]="h().trendTitle" />
           <div class="flex flex-wrap gap-x-6 gap-y-2 px-4 pb-1 pt-3">
@@ -193,6 +207,7 @@ interface AlertRow { id: string; icon: string; tone: UiTone; name: string; sub: 
               [todayLabel]="h().today" [soFarLabel]="h().soFar" [ariaLabel]="chartAria()" />
           }
         </ui-glass-card>
+        }
 
         <ui-glass-card [title]="h().quickTitle" icon="pi-th-large" tone="accent" padding="none">
           <div class="grid grid-cols-2 gap-2.5 p-3.5">
@@ -203,7 +218,7 @@ interface AlertRow { id: string; icon: string; tone: UiTone; name: string; sub: 
                   ? 'border-accent bg-accent text-accent-contrast hover:bg-accent-hover'
                   : 'border-line bg-surface text-fg hover:border-brand hover:bg-brand-soft'">
                 <span class="grid h-[38px] w-[38px] place-items-center rounded-token-md"
-                  [class]="a.hero ? 'bg-black/15' : 'bg-brand-soft text-brand-text'">
+                  [class]="a.hero ? 'bg-white/45' : 'bg-brand-soft text-brand-text'">
                   <i class="pi text-17" [class]="a.icon" aria-hidden="true"></i>
                 </span>
                 <b class="font-display text-14.5 font-bold leading-tight">{{ a.label }}</b>
@@ -215,6 +230,11 @@ interface AlertRow { id: string; icon: string; tone: UiTone; name: string; sub: 
           </div>
         </ui-glass-card>
       </div>
+
+      <!-- Çiftçi modülü özeti (yalnız paylaşılan veriden; admin + kasiyer) -->
+      @if (canSell()) {
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4"><app-farmers-dashboard-tile /></div>
+      }
 
       <!-- 3. Son satışlar + kritik stok/SKT -->
       <div class="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:gap-4">
@@ -363,7 +383,7 @@ export class DashboardPage implements OnInit {
   });
 
   readonly marginText = computed(() => {
-    const rev = this.dashStore.dailySales();
+    const rev = this.dashStore.todayNetSales();
     if (!(rev > 0)) return this.t().common.today;
     const pct = (this.dashStore.todayGrossProfit() / rev) * 100;
     const txt = this.h().margin(pct.toLocaleString('tr-TR', { maximumFractionDigits: 1 }));

@@ -41,7 +41,7 @@ export const TONE_TEXT: Record<UiTone, string> = {
 
 /** Dolu zemin + kontrast metin (rozet sayacı, birincil ikon buton). */
 export const TONE_SOLID: Record<UiTone, string> = {
-  neutral: 'bg-fg text-fg-inverse',
+  neutral: 'bg-neutral text-fg-inverse',
   brand: 'bg-brand text-brand-contrast',
   accent: 'bg-accent text-accent-contrast',
   success: 'bg-success text-fg-inverse',

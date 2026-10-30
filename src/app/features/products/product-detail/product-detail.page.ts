@@ -8,10 +8,10 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
-import { DatePickerModule } from 'primeng/datepicker';
 import { ToastModule } from 'primeng/toast';
 import { SkeletonModule } from 'primeng/skeleton';
 import { AutoCompleteModule } from 'primeng/autocomplete';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { ProductStore } from '../store/product.store';
 import { ProductService, ProductStockError } from '../services/product.service';
@@ -20,13 +20,15 @@ import { SupplierService } from '../../suppliers/services/supplier.service';
 import { Supplier } from '../../../shared/models/supplier.model';
 import { LangService } from '../../../core/i18n/lang.service';
 import { batchTotal, checkStockVsBatches, expiryInfo, findBarcodeConflict, findGtsConflict, roundQty, sortFEFO } from '../../../shared/utils/batch.utils';
+import { priceBreakdown } from '../../../shared/utils/pricing';
 import { collectCategories, collectVatRates, parseVatRate, suggestCategories, suggestVatRates } from '../../../shared/utils/product-form.utils';
-import { GlassCardComponent, IconButtonComponent, MoneyComponent, PageHeaderComponent } from '../../../shared/ui';
+import { DateFieldComponent, GlassCardComponent, IconButtonComponent, MoneyComponent, PageHeaderComponent } from '../../../shared/ui';
 import { ProductStockBannerComponent, ReconcileMode } from '../components/product-stock-banner.component';
 import { ProductMovementListComponent } from '../components/product-movement-list.component';
 import { GtsRowSave, ProductGtsTableComponent } from '../components/product-gts-table.component';
 import { GtsAddRequest, ProductGtsAddPanelComponent } from '../components/product-gts-add-panel.component';
 import { qtyFractionDigits, qtyWithUnit, unitOptions, unitText } from '../product-unit';
+import { formatPctNumber } from '../inventory-ui';
 import { ProductRegulatoryCardComponent } from '../components/product-regulatory-card.component';
 import { AuthService } from '../../../core/auth/services/auth.service';
 
@@ -36,7 +38,7 @@ import { AuthService } from '../../../core/auth/services/auth.service';
   imports: [
     RouterLink, FormsModule,
     ButtonModule, DialogModule, ConfirmDialogModule, InputNumberModule,
-    InputTextModule, SelectModule, DatePickerModule, ToastModule, SkeletonModule, AutoCompleteModule,
+    InputTextModule, SelectModule, DateFieldComponent, ToastModule, SkeletonModule, AutoCompleteModule, ToggleSwitchModule,
     PageHeaderComponent, GlassCardComponent, IconButtonComponent, MoneyComponent,
     ProductStockBannerComponent, ProductMovementListComponent, ProductGtsTableComponent, ProductGtsAddPanelComponent,
     ProductRegulatoryCardComponent,
@@ -49,16 +51,14 @@ import { AuthService } from '../../../core/auth/services/auth.service';
 
     <ui-page-header [title]="product()?.name ?? t().products.detail" [subtitle]="headerSubtitle()"
                     backLink="/products" [backLabel]="t().common.back" icon="pi-box">
-      @if (product() && !isEditing()) {
+      @if (product() && !isEditing() && isAdmin) {
         <ui-icon-button variant="outline" [icon]="isPassive() ? 'pi-check-circle' : 'pi-ban'" [tone]="isPassive() ? 'success' : 'neutral'"
                         [ariaLabel]="isPassive() ? t().products.makeActive : t().products.makePassive"
                         [disabled]="saving()" (click)="toggleActive()" />
         <ui-icon-button icon="pi-trash" variant="outline" tone="danger" [ariaLabel]="t().common.delete" (click)="confirmDelete()" />
         <ui-icon-button class="sm:hidden" icon="pi-pencil" variant="outline" [ariaLabel]="t().common.edit" (click)="startEdit()" />
         <p-button icon="pi pi-pencil" [label]="t().common.edit" severity="secondary" class="hidden sm:inline-flex" (onClick)="startEdit()" />
-        @if (isAdmin) {
-          <p-button icon="pi pi-truck" [label]="t().inventory.stockEntry" severity="secondary" routerLink="/purchases/new" class="hidden md:inline-flex" />
-        }
+        <p-button icon="pi pi-truck" [label]="t().inventory.stockEntry" severity="secondary" routerLink="/purchases/new" class="hidden md:inline-flex" />
       }
       @if (isEditing()) {
         <ui-icon-button icon="pi-times" variant="outline" [ariaLabel]="t().common.cancel" (click)="cancelEdit()" />
@@ -83,7 +83,9 @@ import { AuthService } from '../../../core/auth/services/auth.service';
               <i class="pi pi-ban"></i>
             </span>
             <p class="m-0 flex-1 text-sm font-semibold text-fg">{{ t().products.passive }}</p>
-            <p-button [label]="t().products.makeActive" icon="pi pi-check-circle" size="small" [loading]="saving()" (onClick)="toggleActive()" />
+            @if (isAdmin) {
+              <p-button [label]="t().products.makeActive" icon="pi pi-check-circle" size="small" [loading]="saving()" (onClick)="toggleActive()" />
+            }
           </div>
         }
 
@@ -94,9 +96,11 @@ import { AuthService } from '../../../core/auth/services/auth.service';
             <app-product-stock-banner [product]="product()!" [reconcileState]="reconcile()" [expiredQty]="expiry().expiredQty"
                                       [saving]="saving()" (reconcile)="confirmReconcile($event)">
               <ng-container stock-actions>
-                <p-button [label]="t().products.addStock" icon="pi pi-plus" (onClick)="openDialog('in')" />
-                <p-button [label]="t().products.removeStock" icon="pi pi-minus" severity="secondary"
-                          [disabled]="product()!.stock <= 0" (onClick)="openDialog('out')" />
+                @if (isAdmin) {
+                  <p-button [label]="t().products.addStock" icon="pi pi-plus" (onClick)="openDialog('in')" />
+                  <p-button [label]="t().products.removeStock" icon="pi pi-minus" severity="secondary"
+                            [disabled]="product()!.stock <= 0" (onClick)="openDialog('out')" />
+                }
                 <a [routerLink]="['/products', productId(), 'movements']"
                    class="ml-auto inline-flex min-h-[44px] items-center gap-1.5 px-1 text-13.5 font-semibold text-brand-text no-underline hover:underline">
                   <i class="pi pi-history text-sm" aria-hidden="true"></i>{{ t().products.viewMovements }}
@@ -105,7 +109,7 @@ import { AuthService } from '../../../core/auth/services/auth.service';
             </app-product-stock-banner>
 
             <ui-glass-card [title]="t().inventory.infoCard" icon="pi-info-circle" tone="neutral">
-              @if (!isEditing()) {
+              @if (!isEditing() && isAdmin) {
                 <p-button card-actions [label]="t().common.edit" icon="pi pi-pencil" size="small" severity="secondary" [text]="true" (onClick)="startEdit()" />
               }
               @if (!isEditing()) {
@@ -181,6 +185,14 @@ import { AuthService } from '../../../core/auth/services/auth.service';
                     }
                   </div>
 
+                  <div class="flex items-center gap-3 rounded-token-lg border border-line bg-surface-muted px-4 py-3 md:col-span-2">
+                    <p-toggleswitch inputId="pd-buy-incl-vat" [(ngModel)]="editForm.purchasePriceIncludesVat" />
+                    <label for="pd-buy-incl-vat" class="min-w-0 flex-1 cursor-pointer">
+                      <span class="block text-sm font-semibold text-fg">{{ t().inventory.purchaseIncludesVat }}</span>
+                      <span class="block text-xs text-fg-secondary">{{ t().inventory.purchaseIncludesVatHint }}</span>
+                    </label>
+                  </div>
+
                   <div class="flex flex-col gap-1.5 md:col-span-2">
                     <label for="pd-desc" class="text-sm font-semibold text-fg-secondary">{{ t().products.infoDescription }}</label>
                     <input id="pd-desc" pInputText [(ngModel)]="editForm.description" class="w-full" [placeholder]="t().common.optional" />
@@ -194,13 +206,15 @@ import { AuthService } from '../../../core/auth/services/auth.service';
             </ui-glass-card>
             <!-- GTS / Karekod tablosu (sol sütun) -->
             <ui-glass-card [title]="t().products.gtsListTitle" [subtitle]="gtsSubtitle()" icon="pi-qrcode" tone="info" padding="none">
-              <p-button card-actions [label]="t().products.gtsAddBtn" [icon]="addPanelOpen() ? 'pi pi-times' : 'pi pi-plus'" size="small"
-                        [severity]="addPanelOpen() ? 'secondary' : undefined" (onClick)="toggleAddPanel()" />
-              @if (addPanelOpen()) {
-                <app-product-gts-add-panel [suppliers]="suppliers()" [saving]="saving()" [checkGts]="checkPanelGts"
+              @if (isAdmin) {
+                <p-button card-actions [label]="t().products.gtsAddBtn" [icon]="addPanelOpen() ? 'pi pi-times' : 'pi pi-plus'" size="small"
+                          [severity]="addPanelOpen() ? 'secondary' : undefined" (onClick)="toggleAddPanel()" />
+              }
+              @if (addPanelOpen() && isAdmin) {
+                <app-product-gts-add-panel [suppliers]="suppliers()" [saving]="saving()" [checkGts]="checkPanelGts" [barcode]="product()?.barcode"
                                            (submitted)="confirmAddPanel($event)" (cancelled)="closeAddPanel()" (warn)="warnToast($event)" />
               }
-              <app-product-gts-table [batches]="activeBatches()" [suppliers]="suppliers()" [product]="product()" [saving]="saving()"
+              <app-product-gts-table [batches]="activeBatches()" [suppliers]="suppliers()" [product]="product()" [saving]="saving()" [readonly]="!isAdmin"
                                      [(editingId)]="editingId" (saveRow)="saveRow($event)" (removeRow)="confirmRemoveBatch($event)" />
             </ui-glass-card>
           </div>
@@ -213,36 +227,55 @@ import { AuthService } from '../../../core/auth/services/auth.service';
                   <span class="text-12.5 font-semibold text-fg-muted">{{ t().products.salePrice }} / {{ unitName() }}</span>
                   <ui-money class="num-xl text-26 leading-tight text-fg" [value]="product()!.salePrice" />
                 </div>
-                <div class="flex flex-col gap-1 px-4 py-3.5">
-                  <span class="text-12.5 font-semibold text-fg-muted">{{ t().products.purchasePrice }}</span>
-                  <ui-money class="num text-lg font-extrabold text-fg-secondary" [value]="product()!.purchasePrice" />
-                </div>
+                @if (isAdmin) {
+                  <div class="flex flex-col gap-1 px-4 py-3.5">
+                    <span class="text-12.5 font-semibold text-fg-muted">{{ t().products.purchasePrice }}</span>
+                    <ui-money class="num text-lg font-extrabold text-fg-secondary" [value]="product()!.purchasePrice" />
+                  </div>
+                }
               </div>
               <dl class="m-0 flex flex-col px-4 py-2">
-                <div class="flex items-center justify-between gap-3 py-2">
-                  <dt class="text-sm text-fg-secondary">{{ t().inventory.unitProfit }}</dt>
-                  <dd class="m-0"><ui-money class="num text-sm font-bold" colorize [value]="product()!.salePrice - product()!.purchasePrice" /></dd>
-                </div>
-                <div class="flex items-center justify-between gap-3 py-2">
-                  <dt class="text-sm text-fg-secondary">{{ t().products.markup }}</dt>
-                  <dd class="num m-0 text-sm font-bold text-fg">%{{ markupPercent() }}</dd>
-                </div>
-                <div class="flex items-center justify-between gap-3 py-2">
-                  <dt class="text-sm text-fg-secondary">{{ t().products.margin }}</dt>
-                  <dd class="num m-0 text-sm font-bold text-fg">%{{ marginPercent() }}</dd>
-                </div>
-                @if (hasVat()) {
+                @if (isAdmin) {
                   <div class="flex items-center justify-between gap-3 py-2">
-                    <dt class="text-sm text-fg-secondary">{{ t().products.vat }}</dt>
-                    <dd class="num m-0 text-sm font-semibold text-fg">%{{ product()!.vatRate }}</dd>
+                    <dt class="text-sm text-fg-secondary">{{ t().inventory.unitProfit }}</dt>
+                    <dd class="m-0"><ui-money class="num text-sm font-bold" colorize [value]="pricing().profit" /></dd>
+                  </div>
+                }
+                @if (pricing().vatRate) {
+                  <div class="flex items-center justify-between gap-3 py-2">
+                    <dt class="text-sm text-fg-secondary">{{ t().inventory.netSale }}</dt>
+                    <dd class="m-0"><ui-money class="num text-sm font-semibold text-fg" [value]="pricing().netSale" /></dd>
+                  </div>
+                  <div class="flex items-center justify-between gap-3 py-2">
+                    <dt class="text-sm text-fg-secondary">{{ t().inventory.vatInPrice }} (%{{ pricing().vatRate }})</dt>
+                    <dd class="m-0"><ui-money class="num text-sm font-semibold text-fg-secondary" [value]="pricing().vat" /></dd>
+                  </div>
+                }
+                @if (isAdmin) {
+                  @if (product()!.purchasePriceIncludesVat && pricing().vatRate) {
+                    <div class="flex items-center justify-between gap-3 py-2">
+                      <dt class="text-sm text-fg-secondary">{{ t().inventory.netCost }}</dt>
+                      <dd class="m-0"><ui-money class="num text-sm font-semibold text-fg" [value]="pricing().netCost" /></dd>
+                    </div>
+                  }
+                  <div class="flex items-center justify-between gap-3 py-2">
+                    <dt class="text-sm text-fg-secondary">{{ t().products.markup }}</dt>
+                    <dd class="num m-0 text-sm font-bold text-fg">%{{ markupPercent() }}</dd>
+                  </div>
+                  <div class="flex items-center justify-between gap-3 py-2">
+                    <dt class="text-sm text-fg-secondary">{{ t().products.margin }}</dt>
+                    <dd class="num m-0 text-sm font-bold text-fg">%{{ marginPercent() }}</dd>
                   </div>
                 }
               </dl>
-              <div class="px-4 pb-3.5">
-                <div class="h-2 overflow-hidden rounded-full bg-surface-strong" aria-hidden="true">
-                  <div class="h-full rounded-full bg-brand" [style.width.%]="marginBar()"></div>
+              @if (isAdmin) {
+                <p class="m-0 px-4 pb-2 text-xs text-fg-muted">{{ t().inventory.profitNetNote }}</p>
+                <div class="px-4 pb-3.5">
+                  <div class="h-2 overflow-hidden rounded-full bg-surface-strong" aria-hidden="true">
+                    <div class="h-full rounded-full bg-brand" [style.width.%]="marginBar()"></div>
+                  </div>
                 </div>
-              </div>
+              }
             </ui-glass-card>
 
             <app-product-regulatory-card [product]="product()!" (saved)="onRegulatorySaved($event)" (failed)="onRegulatoryFailed()" />
@@ -287,8 +320,14 @@ import { AuthService } from '../../../core/auth/services/auth.service';
             <label for="pd-dlg-expiry" class="text-sm font-semibold text-fg-secondary">
               {{ t().products.dialogExpiry }} <span class="font-normal text-fg-muted">({{ t().common.optional }})</span>
             </label>
-            <p-datepicker inputId="pd-dlg-expiry" [(ngModel)]="dialogExpiryDate" dateFormat="dd.mm.yy" [showIcon]="true" [showButtonBar]="true"
-                          [placeholder]="t().products.dialogExpiryPlaceholder" styleClass="w-full" appendTo="body" />
+            <ui-date-field inputId="pd-dlg-expiry" [(ngModel)]="dialogExpiryDate" [placeholder]="t().products.dialogExpiryPlaceholder" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label for="pd-dlg-lot" class="text-sm font-semibold text-fg-secondary">
+              {{ t().inventory.lotNo }} <span class="font-normal text-fg-muted">({{ t().common.optional }})</span>
+            </label>
+            <input id="pd-dlg-lot" pInputText [(ngModel)]="dialogLotNo" maxlength="20" autocomplete="off" class="w-full font-mono uppercase placeholder:normal-case"
+                   [placeholder]="t().inventory.lotNoPlaceholder" />
           </div>
         }
       </div>
@@ -337,7 +376,7 @@ export class ProductDetailPage implements OnInit {
   readonly suppliers = signal<Supplier[]>([]);
   editForm = {
     name: '', barcode: '', brand: '', category: '', unit: 'adet' as ProductUnit,
-    minStock: 0, purchasePrice: 0, salePrice: 0, vatRateStr: '', description: '',
+    minStock: 0, purchasePrice: 0, salePrice: 0, vatRateStr: '', description: '', purchasePriceIncludesVat: false,
   };
 
   vatSuggestions: string[] = [];
@@ -348,6 +387,7 @@ export class ProductDetailPage implements OnInit {
   dialogQty = 1;
   dialogReason = '';
   dialogExpiryDate: Date | null = null;
+  dialogLotNo = '';
   dialogSupplierId: string | null = null;
 
   /** GTS Ekle paneli açık mı (panel durumu ProductGtsAddPanelComponent içinde) */
@@ -368,7 +408,6 @@ export class ProductDetailPage implements OnInit {
   readonly activeBatches = computed(() => sortFEFO((this.product()?.batches ?? []).filter(b => b.quantity > 0)));
 
   readonly isPassive = computed(() => this.product()?.isActive === false);
-  readonly hasVat = computed(() => this.product()?.vatRate != null);
   readonly unit = computed(() => productUnit(this.product()));
   readonly unitName = computed(() => unitText(this.unit(), this.t().products));
   readonly decimal = computed(() => isDecimalUnit(this.unit()));
@@ -412,7 +451,8 @@ export class ProductDetailPage implements OnInit {
     }
 
     this.svc.getMovements$(id, 8).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(m => this.movements.set(m));
-    this.supplierSvc.getAll$().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(s => this.suppliers.set(s));
+    // Y5: tedarikçiler (ve alış bilgisi) yalnız yöneticiye açık (kurallar da yalnız yöneticiye okutur)
+    if (this.isAdmin) this.supplierSvc.getAll$().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ next: s => this.suppliers.set(s), error: () => this.suppliers.set([]) });
   }
 
   qtyLabel(n: number): string {
@@ -455,6 +495,7 @@ export class ProductDetailPage implements OnInit {
       salePrice: p.salePrice,
       vatRateStr: p.vatRate != null ? p.vatRate.toString() : '',
       description: p.description ?? '',
+      purchasePriceIncludesVat: !!p.purchasePriceIncludesVat,
     };
     this.isEditing.set(true);
   }
@@ -541,6 +582,7 @@ export class ProductDetailPage implements OnInit {
         purchasePrice: Number(this.editForm.purchasePrice) || 0,
         salePrice: Number(this.editForm.salePrice),
         vatRate: vat.value,
+        purchasePriceIncludesVat: !!this.editForm.purchasePriceIncludesVat,
         description: this.editForm.description.trim() || null,
       };
       await this.svc.update(p.id, changes);
@@ -561,6 +603,7 @@ export class ProductDetailPage implements OnInit {
     this.dialogQty = 1;
     this.dialogReason = '';
     this.dialogExpiryDate = null;
+    this.dialogLotNo = '';
     this.dialogSupplierId = null;
     this.dialogVisible = true;
   }
@@ -582,7 +625,8 @@ export class ProductDetailPage implements OnInit {
       const reason = this.dialogReason.trim() || (this.dialogMode() === 'in' ? this.t().products.stockIn : this.t().products.stockOut);
       const expiryDate = this.dialogMode() === 'in' ? this.dialogExpiryDate : null;
       const supplierId = this.dialogMode() === 'in' ? this.dialogSupplierId : null;
-      const res = await this.svc.adjustStock(p, delta, reason, null, expiryDate, null, supplierId);
+      const lotNo = this.dialogMode() === 'in' ? this.dialogLotNo : null;
+      const res = await this.svc.adjustStock(p, delta, reason, null, expiryDate, null, supplierId, lotNo);
       this.dialogVisible = false;
       this.toast.add({ severity: 'success', summary: this.t().common.success, detail: `${this.t().products.stockUpdated}: ${this.qtyLabel(res.newStock)}`, life: 3000 });
       this.warnShortfall(res.shortfall);
@@ -676,7 +720,9 @@ export class ProductDetailPage implements OnInit {
 
     this.saving.set(true);
     try {
-      const res = await this.svc.adjustStock(p, req.gtsList.length, this.t().products.stockIn, null, req.expiry, req.gtsList, req.supplierId);
+      // Parti no: karekoddan okunduysa GTS'nin kendisi, yoksa paneldeki ortak değer
+      const lots = Object.fromEntries(req.gtsList.map(g => [g, req.lots[g] ?? req.lotNo]));
+      const res = await this.svc.adjustStock(p, req.gtsList.length, this.t().products.stockIn, null, req.expiry, req.gtsList, req.supplierId, lots);
       this.closeAddPanel();
       this.toast.add({ severity: 'success', summary: this.t().common.success, detail: `${this.t().products.stockUpdated}: ${this.qtyLabel(res.newStock)}`, life: 3000 });
       this.refreshProduct();
@@ -714,6 +760,7 @@ export class ProductDetailPage implements OnInit {
         gtsNo: gts || null,
         expiryDate: row.expiryDate,
         supplierId: row.supplierId,
+        lotNo: row.lotNo,
       });
       this.editingId.set(null);
       this.toast.add({ severity: 'success', summary: '', detail: this.t().products.gtsSaved, life: 2000 });
@@ -793,23 +840,27 @@ export class ProductDetailPage implements OnInit {
     ];
   }
 
-  /** Kâr oranı (maliyete göre): (satış - alış) / alış */
-  markupPercent(): string {
+  /** Fiyat dökümü: satış KDV dahil, kâr KDV hariç net tutarlardan (shared/utils/pricing.ts). */
+  readonly pricing = computed(() => {
     const p = this.product();
-    if (!p || p.purchasePrice === 0) return '0';
-    return (((p.salePrice - p.purchasePrice) / p.purchasePrice) * 100).toFixed(1);
+    return priceBreakdown(p ?? { salePrice: 0, purchasePrice: 0, vatRate: null });
+  });
+
+  /** Kâr oranı (maliyete göre): kâr / net alış */
+  markupPercent(): string {
+    const m = this.pricing().markup;
+    return m == null ? '0' : formatPctNumber(m, this.t().products.locale);
   }
 
   /** Fiyat kartındaki marj çubuğu (0-100) */
   marginBar(): number {
-    const m = Number(this.marginPercent());
+    const m = this.pricing().margin ?? 0;
     return Number.isFinite(m) ? Math.max(0, Math.min(100, m)) : 0;
   }
 
-  /** Kâr marjı (satışa göre): (satış - alış) / satış */
+  /** Kâr marjı (net satışa göre): kâr / net satış */
   marginPercent(): string {
-    const p = this.product();
-    if (!p || !(p.salePrice > 0)) return '0';
-    return (((p.salePrice - p.purchasePrice) / p.salePrice) * 100).toFixed(1);
+    const m = this.pricing().margin;
+    return m == null ? '0' : formatPctNumber(m, this.t().products.locale);
   }
 }

@@ -13,6 +13,8 @@ import { FarmerStore } from '../services/farmer-store.service';
 import { computeShareTargets } from '../utils/consent.util';
 import { formatTrPhone } from '../utils/identity.util';
 import { FarmerConsentFormComponent } from './consent-form.component';
+import { TourService } from '../../../core/onboarding/tour.service';
+import { injectOnboardingTexts } from '../../../core/onboarding/onboarding.i18n';
 
 /** Ayarlar: profil, bayilerim + izinler (KVKK: ayrı ayrı aç/kapa, bağlantıyı kopar), yasal metinler, silme talebi, çıkış. */
 @Component({
@@ -61,6 +63,7 @@ import { FarmerConsentFormComponent } from './consent-form.component';
               </div>
             } @else {
               <p class="m-0 inline-flex h-7 items-center rounded-token-sm bg-surface-strong px-2 text-14 font-semibold text-fg-secondary">{{ t().farmer.settings.linkRevoked }}</p>
+              <p [class]="F.muted + ' mb-0 mt-2 text-15'">{{ t().farmer.settings.reconnectHint }}</p>
             }
           </div>
         }
@@ -89,6 +92,7 @@ import { FarmerConsentFormComponent } from './consent-form.component';
           <button type="button" [class]="F.btn2 + ' text-17'" (click)="theme.toggle()" [attr.aria-pressed]="theme.isDark()">
             <i class="pi" [class]="theme.isDark() ? 'pi-sun' : 'pi-moon'" aria-hidden="true"></i>{{ theme.isDark() ? t().farmer.settings.light : t().farmer.settings.dark }}</button>
         </div>
+        <button type="button" [class]="F.btn2 + ' mt-2 text-17'" (click)="tour.restartWelcome()"><i class="pi pi-compass" aria-hidden="true"></i>{{ ob().replayBtn }}</button>
         <p [class]="F.muted + ' flex items-start gap-2 text-15'"><i class="pi pi-mobile mt-0.5 shrink-0" aria-hidden="true"></i><span>{{ t().farmer.settings.addToHome }}</span></p>
         @if (session.farmer()?.deletionRequestedAt; as d) {
           <p [class]="F.note">{{ deletionText(d) }}</p>
@@ -104,6 +108,8 @@ export class FarmerSettingsPage implements OnInit {
   readonly lang = inject(LangService);
   readonly t = this.lang.t;
   readonly theme = inject(ThemeService);
+  readonly tour = inject(TourService);
+  readonly ob = injectOnboardingTexts();
   readonly F = F;
   readonly tone = TILE_TONE;
   readonly session = inject(FarmerSession);

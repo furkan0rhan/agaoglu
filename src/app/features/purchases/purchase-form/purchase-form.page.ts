@@ -17,12 +17,16 @@ import { CurrencyTrPipe } from '../../../shared/pipes/currency-tr.pipe';
 import { Product, isDecimalUnit, productUnit } from '../../../shared/models/product.model';
 import { PurchaseDocType, PurchasePaymentType } from '../../../shared/models/purchase.model';
 import { SupplierPaymentMethod } from '../../../shared/models/supplier.model';
-import { GlassCardComponent, IconButtonComponent, PageHeaderComponent, EmptyStateComponent } from '../../../shared/ui';
+import { DateFieldComponent, GlassCardComponent, IconButtonComponent, PageHeaderComponent, EmptyStateComponent, normalizeDay } from '../../../shared/ui';
 import { ProductStore } from '../../products/store/product.store';
+import { normalizeLotNo } from '../../../shared/utils/batch.utils';
 import { SupplierService } from '../../suppliers/services/supplier.service';
 import { MAX_PURCHASE_LINES, PurchaseService } from '../services/purchase.service';
 import { PurchaseError, calcLine, calcTotals, parseGtsText, validateLine } from '../services/purchase.utils';
-import { fromDateInput, toDateInput } from '../services/date-input';
+import {
+  gtinMatches, Gs1KeysDirective, injectScannerTexts, ScanButtonComponent, ScanFeedback, ScanResult, scanResultFromText,
+} from '../../../shared/scanner';
+import { isPlantProtection } from '../../../shared/utils/regulatory.utils';
 
 interface FormLine {
   key: string;
@@ -30,8 +34,11 @@ interface FormLine {
   quantity: number;
   unitCost: number;
   vatRate: number;
-  expiry: string;
+  /** SKT (yerel gün başı) */
+  expiry: Date | null;
   gtsText: string;
+  /** Parti / şarj no (karekod AI 10; kalemin tüm birimlerine yazılır) */
+  lotNo: string;
   showGts: boolean;
 }
 
@@ -40,7 +47,7 @@ interface FormLine {
   standalone: true,
   imports: [
     FormsModule, CurrencyTrPipe, ButtonModule, InputTextModule, TextareaModule, SelectModule, CheckboxModule, ToastModule, IconFieldModule, InputIconModule,
-    PageHeaderComponent, GlassCardComponent, IconButtonComponent, EmptyStateComponent,
+    PageHeaderComponent, GlassCardComponent, IconButtonComponent, EmptyStateComponent, DateFieldComponent, ScanButtonComponent, Gs1KeysDirective,
   ],
   providers: [MessageService],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -71,10 +78,8 @@ interface FormLine {
             <label for="pf-docno" class="text-sm font-semibold text-fg-secondary">{{ t().purchases.docNo }}</label>
             <input pInputText id="pf-docno" class="w-full" autocomplete="off" [ngModel]="documentNo()" (ngModelChange)="documentNo.set($event)" />
           </div>
-          <div class="flex min-w-0 flex-col gap-1.5">
-            <label for="pf-date" class="text-sm font-semibold text-fg-secondary">{{ t().purchases.documentDate }}</label>
-            <input pInputText id="pf-date" type="date" class="h-11 w-full" [ngModel]="documentDate()" (ngModelChange)="documentDate.set($event)" />
-          </div>
+          <ui-date-field inputId="pf-date" [label]="t().purchases.documentDate" [clearable]="false"
+            [ngModel]="documentDate()" (ngModelChange)="documentDate.set($event)" />
         </div>
       </ui-glass-card>
 
@@ -85,11 +90,14 @@ interface FormLine {
         }
         <div class="relative mb-4">
           <label for="pf-search" class="sr-only">{{ t().purchases.scanOrSearch }}</label>
-          <p-iconfield class="block w-full">
+          <div class="flex items-center gap-2">
+          <p-iconfield class="block min-w-0 flex-1">
           <p-inputicon styleClass="pi pi-barcode" />
-          <input pInputText id="pf-search" type="search" class="h-[52px] w-full border-line-strong text-base" autocomplete="off"
-            [placeholder]="t().purchases.scanOrSearch" [ngModel]="q()" (ngModelChange)="q.set($event)" (keydown.enter)="onEnter($event)" />
+          <input #pfSearch pInputText appGs1Keys id="pf-search" type="search" class="h-[52px] w-full border-line-strong text-base" autocomplete="off"
+            [placeholder]="t().purchases.scanOrSearch" [value]="q()" (input)="q.set(pfSearch.value)" (keydown.enter)="onEnter($event)" />
           </p-iconfield>
+          <ui-scan-button continuous [handler]="onScan" />
+          </div>
           @if (suggestions().length) {
             <ul class="ui-card absolute left-0 right-0 top-full z-10 m-0 mt-1 flex list-none flex-col p-1 shadow-overlay">
               @for (p of suggestions(); track p.id) {
@@ -134,22 +142,23 @@ interface FormLine {
                     <input pInputText [id]="'pf-v-' + l.key" type="number" inputmode="decimal" min="0" step="any" class="num w-full"
                       [ngModel]="l.vatRate" (ngModelChange)="patch(l.key, { vatRate: +$event })" />
                   </div>
-                  <div class="flex min-w-0 flex-col gap-1">
-                    <label [for]="'pf-e-' + l.key" class="text-xs font-semibold text-fg-secondary">{{ t().purchases.expiry }}</label>
-                    <input pInputText [id]="'pf-e-' + l.key" type="date" class="h-11 w-full"
-                      [ngModel]="l.expiry" (ngModelChange)="patch(l.key, { expiry: $event })" />
-                  </div>
+                  <ui-date-field class="!gap-1" [inputId]="'pf-e-' + l.key" labelClass="text-xs font-semibold text-fg-secondary" [label]="t().purchases.expiry"
+                    [ngModel]="l.expiry" (ngModelChange)="patch(l.key, { expiry: $event })" />
                 </div>
                 <button type="button" class="mt-2 inline-flex min-h-[36px] cursor-pointer items-center border-0 bg-transparent p-0 text-13 font-semibold text-brand-text"
                   [attr.aria-expanded]="l.showGts" (click)="patch(l.key, { showGts: !l.showGts })">
                   <i class="pi pi-qrcode mr-1 text-xs" aria-hidden="true"></i>{{ t().purchases.gts }}
                   @if (gtsCount(l) > 0) { ({{ gtsCount(l) }}) }
+                  @if (l.lotNo.trim()) { <span class="ml-1 font-mono text-xs text-fg-secondary">· {{ t().inventory.lotNo }} {{ l.lotNo.trim() }}</span> }
                 </button>
                 @if (l.showGts) {
                   <div class="mt-2 flex flex-col gap-1">
+                    <label [for]="'pf-l-' + l.key" class="text-xs font-semibold text-fg-secondary">{{ t().inventory.lotNo }}</label>
+                    <input pInputText [id]="'pf-l-' + l.key" type="text" maxlength="20" autocomplete="off" class="w-full font-mono text-sm uppercase placeholder:normal-case sm:max-w-[16rem]"
+                      [placeholder]="t().inventory.lotNoPlaceholder" [ngModel]="l.lotNo" (ngModelChange)="patch(l.key, { lotNo: $event })" />
                     <label [for]="'pf-g-' + l.key" class="sr-only">{{ t().purchases.gts }}</label>
-                    <textarea pTextarea [id]="'pf-g-' + l.key" rows="3" class="w-full resize-y font-mono text-xs"
-                      [ngModel]="l.gtsText" (ngModelChange)="patch(l.key, { gtsText: $event })"></textarea>
+                    <textarea pTextarea appGs1Keys [id]="'pf-g-' + l.key" rows="3" class="w-full resize-y font-mono text-xs"
+                      [ngModel]="l.gtsText" (ngModelChange)="patch(l.key, { gtsText: $event })" (blur)="applyGtsText(l.key)"></textarea>
                     <p class="m-0 text-xs text-fg-muted">{{ t().purchases.gtsHint }}</p>
                   </div>
                 }
@@ -169,7 +178,7 @@ interface FormLine {
               @for (opt of paymentTypeOptions(); track opt.value) {
                 <button type="button" role="radio" [attr.aria-checked]="paymentType() === opt.value" (click)="paymentType.set(opt.value)"
                   class="tap cursor-pointer rounded-token-md border px-3 text-sm font-semibold"
-                  [class]="paymentType() === opt.value ? 'border-fg bg-fg text-surface' : 'border-line-strong bg-surface text-fg-secondary hover:bg-surface-hover'">
+                  [class]="paymentType() === opt.value ? 'border-brand-line bg-brand-soft text-brand-text' : 'border-line-strong bg-surface text-fg-secondary hover:bg-surface-hover'">
                   {{ opt.label }}
                 </button>
               }
@@ -181,10 +190,7 @@ interface FormLine {
                   [ngModel]="paymentMethod()" (ngModelChange)="paymentMethod.set($event)" styleClass="w-full" />
               </div>
             } @else {
-              <div class="flex flex-col gap-1.5">
-                <label for="pf-due" class="text-sm font-semibold text-fg-secondary">{{ t().purchases.dueDate }}</label>
-                <input pInputText id="pf-due" type="date" class="h-11 w-full" [ngModel]="dueDate()" (ngModelChange)="dueDate.set($event)" />
-              </div>
+              <ui-date-field inputId="pf-due" [label]="t().purchases.dueDate" [ngModel]="dueDate()" (ngModelChange)="dueDate.set($event)" />
             }
             <div class="flex items-start gap-3">
               <p-checkbox inputId="pf-price" [binary]="true" [ngModel]="updatePrice()" (ngModelChange)="updatePrice.set($event)" />
@@ -226,18 +232,19 @@ export class PurchaseFormPage implements OnInit {
   private readonly router = inject(Router);
   private readonly toast = inject(MessageService);
   readonly t = inject(LangService).t;
+  private readonly sx = injectScannerTexts();
   readonly inv = computed(() => this.t().inventory);
 
   readonly suppliers = toSignal(this.supplierSvc.getAll$().pipe(catchError(() => of([]))), { initialValue: [] });
   readonly supplierId = signal<string | null>(null);
   readonly docType = signal<PurchaseDocType>('invoice');
   readonly documentNo = signal('');
-  readonly documentDate = signal(toDateInput(new Date()));
+  readonly documentDate = signal<Date | null>(normalizeDay(new Date()));
   readonly lines = signal<FormLine[]>([]);
   readonly discount = signal(0);
   readonly paymentType = signal<PurchasePaymentType>('credit');
   readonly paymentMethod = signal<SupplierPaymentMethod>('cash');
-  readonly dueDate = signal('');
+  readonly dueDate = signal<Date | null>(null);
   readonly updatePrice = signal(true);
   readonly notes = signal('');
   readonly q = signal('');
@@ -273,10 +280,25 @@ export class PurchaseFormPage implements OnInit {
     if (sid) this.supplierId.set(sid);
   }
 
+  /** Arama kutusunu temizle (DOM değeri de hemen: okuyucu hızında bağ güncellenmeyebilir, bkz. POS Y2). */
+  private clearQuery(): void {
+    this.q.set('');
+    const el = document.getElementById('pf-search') as HTMLInputElement | null;
+    if (el) el.value = '';
+  }
+
   onEnter(event: Event): void {
     event.preventDefault();
     const code = this.q().trim();
     if (!code) return;
+    // Y3: USB okuyucuyla okutulan karekod kamera yoluyla aynı işlenir (GTIN → ürün, SKT ve parti kaleme)
+    const scanned = scanResultFromText(code);
+    if (scanned.gs1?.gtin) {
+      const fb = this.onScan(scanned);
+      this.clearQuery();
+      this.toast.add({ severity: fb.tone === 'success' ? 'success' : fb.tone === 'warn' ? 'warn' : 'error', summary: '', detail: fb.message, life: 3000 });
+      return;
+    }
     const exact = this.productStore.products().find(p => p.barcode === code);
     const pick = exact ?? (this.suggestions().length === 1 ? this.suggestions()[0] : null);
     if (pick) { this.addProduct(pick); return; }
@@ -285,8 +307,93 @@ export class PurchaseFormPage implements OnInit {
     }
   }
 
+  /**
+   * Kamerayla sürekli okutma. Düz barkod → ürün kalemi +1. Karekod → GTIN'den ürün bulunur; birim GTS'si
+   * aynı ürün + aynı SKT'li GTS kalemine eklenir (yoksa yeni kalem, SKT karekoddan).
+   */
+  readonly onScan = (r: ScanResult): ScanFeedback => {
+    const sx = this.sx();
+    const products = this.productStore.products();
+    const gtin = r.gs1?.gtin ?? null;
+    const p = products.find(x => (x.barcode ?? '').trim() === r.code)
+      ?? (gtin ? products.find(x => gtinMatches(x.barcode, gtin)) : undefined);
+    if (!p) return { tone: 'error', message: sx.notFound(r.gs1?.ean13 ?? gtin ?? r.code) };
+    if (!r.gs1 || !(r.gs1.serial || r.gs1.lot || r.gs1.expiry)) {
+      this.addProduct(p);
+      return { tone: 'success', message: `${p.name} +1` };
+    }
+    const code = r.code;
+    if (this.lines().some(l => parseGtsText(l.gtsText).includes(code))) return { tone: 'warn', message: sx.alreadyAdded };
+    const exp = r.gs1.expiry ? normalizeDay(r.gs1.expiry) : null;
+    const sameDay = (d: Date | null) => (d?.getTime() ?? null) === (exp?.getTime() ?? null);
+    const lot = normalizeLotNo(r.gs1.lot) ?? '';
+    const line = this.lines().find(l => l.product.id === p.id && l.gtsText.trim() && sameDay(l.expiry)
+      && (normalizeLotNo(l.lotNo) ?? '') === lot);
+    if (line) {
+      this.patch(line.key, { gtsText: `${line.gtsText.trim()}\n${code}` });
+    } else {
+      if (this.lines().length >= MAX_PURCHASE_LINES) return { tone: 'error', message: this.t().purchases.errTooMany };
+      this.lines.update(ls => [...ls, {
+        key: crypto.randomUUID(), product: p, quantity: 1, unitCost: Number(p.purchasePrice) || 0,
+        vatRate: p.vatRate ?? 20, expiry: exp, gtsText: code, lotNo: lot, showGts: true,
+      }]);
+    }
+    const parts = [`${p.name} +1 GTS`];
+    if (r.gs1.expiry) parts.push(`${sx.gs1Expiry}: ${r.gs1.expiry.toLocaleDateString('tr-TR')}`);
+    if (r.gs1.lot) parts.push(`${sx.gs1Lot}: ${r.gs1.lot}`);
+    return { tone: 'success', message: parts.join(' · ') };
+  };
+
+  /**
+   * Y3: GTS kutusuna (USB okuyucu / elle) yazılan karekodları çöz. Karekoddaki SKT ve parti kaleme yazılır;
+   * farklı SKT / parti nolu birimler aynı ürünün ayrı kalemlerine (ayrı partiler) bölünür.
+   */
+  applyGtsText(key: string): void {
+    const line = this.lines().find(l => l.key === key);
+    if (!line) return;
+    const tokens = parseGtsText(line.gtsText);
+    if (!tokens.length) return;
+    const dayIso = (d: Date | null) => (d ? normalizeDay(d).getTime() : null);
+    interface Group { expiry: Date | null; lot: string; codes: string[] }
+    const groups = new Map<string, Group>();
+    const keep: string[] = [];
+    for (const tok of tokens) {
+      const r = scanResultFromText(tok);
+      const g = r.gs1;
+      if (!g || !(g.expiry || g.lot)) { keep.push(r.code); continue; }
+      const exp = g.expiry ? normalizeDay(g.expiry) : null;
+      const lot = normalizeLotNo(g.lot) ?? '';
+      const k = `${dayIso(exp) ?? ''}|${lot}`;
+      const grp = groups.get(k) ?? { expiry: exp, lot, codes: [] };
+      grp.codes.push(r.code);
+      groups.set(k, grp);
+    }
+    const list = [...groups.values()];
+    // Bu kalem: elle girilmiş SKT/parti ile uyumlu grup ya da (boşsa) ilk grup
+    const lineKey = `${dayIso(line.expiry) ?? ''}|${normalizeLotNo(line.lotNo) ?? ''}`;
+    const blank = !line.expiry && !(line.lotNo ?? '').trim();
+    const own = groups.get(lineKey) ?? (blank ? list[0] : undefined);
+    const ownCodes = [...keep, ...(own?.codes ?? [])];
+    const others = list.filter(g => g !== own);
+    this.patch(key, {
+      gtsText: ownCodes.join('\n'),
+      ...(own && blank ? { expiry: own.expiry, lotNo: own.lot } : {}),
+    });
+    if (!others.length) return;
+    if (this.lines().length + others.length > MAX_PURCHASE_LINES) { this.warn(this.t().purchases.errTooMany); return; }
+    this.lines.update(ls => {
+      const at = ls.findIndex(l => l.key === key);
+      const extra: FormLine[] = others.map(g => ({
+        key: crypto.randomUUID(), product: line.product, quantity: g.codes.length, unitCost: line.unitCost,
+        vatRate: line.vatRate, expiry: g.expiry, gtsText: g.codes.join('\n'), lotNo: g.lot, showGts: true,
+      }));
+      return [...ls.slice(0, at + 1), ...extra, ...ls.slice(at + 1)];
+    });
+    this.toast.add({ severity: 'info', summary: '', detail: this.t().purchases.gtsSplit(others.length + 1), life: 3500 });
+  }
+
   addProduct(p: Product): void {
-    this.q.set('');
+    this.clearQuery();
     const existing = this.lines().find(l => l.product.id === p.id && !l.gtsText.trim());
     if (existing) {
       this.patch(existing.key, { quantity: existing.quantity + 1 });
@@ -298,7 +405,7 @@ export class PurchaseFormPage implements OnInit {
     }
     this.lines.update(ls => [...ls, {
       key: crypto.randomUUID(), product: p, quantity: 1, unitCost: Number(p.purchasePrice) || 0,
-      vatRate: p.vatRate ?? 20, expiry: '', gtsText: '', showGts: false,
+      vatRate: p.vatRate ?? 20, expiry: null, gtsText: '', lotNo: '', showGts: false,
     }]);
   }
 
@@ -327,10 +434,14 @@ export class PurchaseFormPage implements OnInit {
     const supplierId = this.supplierId();
     if (!supplierId) { this.warn(tp.errNoSupplier); return; }
     if (this.lines().length === 0) { this.warn(tp.errNoItems); return; }
+    // GTS kutularında çözülmemiş karekod kalmasın (SKT / parti kaleme yazılsın)
+    for (const l of [...this.lines()]) if (l.gtsText.trim()) this.applyGtsText(l.key);
     for (const l of this.lines()) {
       const err = validateLine(this.toLineInput(l));
       if (err === 'duplicate-gts') { this.warn(tp.errDuplicateGts.replace('{gts}', l.product.name)); return; }
       if (err) { this.warn(`${tp.errInvalidLine}: ${l.product.name}`); return; }
+      // Y3 (mevzuat): bitki koruma ürünü SKT'siz stoğa girmesin
+      if (!l.expiry && isPlantProtection(l.product)) { this.warn(tp.errExpiryRequired.replace('{name}', l.product.name)); return; }
     }
     const docLabel = `${this.documentNo().trim() || '-'}`;
     this.saving.set(true);
@@ -339,15 +450,15 @@ export class PurchaseFormPage implements OnInit {
         supplierId,
         docType: this.docType(),
         documentNo: this.documentNo(),
-        documentDate: fromDateInput(this.documentDate()) ?? new Date(),
+        documentDate: this.documentDate() ?? normalizeDay(new Date()),
         lines: this.lines().map(l => ({
           productId: l.product.id, quantity: Number(l.quantity) || 0, unitCost: Number(l.unitCost) || 0,
-          vatRate: Number(l.vatRate) || 0, expiryDate: fromDateInput(l.expiry), gtsNumbers: parseGtsText(l.gtsText),
+          vatRate: Number(l.vatRate) || 0, expiryDate: l.expiry, gtsNumbers: parseGtsText(l.gtsText), lotNo: normalizeLotNo(l.lotNo),
         })),
         discount: this.discount(),
         paymentType: this.paymentType(),
         paymentMethod: this.paymentType() === 'cash' ? this.paymentMethod() : null,
-        dueDate: this.paymentType() === 'credit' ? fromDateInput(this.dueDate()) : null,
+        dueDate: this.paymentType() === 'credit' ? this.dueDate() : null,
         updatePurchasePrice: this.updatePrice(),
         notes: this.notes(),
       }, {

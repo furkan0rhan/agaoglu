@@ -76,6 +76,8 @@ export interface AdminTexts {
   // v2 kabuk + detay
   platform: string;
   badge: string;
+  /** Sidebar başlığındaki kırmızı rozet */
+  platformBadge: string;
   navMenu: string;
   navTenants: string;
   backToApp: string;
@@ -157,12 +159,14 @@ const TR: AdminTexts = {
     support_end: 'Destek oturumu bitti',
     license_change: 'Lisans değişikliği',
     user_change: 'Kullanıcı değişikliği',
+    sale_cancel: 'Satış iptali',
   },
   planNames: { trial: 'Deneme', basic: 'Temel', pro: 'Pro' },
   statusNames: { legacy: 'Eski', ok: 'Aktif', warning: 'Bitiyor', expired: 'Süresi doldu', suspended: 'Askıda' },
   roleNames: { admin: 'Yönetici', cashier: 'Kasiyer', staff: 'Personel' },
   platform: 'Platform Yönetimi',
   badge: 'SUPERADMIN',
+  platformBadge: 'PLATFORM YÖNETİMİ',
   navMenu: 'Yönetim menüsü',
   navTenants: 'İşletmeler',
   backToApp: 'Kendi işletmem',
@@ -244,12 +248,14 @@ const EN: AdminTexts = {
     support_end: 'Support session ended',
     license_change: 'License change',
     user_change: 'User change',
+    sale_cancel: 'Sale cancelled',
   },
   planNames: { trial: 'Trial', basic: 'Basic', pro: 'Pro' },
   statusNames: { legacy: 'Legacy', ok: 'Active', warning: 'Expiring', expired: 'Expired', suspended: 'Suspended' },
   roleNames: { admin: 'Admin', cashier: 'Cashier', staff: 'Staff' },
   platform: 'Platform Admin',
   badge: 'SUPERADMIN',
+  platformBadge: 'PLATFORM ADMINISTRATION',
   navMenu: 'Admin menu',
   navTenants: 'Businesses',
   backToApp: 'My business',

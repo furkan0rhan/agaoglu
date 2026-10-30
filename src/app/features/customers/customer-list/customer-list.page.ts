@@ -56,7 +56,7 @@ type ListFilter = 'all' | 'debt' | 'archived';
             @for (f of filters(); track f.value) {
               <button type="button" (click)="filter.set(f.value)" [attr.aria-pressed]="filter() === f.value"
                 class="inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-token-md border px-3.5 text-13.5 font-semibold transition-colors"
-                [class]="filter() === f.value ? 'border-fg bg-fg text-surface' : 'border-line-strong bg-surface text-fg-secondary hover:bg-surface-hover'">
+                [class]="filter() === f.value ? 'border-brand-line bg-brand-soft text-brand-text' : 'border-line-strong bg-surface text-fg-secondary hover:bg-surface-hover'">
                 @if (f.icon) { <i class="pi text-12" [class]="f.icon" aria-hidden="true"></i> }
                 {{ f.label }}
               </button>

@@ -35,10 +35,11 @@ describe('değişmez defterler', () => {
     await assertSucceeds(addDoc(collection(as(env, 'CASH'), 'stockMovements'), { tenantId: 'OWNER', productId: 'P1', type: 'in', quantity: 5 }));
   });
 
-  it('satış silinemez, iptal (update) edilebilir', async () => {
+  it('satış silinemez; nedensiz / denetim kaydısız iptal reddedilir (Y4, ayrıntı: sale-cancel.spec)', async () => {
     const db = as(env, 'CASH');
     await assertFails(deleteDoc(doc(db, 'sales', 'S1')));
-    await assertSucceeds(updateDoc(doc(db, 'sales', 'S1'), { status: 'cancelled' }));
+    await assertFails(updateDoc(doc(db, 'sales', 'S1'), { status: 'cancelled' }));
+    await assertFails(updateDoc(doc(as(env, 'OWNER'), 'sales', 'S1'), { status: 'cancelled', cancelledBy: 'OWNER', cancelReason: 'Yanlış ürün' }));
   });
 });
 

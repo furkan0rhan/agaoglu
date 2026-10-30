@@ -5,11 +5,13 @@ import { LangService } from '../../../core/i18n/lang.service';
 import { FarmerAuthError, FarmerAuthService } from '../auth/farmer-auth.service';
 import { LogoMarkComponent } from '../../../shared/ui/logo-mark.component';
 import { F } from '../layout/farmer-ui';
+import { parseInviteInput } from '../utils/identity.util';
+import { injectScannerTexts, QR_FORMATS, ScanButtonComponent, ScanResult } from '../../../shared/scanner';
 
 @Component({
   selector: 'app-farmer-login',
   standalone: true,
-  imports: [FormsModule, RouterLink, LogoMarkComponent],
+  imports: [FormsModule, RouterLink, LogoMarkComponent, ScanButtonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-h-dvh bg-page text-18 text-fg' },
   template: `
@@ -40,9 +42,29 @@ import { F } from '../layout/farmer-ui';
           </button>
         </form>
       </div>
+      <!-- Davet kodu / linki / QR (hesap yalnız bayinin davetiyle açılır) -->
+      <div [class]="F.card + ' flex flex-col gap-3 p-4'">
+        <button type="button" [class]="F.btn2 + ' w-full'" [attr.aria-expanded]="codeOpen()" aria-controls="fl-code-box" (click)="codeOpen.set(!codeOpen())">
+          <i class="pi pi-ticket" aria-hidden="true"></i>{{ t().farmer.auth.haveCode }}</button>
+        <!-- Bayinin gösterdiği davet QR'ını kamerayla okut -->
+        <ui-scan-button class="w-full [&>p-button]:w-full [&_button]:w-full [&_button]:min-h-[56px] [&_button]:text-18" [label]="qrLabel()" [formats]="qrFormats"
+                        [title]="qrLabel()" (scanned)="onQrScan($event)" />
+        @if (codeOpen()) {
+          <form id="fl-code-box" class="flex flex-col gap-3" (ngSubmit)="openInvite()">
+            <div>
+              <label for="fl-code" [class]="F.label">{{ t().farmer.auth.codeLabel }}</label>
+              <input id="fl-code" name="code" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" [class]="F.input + ' num'"
+                     [placeholder]="t().farmer.auth.codePh" [(ngModel)]="code" />
+            </div>
+            @if (codeError()) { <p [class]="F.danger + ' m-0'" role="alert">{{ codeError() }}</p> }
+            <button type="submit" [class]="F.btn"><i class="pi pi-arrow-right" aria-hidden="true"></i>{{ t().farmer.auth.openInvite }}</button>
+          </form>
+        }
+      </div>
       <div [class]="F.legal + ' flex flex-col gap-2'">
         <p class="m-0 flex items-start gap-2"><i class="pi pi-key mt-0.5 shrink-0" aria-hidden="true"></i><span>{{ t().farmer.auth.forgotPin }}</span></p>
-        <p class="m-0 flex items-start gap-2"><i class="pi pi-envelope mt-0.5 shrink-0" aria-hidden="true"></i><span>{{ t().farmer.auth.noAccount }}</span></p>
+        <p class="m-0 flex items-start gap-2"><i class="pi pi-envelope mt-0.5 shrink-0" aria-hidden="true"></i>
+          <span><b>{{ t().farmer.auth.noAccountTitle }}</b> — {{ t().farmer.auth.noAccountDesc }}</span></p>
       </div>
       <a routerLink="/auth/login" class="inline-flex min-h-[48px] items-center justify-center gap-2 text-center text-16 font-semibold text-brand-text underline">
         <i class="pi pi-shop" aria-hidden="true"></i>{{ t().farmer.auth.dealerLogin }}</a>
@@ -59,6 +81,32 @@ export class FarmerLoginPage {
   pin = '';
   readonly busy = signal(false);
   readonly error = signal('');
+  readonly codeOpen = signal(false);
+  readonly codeError = signal('');
+  code = '';
+
+  readonly qrFormats = QR_FORMATS;
+  private readonly sx = injectScannerTexts();
+  readonly qrLabel = () => this.sx().scanInviteQr;
+
+  /** Davet QR'ı okundu → link/koddan davet sayfasına */
+  onQrScan(r: ScanResult): void {
+    this.code = r.text.trim();
+    this.codeOpen.set(true);
+    if (!parseInviteInput(r.text)) {
+      this.codeError.set(this.sx().inviteNotRecognized);
+      return;
+    }
+    this.openInvite(r.text);
+  }
+
+  /** Yapıştırılan kod veya link → davet sayfası. */
+  openInvite(text: string = this.code): void {
+    const c = parseInviteInput(text);
+    if (!c) { this.codeError.set(this.t().farmer.auth.badCode); return; }
+    this.codeError.set('');
+    void this.router.navigate(['/ciftci/davet', c]);
+  }
 
   async submit(): Promise<void> {
     this.error.set('');

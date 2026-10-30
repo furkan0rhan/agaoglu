@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Kullanım: npm run release -- 1.0.1
 // package.json, src-tauri/tauri.conf.json, src-tauri/Cargo.toml ve environment dosyalarındaki
-// sürümü günceller, commit + tag atar ve push eder. GitHub Actions exe/msi'yi üretir.
+// sürümü günceller, commit + tag atar ve push eder. GitHub Actions aynı taslak Release'e
+// Windows (setup.exe/.msi) ve Android (TarimMarketPro-<sürüm>.apk/.aab) dosyalarını yükler.
+// Android versionName/versionCode'u Tauri CLI, tauri.conf.json "version"undan türetir.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 
@@ -40,4 +42,5 @@ run(`git commit -m "release: v${version}"`);
 run(`git tag v${version}`);
 run('git push');
 run(`git push origin v${version}`);
-console.log(`\nv${version} gönderildi. GitHub > Actions'ta derleme başladı; bitince Releases'te taslak olarak görünecek.`);
+console.log(`\nv${version} gönderildi. GitHub > Actions'ta iki derleme başladı (Windows + Android).`);
+console.log(`Bitince Releases'te TASLAK olarak görünecek: setup.exe/.msi + TarimMarketPro-${version}.apk/.aab (docs/APK.md).`);

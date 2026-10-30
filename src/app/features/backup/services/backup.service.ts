@@ -94,7 +94,13 @@ export class BackupService {
   /** Dashboard uyarısı: son yedek 7 günden eskiyse veya hiç alınmadıysa true. Okuma hatasında false (gürültü yapma). */
   async isBackupOverdue(now: Date = new Date()): Promise<boolean> {
     try {
-      return backupOverdue(await this.getLastBackupAt(), now);
+      const tenantId = this.auth.currentTenantId();
+      if (!tenantId) return false;
+      const snap = await getDoc(doc(this.firestore, 'tenants', tenantId));
+      const data = snap.exists() ? snap.data() : {};
+      const last = data['lastBackupAt'] instanceof Timestamp ? (data['lastBackupAt'] as Timestamp).toDate() : null;
+      const created = data['createdAt'] instanceof Timestamp ? (data['createdAt'] as Timestamp).toDate() : null;
+      return backupOverdue(last, now, undefined, created);
     } catch (err) {
       this.logger.warn('backup: overdue check failed', err);
       return false;

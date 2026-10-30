@@ -1,5 +1,5 @@
-import { dosePerDecare, dosePerDecareReadable, remainingAfterUse } from './dose.util';
-import { convertUnit, humanizeAmount, toFarmUnit } from './units';
+import { doseDisplay, dosePerDecare, dosePerDecareReadable, packSizeFromName, remainingAfterUse } from './dose.util';
+import { convertUnit, humanizeAmount, toFarmUnit, unitLabel } from './units';
 
 describe('dose.util / units', () => {
   it('doz = miktar / alan', () => {
@@ -31,5 +31,30 @@ describe('dose.util / units', () => {
     expect(remainingAfterUse(2, 500, 'ml', 'lt')).toBe(1.5);
     expect(remainingAfterUse(1, 5, 'lt', 'lt')).toBe(0);
     expect(remainingAfterUse(10, 1, 'kg', 'lt')).toBeNull();
+  });
+});
+
+describe('doseDisplay (dekar hesabının okunur hâli)', () => {
+  it('çuvalda ürün adında ağırlık varsa kg/dekar', () => {
+    expect(doseDisplay(8, 'cuval', 120, 'Amonyum Sülfat 50 kg')).toEqual({ kind: 'per-decare', value: 3.333, unit: 'kg' });
+  });
+  it('ağırlık yoksa "1 çuval ile ~15 dekar"', () => {
+    expect(doseDisplay(8, 'cuval', 120, 'Amonyum Sülfat')).toEqual({ kind: 'decare-per-unit', value: 15, unit: 'cuval' });
+  });
+  it('hacim/kütle birimlerinde dekar başı okunur birimde', () => {
+    expect(doseDisplay(1.5, 'lt', 12)).toEqual({ kind: 'per-decare', value: 125, unit: 'ml' });
+    expect(doseDisplay(null, 'lt', 12)).toBeNull();
+  });
+  it('ambalaj miktarı ürün adından okunur', () => {
+    expect(packSizeFromName('Üre 25kg')).toEqual({ value: 25, unit: 'kg' });
+    expect(packSizeFromName('Mankozeb 1 lt')).toEqual({ value: 1, unit: 'lt' });
+    expect(packSizeFromName('Glifosat 0,5 L şişe')).toEqual({ value: 0.5, unit: 'lt' });
+    expect(packSizeFromName('Kalsiyum nitrat')).toBeNull();
+    expect(packSizeFromName('Gold 2 litre')).toBeNull();
+  });
+  it('görünen birim: cuval → çuval / sack', () => {
+    expect(unitLabel('cuval')).toBe('çuval');
+    expect(unitLabel('cuval', 'en')).toBe('sack');
+    expect(unitLabel('kutu')).toBe('kutu');
   });
 });

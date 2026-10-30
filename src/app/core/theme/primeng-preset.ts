@@ -4,30 +4,32 @@ import Aura from '@primeuix/themes/aura';
 /**
  * Tarım Market PrimeNG preset'i (Aura tabanlı) — tasarım v2 "Saha / Komuta".
  *
- * - Ana renk: zümrüt. Açık temada dolu buton `primary.700` (#047857, beyaz metinle 5.5:1),
- *   koyu temada `primary.400` + koyu metin.
- * - Yüzeyler / kenarlıklar / metin `src/styles/_tokens.scss` CSS değişkenlerine bağlı; açık (kâğıt)
- *   ve koyu (kömür) tema tek yerden yönetilir. Overlay'ler opak (cam yok).
+ * - Renk v3 "Adaçayı & Krem": ana renk pastel adaçayı. Dolu buton açık temada `primary.400`
+ *   (#9ec6a2) + koyu mürekkep (`primary.950` #1b3822, 6.8:1); koyu temada #a8cfac + aynı mürekkep.
+ *   Pastel dolgu METİN rengi olarak okunmaz: outlined / text / link butonlar ve sekmeler `--brand-text`.
+ * - Yüzeyler / kenarlıklar / metin `src/styles/_tokens.scss` CSS değişkenlerine bağlı; açık (krem)
+ *   ve koyu (zeytin-kömür) tema tek yerden yönetilir. Overlay'ler opak (cam yok).
  * - Ölçüler: input/select 44px, buton 42px (lg 52px), yarıçap 8px (form), kart 10px, dialog 12px.
  * - Başlık şeridi (dialog), tablo başlığı ve 44px alt sınırları token karşılığı olmadığı için
  *   `src/styles/_primeng.scss` içinde.
  */
 
-const emerald = {
-  50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7', 400: '#34d399', 500: '#10b981',
-  600: '#059669', 700: '#047857', 800: '#065f46', 900: '#064e3b', 950: '#022c22',
+/** Adaçayı ölçeği (_tokens.scss: 100 brand-soft, 300 brand-line, 400 brand, 500 brand-hover, 800 brand-text, 950 brand-contrast). */
+const sage = {
+  50: '#f4f8f1', 100: '#e7f0e2', 200: '#d3e5cc', 300: '#b8d3b5', 400: '#9ec6a2', 500: '#8cba91',
+  600: '#6f9c76', 700: '#517d58', 800: '#3a6140', 900: '#2d5234', 950: '#1b3822',
 };
 
-/** Kâğıt (açık tema) nötr ölçeği. */
+/** Krem kâğıt (açık tema) nötr ölçeği. */
 const paper = {
-  0: '#ffffff', 50: '#faf8f3', 100: '#f1eee6', 200: '#e8e4d9', 300: '#c9c2b2', 400: '#9c9789',
-  500: '#62685c', 600: '#454a41', 700: '#33372f', 800: '#252822', 900: '#1b1e19', 950: '#10120f',
+  0: '#ffffff', 50: '#fbf9f3', 100: '#f2eee3', 200: '#e6e0d2', 300: '#cdc4b1', 400: '#9c9789',
+  500: '#5f6254', 600: '#4d5044', 700: '#3a3c33', 800: '#2f312a', 900: '#2a2c25', 950: '#1f211b',
 };
 
-/** Kömür (koyu tema) nötr ölçeği. */
+/** Zeytin-kömür (koyu tema) nötr ölçeği. */
 const charcoal = {
-  0: '#ffffff', 50: '#ecebe4', 100: '#d9d8cf', 200: '#c3c4b9', 300: '#9fa296', 400: '#7b7f73',
-  500: '#5a5f56', 600: '#454b44', 700: '#2f342f', 800: '#212521', 900: '#1a1d1a', 950: '#121412',
+  0: '#ffffff', 50: '#eeebe0', 100: '#dcd9cd', 200: '#c9c6b8', 300: '#a8a597', 400: '#7f7d70',
+  500: '#5f5f53', 600: '#535649', 700: '#3b3d34', 800: '#31332c', 900: '#2a2b25', 950: '#22231e',
 };
 
 /** `primary` gibi davranan buton renk şeması (success severity'si de marka rengini kullansın). */
@@ -41,15 +43,27 @@ const brandButton = {
   color: '{primary.contrast.color}',
   hoverColor: '{primary.contrast.color}',
   activeColor: '{primary.contrast.color}',
-  focusRing: { color: '{primary.color}', shadow: 'none' },
+  focusRing: { color: 'var(--side-hi)', shadow: 'none' },
 };
 
-/** `warn` severity'si = vurgu (yanık turuncu) — satış/sepet aksiyonları. */
+/** Outlined / text / link: pastel dolgu metin olarak okunmaz → yumuşak zemin + --*-text. */
+function softVariants(tone: 'brand' | 'accent') {
+  const soft = {
+    hoverBackground: `var(--${tone}-soft)`,
+    activeBackground: tone === 'brand' ? 'var(--brand-soft-hover)' : 'var(--accent-line)',
+    color: `var(--${tone}-text)`,
+  };
+  return { outlined: { ...soft, borderColor: `var(--${tone}-line)` }, text: soft };
+}
+const brandSoft = softVariants('brand');
+const accentSoft = softVariants('accent');
+
+/** `warn` severity'si = vurgu (şeftali-kiremit) — satış/sepet aksiyonları. */
 const accentButton = {
   background: 'var(--accent)', hoverBackground: 'var(--accent-hover)', activeBackground: 'var(--accent-hover)',
   borderColor: 'var(--accent)', hoverBorderColor: 'var(--accent-hover)', activeBorderColor: 'var(--accent-hover)',
   color: 'var(--accent-contrast)', hoverColor: 'var(--accent-contrast)', activeColor: 'var(--accent-contrast)',
-  focusRing: { color: 'var(--accent)', shadow: 'none' },
+  focusRing: { color: 'var(--accent-text)', shadow: 'none' },
 };
 
 /** `secondary` = C'nin düz "btn"i: kâğıt zemin, belirgin kenarlık. */
@@ -57,7 +71,7 @@ const plainButton = {
   background: 'var(--surface)', hoverBackground: 'var(--surface-muted)', activeBackground: 'var(--surface-strong)',
   borderColor: 'var(--border-strong)', hoverBorderColor: 'var(--border-strong)', activeBorderColor: 'var(--border-strong)',
   color: 'var(--text-primary)', hoverColor: 'var(--text-primary)', activeColor: 'var(--text-primary)',
-  focusRing: { color: 'var(--brand)', shadow: 'none' },
+  focusRing: { color: 'var(--side-hi)', shadow: 'none' },
 };
 
 /** Toast: opak kart + tonlu metin (sol renk şeridi _primeng.scss'te). */
@@ -68,7 +82,7 @@ function toastTone(tone: 'info' | 'success' | 'warning' | 'danger' | 'neutral') 
     color: `var(--${tone}-text)`,
     detailColor: 'var(--text-secondary)',
     shadow: 'var(--shadow-overlay)',
-    closeButton: { hoverBackground: 'var(--surface-hover)', focusRing: { color: 'var(--brand)', shadow: 'none' } },
+    closeButton: { hoverBackground: 'var(--surface-hover)', focusRing: { color: 'var(--side-hi)', shadow: 'none' } },
   };
 }
 const toastScheme = {
@@ -86,7 +100,7 @@ const sharedScheme = {
     filledFocusBackground: 'var(--surface-muted)',
     borderColor: 'var(--border-strong)',
     hoverBorderColor: 'var(--text-muted)',
-    focusBorderColor: 'var(--brand)',
+    focusBorderColor: 'var(--side-hi)',
     color: 'var(--text-primary)',
     disabledColor: 'var(--text-muted)',
     placeholderColor: 'var(--text-muted)',
@@ -121,13 +135,22 @@ const sharedScheme = {
   },
 };
 
+/** Buton renk şeması (açık ve koyu temada aynı; değerler token). */
+const buttonScheme = {
+  root: { success: brandButton, warn: accentButton, secondary: plainButton },
+  outlined: { primary: brandSoft.outlined, success: brandSoft.outlined, warn: accentSoft.outlined },
+  text: { primary: brandSoft.text, success: brandSoft.text, warn: accentSoft.text },
+  link: { color: 'var(--brand-text)', hoverColor: 'var(--brand-text)', activeColor: 'var(--brand-text)' },
+};
+
 export const TarimPreset = definePreset(Aura, {
   primitive: {
     borderRadius: { none: '0', xs: '4px', sm: '6px', md: '8px', lg: '10px', xl: '12px' },
   },
   semantic: {
-    primary: emerald,
-    focusRing: { width: '2px', style: 'solid', color: '{primary.color}', offset: '2px', shadow: 'none' },
+    primary: sage,
+    // Odak halkası pastel dolgudan koyu: --side-hi (açık #6f9c76, koyu #a8cfac)
+    focusRing: { width: '2px', style: 'solid', color: 'var(--side-hi)', offset: '2px', shadow: 'none' },
     formField: {
       paddingX: '0.75rem',
       paddingY: '0.625rem',
@@ -149,16 +172,16 @@ export const TarimPreset = definePreset(Aura, {
     colorScheme: {
       light: {
         surface: paper,
-        primary: { color: '{primary.700}', contrastColor: '#ffffff', hoverColor: '{primary.800}', activeColor: '{primary.900}' },
+        primary: { color: '{primary.400}', contrastColor: '{primary.950}', hoverColor: '{primary.500}', activeColor: '{primary.600}' },
         highlight: { background: 'var(--brand-soft)', focusBackground: 'var(--brand-soft-hover)', color: 'var(--brand-text)', focusColor: 'var(--brand-text)' },
-        mask: { background: 'rgba(22, 33, 28, 0.45)', color: '{surface.200}' },
+        mask: { background: 'rgba(42, 44, 37, 0.38)', color: '{surface.200}' },
         ...sharedScheme,
       },
       dark: {
         surface: charcoal,
-        primary: { color: '{primary.400}', contrastColor: '#04281d', hoverColor: '{primary.300}', activeColor: '{primary.200}' },
+        primary: { color: '#a8cfac', contrastColor: '{primary.950}', hoverColor: '#bddbc0', activeColor: '#bddbc0' },
         highlight: { background: 'var(--brand-soft)', focusBackground: 'var(--brand-soft-hover)', color: 'var(--brand-text)', focusColor: 'var(--brand-text)' },
-        mask: { background: 'rgba(0, 0, 0, 0.62)', color: '{surface.200}' },
+        mask: { background: 'rgba(0, 0, 0, 0.55)', color: '{surface.200}' },
         ...sharedScheme,
       },
     },
@@ -171,8 +194,8 @@ export const TarimPreset = definePreset(Aura, {
         sm: { fontSize: '0.875rem', paddingX: '0.75rem', paddingY: '0.375rem' },
       },
       colorScheme: {
-        light: { root: { success: brandButton, warn: accentButton, secondary: plainButton } },
-        dark: { root: { success: brandButton, warn: accentButton, secondary: plainButton } },
+        light: buttonScheme,
+        dark: buttonScheme,
       },
     },
     card: {
@@ -272,12 +295,17 @@ export const TarimPreset = definePreset(Aura, {
         dark: { root: { background: 'var(--text-primary)', color: 'var(--surface)' } },
       },
     },
+    tabs: {
+      tab: { activeColor: 'var(--brand-text)', activeBorderColor: 'var(--side-hi)' },
+      activeBar: { background: 'var(--side-hi)' },
+    },
     toggleswitch: {
       root: { width: '2.875rem', height: '1.625rem' },
       handle: { size: '1.25rem' },
       colorScheme: {
-        light: { root: { background: 'var(--border-strong)', hoverBackground: 'var(--text-muted)' }, handle: { background: '#ffffff', hoverBackground: '#ffffff' } },
-        dark: { root: { background: 'var(--border-strong)', hoverBackground: 'var(--text-muted)' }, handle: { background: '#ecebe4', hoverBackground: '#ffffff', checkedBackground: '#04281d', checkedHoverBackground: '#04281d' } },
+        // Açık adaçayı dolguda beyaz tutamak kaybolur → seçiliyken koyu mürekkep tutamak (iki temada)
+        light: { root: { background: 'var(--border-strong)', hoverBackground: 'var(--text-muted)' }, handle: { background: '#ffffff', hoverBackground: '#ffffff', checkedBackground: 'var(--brand-contrast)', checkedHoverBackground: 'var(--brand-contrast)', checkedColor: 'var(--brand)', checkedHoverColor: 'var(--brand-hover)' } },
+        dark: { root: { background: 'var(--border-strong)', hoverBackground: 'var(--text-muted)' }, handle: { background: '#eeebe0', hoverBackground: '#ffffff', checkedBackground: 'var(--brand-contrast)', checkedHoverBackground: 'var(--brand-contrast)', checkedColor: 'var(--brand)', checkedHoverColor: 'var(--brand-hover)' } },
       },
     },
   },

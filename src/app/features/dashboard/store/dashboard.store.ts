@@ -1,10 +1,12 @@
-import { signalStore, withState, withComputed, withMethods, patchState } from '@ngrx/signals';
+import { signalStore, withState, withComputed, withMethods, withHooks, patchState } from '@ngrx/signals';
 import { computed, inject } from '@angular/core';
 import { Sale } from '../../../shared/models/sale.model';
 import { ProductStore } from '../../products/store/product.store';
 import { getPeriodRange, isInRange, endOfDay } from '../../../shared/utils/date-range.util';
 import { ReportDataService } from '../../reports/services/report-data.service';
 import { summarizeSales, productMap, toDate } from '../../reports/services/report-calc';
+import { AuthService } from '../../../core/auth/services/auth.service';
+import { userErrorMessage } from '../../../core/error/user-error';
 
 interface DashboardState {
   /** Bu hafta + bu ay aralığındaki tamamlanmış satışlar (yeniden eskiye). */
@@ -42,6 +44,8 @@ export const DashboardStore = signalStore(
       dailySales: computed(() => today().revenue),
       todaySaleCount: computed(() => today().saleCount),
       todayGrossProfit: computed(() => today().grossProfit),
+      /** Bugünkü net satış (KDV hariç) — brüt marj paydası. */
+      todayNetSales: computed(() => today().netRevenue),
       todayCostEstimated: computed(() => today().costEstimated),
       weeklySales: computed(() => week().revenue),
       monthlySales: computed(() => month().revenue),
@@ -52,8 +56,10 @@ export const DashboardStore = signalStore(
       expiringCount: computed(() => productStore.expiringProducts().length),
     };
   }),
-  withMethods((store, data = inject(ReportDataService)) => ({
+  withMethods((store, data = inject(ReportDataService), auth = inject(AuthService)) => ({
     async loadStats(): Promise<void> {
+      const key = auth.sessionKey();
+      if (!auth.currentTenantId()) return;
       patchState(store, { loading: true, error: null });
       try {
         const now = new Date();
@@ -61,11 +67,22 @@ export const DashboardStore = signalStore(
         const month = getPeriodRange('month', now);
         const start = week.start < month.start ? week.start : month.start;
         const sales = await data.getSales({ start, end: endOfDay(now) });
+        // Bu arada oturum değiştiyse (çıkış / başka işletme) eski işletmenin satışlarını yazma (Y1)
+        if (auth.sessionKey() !== key) return;
         patchState(store, { sales, loadedAt: now.getTime(), loading: false });
       } catch (e) {
         console.error('[Dashboard] loadStats hatası:', e);
-        patchState(store, { loading: false, error: (e as Error)?.message ?? 'error' });
+        if (auth.sessionKey() !== key) return;
+        patchState(store, { loading: false, error: userErrorMessage(e, 'error') });
       }
     },
-  }))
+    reset(): void {
+      patchState(store, { ...initialState });
+    },
+  })),
+  withHooks({
+    onInit(store, auth = inject(AuthService)) {
+      auth.onSessionChange(() => store.reset());
+    },
+  })
 );

@@ -16,10 +16,11 @@ import { Sale, SaleItem } from '../../../shared/models/sale.model';
 import {
   EmptyStateComponent, GlassCardComponent, MoneyComponent, PageHeaderComponent, StatusBadgeComponent,
 } from '../../../shared/ui';
-import { SaleService, SaleAlreadyCancelledError } from '../../pos/services/sale.service';
+import { SaleService, SaleAlreadyCancelledError, SaleCancelDeniedError } from '../../pos/services/sale.service';
+import { cancelDenial, CANCEL_REASON_MAX, isValidCancelReason } from '../services/cancel-policy';
 import { SalesQueryService } from '../services/sales-query.service';
 import {
-  formatDateTime, methodIcon, methodLabel, methodTone, qtyWithUnit, statusLabel, statusTone, StatusTone,
+  cancelErrorText, formatDateTime, methodIcon, methodLabel, methodTone, qtyWithUnit, statusLabel, statusTone, StatusTone,
 } from '../services/sales.helpers';
 import { ReceiptPrinterService } from '../receipt/receipt-printer.service';
 import { saleToReceipt } from '../receipt/receipt.utils';
@@ -46,14 +47,20 @@ type LoadState = { status: 'loading' } | { status: 'ready'; sale: Sale | null } 
           <i class="pi pi-exclamation-triangle mt-0.5" aria-hidden="true"></i>
           <p class="m-0">{{ t().sales.cancelConfirmDesc }}</p>
         </div>
-        <label class="text-sm font-semibold text-fg-secondary" for="cancel-reason">{{ t().sales.cancelReason }}</label>
-        <input pInputText id="cancel-reason" class="h-11 w-full text-sm" [ngModel]="cancelReason()" (ngModelChange)="cancelReason.set($event)" maxlength="200" />
+        <label class="text-sm font-semibold text-fg-secondary" for="cancel-reason">{{ t().sales.cancelReason }} <span class="text-danger-text" aria-hidden="true">*</span></label>
+        <input pInputText id="cancel-reason" class="h-11 w-full text-sm" [ngModel]="cancelReason()" (ngModelChange)="cancelReason.set($event)"
+          [maxlength]="reasonMax" required aria-required="true" [placeholder]="t().sales.cancelReasonPlaceholder"
+          [attr.aria-invalid]="reasonTouched() && !reasonOk()" (blur)="reasonTouched.set(true)" (keydown.enter)="confirmCancel()" />
+        @if (reasonTouched() && !reasonOk()) {
+          <p class="m-0 text-xs text-danger-text" role="alert">{{ t().sales.cancelReasonRequired }}</p>
+        }
+        <p class="m-0 text-xs text-fg-muted">{{ t().sales.cancelAudit }}</p>
       </div>
       <ng-template #footer>
         <div class="flex w-full justify-end gap-2">
           <p-button [label]="t().common.close" severity="secondary" (onClick)="showCancel.set(false)" [disabled]="cancelling()" />
           <p-button [label]="t().sales.cancelSale" icon="pi pi-undo" severity="danger"
-            (onClick)="confirmCancel()" [loading]="cancelling()" [disabled]="cancelling()" />
+            (onClick)="confirmCancel()" [loading]="cancelling()" [disabled]="cancelling() || !reasonOk()" />
         </div>
       </ng-template>
     </p-dialog>
@@ -62,8 +69,12 @@ type LoadState = { status: 'loading' } | { status: 'ready'; sale: Sale | null } 
       backLink="/sales" [backLabel]="t().common.back">
       @if (sale(); as s) {
         @if (s.status === 'completed') {
-          <p-button [label]="t().sales.cancelSale" icon="pi pi-undo" severity="danger" [outlined]="true"
-            (onClick)="openCancel()" [disabled]="cancelling()" />
+          @if (!cancelDenied()) {
+            <p-button [label]="t().sales.cancelSale" icon="pi pi-undo" severity="danger" [outlined]="true"
+              (onClick)="openCancel()" [disabled]="cancelling()" />
+          } @else if (cancelDenied() !== 'role') {
+            <span class="hidden max-w-[22rem] text-xs text-fg-muted md:inline">{{ deniedText() }}</span>
+          }
         }
         <p-button [label]="t().sales.printReceipt" icon="pi pi-print" (onClick)="print(s)" />
       }
@@ -200,7 +211,7 @@ type LoadState = { status: 'loading' } | { status: 'ready'; sale: Sale | null } 
                       <div class="flex justify-between gap-3"><span class="text-fg-secondary">{{ t().sales.creditAmount }}</span><ui-money class="font-semibold text-accent-text" [value]="s.creditAmount" /></div>
                     }
                     @if (s.totalWithInterest) {
-                      <div class="flex justify-between gap-3"><span class="text-fg-secondary">{{ t().pos.totalWithInterest }}</span><ui-money class="text-fg" [value]="s.totalWithInterest" /></div>
+                      <div class="flex justify-between gap-3"><span class="text-fg-secondary">{{ t().pos.creditDebtWithInterest }}</span><ui-money class="text-fg" [value]="s.totalWithInterest" /></div>
                     }
                     @if (s.installmentCount && s.installmentAmount) {
                       <div class="flex justify-between gap-3">
@@ -225,7 +236,7 @@ type LoadState = { status: 'loading' } | { status: 'ready'; sale: Sale | null } 
           } @else {
             <ui-glass-card>
               <ui-empty-state icon="pi-receipt" [title]="t().sales.notFound">
-                <a routerLink="/sales" class="text-sm font-semibold text-brand no-underline hover:underline">{{ t().common.back }}</a>
+                <a routerLink="/sales" class="text-sm font-semibold text-brand-text no-underline hover:underline">{{ t().common.back }}</a>
               </ui-empty-state>
             </ui-glass-card>
           }
@@ -248,6 +259,9 @@ export class SaleDetailPage {
   readonly cancelling = signal(false);
   readonly showCancel = signal(false);
   readonly cancelReason = signal('');
+  readonly reasonTouched = signal(false);
+  readonly reasonOk = computed(() => isValidCancelReason(this.cancelReason()));
+  readonly reasonMax = CANCEL_REASON_MAX;
 
   readonly state = toSignal(
     this.route.paramMap.pipe(
@@ -269,6 +283,14 @@ export class SaleDetailPage {
     const s = this.state();
     return s.status === 'ready' ? s.sale : null;
   });
+
+  /** Y4: bu kullanıcı bu satışı iptal edebilir mi (kasiyer: yalnız kendi + bugünkü). null = izinli. */
+  readonly cancelDenied = computed(() => {
+    const s = this.sale();
+    const u = this.auth.currentUser();
+    return s ? cancelDenial(s, u ? { id: this.auth.currentUserId(), role: u.role } : null) : 'role';
+  });
+  readonly deniedText = computed(() => cancelErrorText(this.t(), this.cancelDenied()));
 
   readonly statusText = computed(() => { const s = this.sale(); return s ? statusLabel(this.t(), s.status) : ''; });
   readonly tone = computed<StatusTone>(() => { const s = this.sale(); return s ? statusTone(s.status) : 'success'; });
@@ -296,20 +318,25 @@ export class SaleDetailPage {
 
   openCancel(): void {
     this.cancelReason.set('');
+    this.reasonTouched.set(false);
     this.showCancel.set(true);
   }
 
   async confirmCancel(): Promise<void> {
     const s = this.sale();
     if (!s || this.cancelling()) return;
+    this.reasonTouched.set(true);
+    if (!this.reasonOk()) return;
     this.cancelling.set(true);
     try {
-      await this.saleSvc.cancelSale(s.id, this.cancelReason().trim() || null);
+      await this.saleSvc.cancelSale(s.id, this.cancelReason());
       this.showCancel.set(false);
       this.toast.add({ severity: 'success', summary: '', detail: this.t().sales.cancelSuccess, life: 3000 });
     } catch (err) {
       this.logger.error('cancelSale failed', err);
-      const detail = err instanceof SaleAlreadyCancelledError ? this.t().sales.alreadyCancelled : this.t().sales.cancelFailed;
+      const detail = err instanceof SaleAlreadyCancelledError ? this.t().sales.alreadyCancelled
+        : err instanceof SaleCancelDeniedError ? cancelErrorText(this.t(), err.reason)
+        : this.t().sales.cancelFailed;
       this.toast.add({ severity: 'error', summary: this.t().common.error, detail, life: 4000 });
     } finally {
       this.cancelling.set(false);

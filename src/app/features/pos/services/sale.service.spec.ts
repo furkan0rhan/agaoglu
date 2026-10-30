@@ -40,7 +40,7 @@ describe('SaleService — e-reçete, GTS ve SKT engeli', () => {
     TestBed.configureTestingModule({
       providers: [
         { provide: Firestore, useValue: {} },
-        { provide: AuthService, useValue: { currentTenantId: () => 't1', currentUserId: () => 'u1' } },
+        { provide: AuthService, useValue: { currentTenantId: () => 't1', currentUserId: () => 'u1', sessionKey: () => 'u1|t1', onSessionChange: () => () => undefined } },
         { provide: ProductStore, useValue: { products: () => products } },
         { provide: TenantSettingsService, useValue: { prescriptionMode: mode } },
         { provide: NetworkService, useValue: { isOnline: () => true } },

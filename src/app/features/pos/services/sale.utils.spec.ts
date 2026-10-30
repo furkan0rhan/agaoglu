@@ -1,6 +1,6 @@
 import {
   allocateFEFO, generateSaleNumber, isDecimalUnit, lineAmounts, normalizeQty, productUnit, resolveProduct, restoreBatches,
-  round2, splitInstallments, takenGtsNos, toSaleItem,
+  round2, splitInstallments, takenGtsNos, takenLotNos, toSaleItem,
 } from './sale.utils';
 import { Batch, Product } from '../../../shared/models/product.model';
 
@@ -190,5 +190,40 @@ describe('toSaleItem — mevzuat alanları', () => {
     const out = toSaleItem(cartItem, product('A', ''), []);
     expect(Object.values(out).some(v => v === undefined)).toBe(false);
     expect('gtsNos' in out).toBe(false);
+  });
+  it('KDV oranı ve net (KDV hariç) maliyet satış anında kaydedilir', () => {
+    const p = product('A', '', { purchasePrice: 96, vatRate: 20, purchasePriceIncludesVat: true });
+    expect(toSaleItem(cartItem, p, [])).toMatchObject({ vatRate: 20, costPrice: 80 });
+    const q = product('A', '', { purchasePrice: 80, vatRate: null });
+    expect(toSaleItem(cartItem, q, [])).toMatchObject({ vatRate: null, costPrice: 80 });
+  });
+});
+
+describe('parti no (lotNo) satışta taşınır', () => {
+  const withLot = (b: Batch, lotNo: string): Batch => ({ ...b, lotNo });
+  const cartItem = { productId: 'A', productName: 'A', barcode: '', quantity: 2, unitPrice: 10, discount: 0,
+    discountType: 'percent' as const, totalPrice: 20, _tempId: 't', stock: 5 };
+
+  it('allocateFEFO düşülen partinin lotNo bilgisini taken içine yazar; olmayanlarda alan yok', () => {
+    const r = allocateFEFO([withLot(batch('a', 1, 1000, 'G1'), 'L1'), batch('b', 5, 2000)], 3);
+    expect(r.taken[0]).toMatchObject({ batchId: 'a', lotNo: 'L1' });
+    expect('lotNo' in r.taken[1]).toBe(false);
+  });
+
+  it('toSaleItem lotNos (tekrarsız) yazar, yoksa alan eklemez', () => {
+    const taken = [
+      { batchId: 'a', quantity: 1, gtsNo: 'G1', lotNo: 'L1', expiryDate: null },
+      { batchId: 'b', quantity: 1, gtsNo: 'G2', lotNo: 'L1', expiryDate: null },
+      { batchId: 'c', quantity: 1, gtsNo: null, expiryDate: null },
+    ];
+    expect(takenLotNos(taken)).toEqual(['L1']);
+    expect(toSaleItem(cartItem, product('A', ''), taken).lotNos).toEqual(['L1']);
+    expect('lotNos' in toSaleItem(cartItem, product('A', ''), [])).toBe(false);
+  });
+
+  it('restoreBatches iptalde lotNo bilgisini geri koyar', () => {
+    const out = restoreBatches([], { quantity: 1, batches: [{ batchId: 'a', quantity: 1, gtsNo: 'G1', lotNo: 'L1', expiryDate: null }] },
+      ts(0) as never, () => 'n');
+    expect(out[0]).toMatchObject({ id: 'a', gtsNo: 'G1', lotNo: 'L1' });
   });
 });

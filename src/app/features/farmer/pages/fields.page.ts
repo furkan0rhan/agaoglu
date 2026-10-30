@@ -6,6 +6,7 @@ import { fmt } from '../i18n/farmer.i18n';
 import { F, FarmerHeaderComponent, fmtDate, fmtNum, fmtShortDate, TILE_TONE, TYPE_ICON, typeTile } from '../layout/farmer-ui';
 import { FarmerStore } from '../services/farmer-store.service';
 import { cropDef } from '../utils/crops';
+import { unitLabel } from '../utils/units';
 import { FarmerWeatherCardComponent } from './weather-card.component';
 
 @Component({
@@ -125,7 +126,7 @@ export class FarmerFieldsPage {
               <span [class]="F.tile + ' h-10 w-10 text-20 ' + tile(l)" aria-hidden="true">{{ icon(l) }}</span>
               <span class="min-w-0 flex-1 text-17">
                 <b>{{ t().farmer.types[l.type] }}</b> @if (l.productName) { · {{ l.productName }} }
-                <span class="block text-14 text-fg-muted"><span class="num">{{ short(l.date) }}</span>@if (l.quantity !== null) { · <span class="num">{{ num(l.quantity) }} {{ l.unit }}</span> }</span>
+                <span class="block text-14 text-fg-muted"><span class="num">{{ short(l.date) }}</span>@if (l.quantity !== null) { · <span class="num">{{ num(l.quantity) }} {{ uLabel(l.unit) }}</span> }</span>
               </span>
             </div>
           } @empty { <p [class]="F.muted + ' m-0'">{{ t().farmer.fields.noLogs }}</p> }
@@ -162,6 +163,7 @@ export class FarmerFieldDetailPage {
   num(v: number): string { return fmtNum(v, this.lang()); }
   date(d: Date | null): string { return fmtDate(d, this.lang()); }
   short(d: Date): string { return fmtShortDate(d, this.lang()); }
+  uLabel(u: string | null): string { return unitLabel(u, this.lang()); }
   icon(l: ApplicationLog): string { return TYPE_ICON[l.type]; }
   tile(l: ApplicationLog): string { return typeTile(l.type); }
   seasonTone(s: SeasonStatus): string {

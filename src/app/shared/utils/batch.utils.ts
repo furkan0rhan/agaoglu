@@ -200,3 +200,23 @@ function endOfDay(ms: number): number {
   d.setHours(23, 59, 59, 999);
   return d.getTime();
 }
+
+/** `adjustStock` parti no girdisi: tek değer (hepsine) ya da GTS → parti no eşlemesi. */
+export type LotInput = string | null | undefined | Readonly<Record<string, string | null | undefined>>;
+
+/** Parti no'yu kırp, büyük harfe çevir (BKÜ kılavuzu: 0-9 A-Z), en çok 20 karakter; boşsa null. */
+export function normalizeLotNo(v: string | null | undefined): string | null {
+  const s = (v ?? '').trim().toUpperCase().slice(0, 20);
+  return s || null;
+}
+
+/** Bir GTS (ya da GTS'siz parti) için parti no. */
+export function lotFor(lot: LotInput, gts: string | null): string | null {
+  if (lot == null || typeof lot === 'string') return normalizeLotNo(lot);
+  return gts ? normalizeLotNo(lot[gts]) : null;
+}
+
+/** Parti no varsa partiye ekle (yoksa alan hiç yazılmaz — eski kayıtlarla aynı biçim). */
+export function withLot(b: Batch, lot: string | null): Batch {
+  return lot ? { ...b, lotNo: lot } : b;
+}

@@ -16,7 +16,7 @@ import { Period, getPeriodRange } from '../../../shared/utils/date-range.util';
 import { ReportDataService } from '../services/report-data.service';
 import {
   summarizeSales, summarizeCollections, sumExpenses, topProducts, salesByCategory,
-  trendBuckets, productMap, readChartColors, saleCost, saleInterest, toDate, round2,
+  trendBuckets, productMap, readChartColors, saleCost, saleInterest, saleVat, toDate, round2,
 } from '../services/report-calc';
 import { exportExcel, exportPdf, ExportTable } from '../services/report-export';
 import { TenantInfoService } from '../../settings/business/tenant-info.service';
@@ -94,10 +94,13 @@ function cssVar(name: string): string {
       </div>
 
       <!-- KPI (C durum blokları) -->
-      <div class="grid grid-cols-2 gap-3 lg:gap-4 xl:grid-cols-4">
-        <ui-stat-card icon="pi-wallet" tone="info" [label]="t().reports.totalRevenue"
+      <div class="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4 xl:grid-cols-5">
+        <ui-stat-card icon="pi-wallet" tone="info" [label]="rx().revenueGross"
           [value]="summary().revenue | currencyTr"
           [hint]="rx().avgHint(summary().saleCount, money(avgBasket()))" [loading]="loading()" />
+        <ui-stat-card icon="pi-receipt" tone="neutral" [label]="rx().netSales"
+          [value]="summary().netRevenue | currencyTr"
+          [hint]="rx().vatHint(money(summary().vat)) + (summary().vatEstimated ? ' *' : '')" [loading]="loading()" />
         <ui-stat-card icon="pi-chart-line" [tone]="summary().grossProfit < 0 ? 'danger' : 'brand'" [label]="t().reports.grossProfit"
           [value]="summary().grossProfit | currencyTr"
           [hint]="summary().costEstimated ? '* ' + t().dashboard.estimated : marginText()"
@@ -137,7 +140,7 @@ function cssVar(name: string): string {
               </li>
             }
           </ol>
-          @if (summary().interestIncome > 0 || summary().costEstimated) {
+          @if (summary().interestIncome > 0 || summary().costEstimated || summary().vatEstimated) {
             <div class="mt-4 flex flex-col gap-2 border-0 border-t border-solid border-line pt-3">
               @if (summary().interestIncome > 0) {
                 <div class="flex flex-wrap items-center justify-between gap-2">
@@ -150,6 +153,9 @@ function cssVar(name: string): string {
               }
               @if (summary().costEstimated) {
                 <p class="m-0 text-xs text-warning-text">* {{ t().reports.costEstimatedNote }}</p>
+              }
+              @if (summary().vatEstimated) {
+                <p class="m-0 text-xs text-warning-text">* {{ rx().vatEstimatedNote }}</p>
               }
             </div>
           }
@@ -404,12 +410,12 @@ export class SalesReportPage implements OnInit {
 
   readonly marginText = computed(() => {
     const s = this.summary();
-    if (!s.revenue) return '';
-    const pct = (s.grossProfit / s.revenue) * 100;
+    if (!s.netRevenue) return '';
+    const pct = (s.grossProfit / s.netRevenue) * 100;
     return `${this.t().reports.grossMargin} %${pct.toLocaleString(this.t().reports.dateLocale, { maximumFractionDigits: 1 })}`;
   });
 
-  /** Ciro → Maliyet → Brüt → Gider → Net şelalesi. Eksen [min(0, brüt, net), max(ciro, 0)]. */
+  /** Ciro (KDV dahil) → KDV → Net satış → Maliyet → Brüt → Gider → Net şelalesi. Eksen [min(0, brüt, net), max(ciro, 0)]. */
   readonly chain = computed<ChainStep[]>(() => {
     const r = this.t().reports, s = this.summary(), exp = this.expenseTotal(), net = this.netProfit();
     const min = Math.min(0, s.grossProfit, net);
@@ -420,8 +426,10 @@ export class SalesReportPage implements OnInit {
       return { left: ((lo - min) / span) * 100, width: Math.max(((hi - lo) / span) * 100, hi > lo ? 0.8 : 0) };
     };
     return [
-      { key: 'rev', op: '', label: r.totalRevenue, value: s.revenue, ...seg(0, s.revenue), bar: 'bg-info', total: false },
-      { key: 'cost', op: '−', label: r.cost + (s.costEstimated ? ' *' : ''), value: s.cost, ...seg(s.revenue, s.grossProfit), bar: 'bg-danger', total: false },
+      { key: 'rev', op: '', label: this.rx().revenueGross, value: s.revenue, ...seg(0, s.revenue), bar: 'bg-info', total: false },
+      { key: 'vat', op: '−', label: this.rx().vat + (s.vatEstimated ? ' *' : ''), value: s.vat, ...seg(s.revenue, s.netRevenue), bar: 'bg-fg-muted', total: false },
+      { key: 'netrev', op: '=', label: this.rx().netSales, value: s.netRevenue, ...seg(0, s.netRevenue), bar: 'bg-info', total: true },
+      { key: 'cost', op: '−', label: r.cost + (s.costEstimated ? ' *' : ''), value: s.cost, ...seg(s.netRevenue, s.grossProfit), bar: 'bg-danger', total: false },
       { key: 'gross', op: '=', label: r.grossProfit, value: s.grossProfit, ...seg(0, s.grossProfit), bar: s.grossProfit >= 0 ? 'bg-brand' : 'bg-danger', total: true },
       { key: 'exp', op: '−', label: r.expenseTotal, value: exp, ...seg(s.grossProfit, net), bar: 'bg-accent', total: false },
       { key: 'net', op: '=', label: r.netProfit, value: net, ...seg(0, net), bar: net >= 0 ? 'bg-success' : 'bg-danger', total: true },
@@ -436,6 +444,7 @@ export class SalesReportPage implements OnInit {
       { label: r.creditSales, value: s.credit, icon: 'pi-users', tone: 'warning', sign: '' },
       { label: r.collectionsCash, value: c.cash, icon: 'pi-wallet', tone: 'success', sign: '' },
       { label: r.collectionsCard, value: c.card, icon: 'pi-wallet', tone: 'info', sign: '' },
+      ...(c.transfer > 0 ? [{ label: r.collectionsTransfer, value: c.transfer, icon: 'pi-send', tone: 'info', sign: '' } as RegisterRow] : []),
       { label: r.expenseTotal, value: this.expenseTotal(), icon: 'pi-arrow-down', tone: 'accent', sign: '−' },
     ];
   });
@@ -621,7 +630,9 @@ export class SalesReportPage implements OnInit {
   private buildExportTables(): ExportTable[] {
     const r = this.t().reports, s = this.summary(), c = this.collections(), pm = this.products();
     const summaryRows: (string | number)[][] = [
-      [r.totalRevenue, s.revenue],
+      [this.rx().revenueGross, s.revenue],
+      [this.rx().vat + (s.vatEstimated ? ' *' : ''), s.vat],
+      [this.rx().netSales, s.netRevenue],
       [r.saleCount, s.saleCount],
       [r.cost + (s.costEstimated ? ' *' : ''), s.cost],
       [r.grossProfit, s.grossProfit],
@@ -633,19 +644,22 @@ export class SalesReportPage implements OnInit {
       [r.creditSales, s.credit],
       [r.collectionsCash, c.cash],
       [r.collectionsCard, c.card],
+      [r.collectionsTransfer, c.transfer],
       [r.netCash, this.netCash()],
     ];
     if (s.costEstimated) summaryRows.push(['*', r.costEstimatedNote]);
+    if (s.vatEstimated) summaryRows.push(['*', this.rx().vatEstimatedNote]);
     return [
       { title: r.summary, headers: ['', r.amount], rows: summaryRows },
       {
         title: r.sale,
-        headers: ['No', r.date, r.customer, r.payment, r.amount, r.cost, r.grossProfit, r.interestIncome],
+        headers: ['No', r.date, r.customer, r.payment, r.amount, this.rx().vat, this.rx().netSales, r.cost, r.grossProfit, r.interestIncome],
         rows: this.sales().map(x => {
           const cost = round2(saleCost(x, pm).cost);
+          const v = saleVat(x, pm);
           return [
             x.saleNumber, this.formatTime(x.createdAt), x.customerName || r.cashCustomer, this.paymentLabel(x.paymentMethod),
-            x.totalAmount, cost, round2(x.totalAmount - cost), round2(saleInterest(x)),
+            x.totalAmount, v.vat, v.net, cost, round2(v.net - cost), round2(saleInterest(x)),
           ];
         }),
       },

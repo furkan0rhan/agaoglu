@@ -93,14 +93,28 @@ for (const [name, t] of [['açık', light], ['koyu', dark]]) {
     ['warning', 'text-inverse'], ['danger', 'text-inverse'], ['info', 'text-inverse'], ['sale', 'sale-text'],
     ['surface', 'text-muted'], ['surface-muted', 'text-muted'], ['bg-page', 'text-muted'], ['surface', 'text-secondary'],
     ['side-bg', 'side-muted'], ['side-bg', 'side-text'], ['side-2', 'side-muted'],
+    // v3: açık sidebar / ciro kartı / rozetler
+    ['side-active', 'side-active-text'], ['side-active', 'side-em'], ['side-bg', 'side-soft'], ['side-bg', 'side-em'],
+    ['side-danger-soft', 'side-danger'], ['side-avatar', 'side-avatar-text'], ['neutral', 'text-inverse'],
+    ['side-count', '#ffffff'], ['side-count-alt', '#ffffff'], ['brand-hover', 'brand-contrast'], ['accent-hover', 'accent-contrast'],
+    // 14.12: superadmin kabuğu sayfa zemini, ilerleme halkası (--brand-text, kart/sayfa üstünde)
+    ['admin-page', 'text-muted'], ['admin-page', 'text-secondary'], ['bg-page', 'brand-text'],
   ];
   const line = pairs.map(([bg, fg]) => {
-    const b = over(parse(t[bg], t), parse(t.surface, t));
-    const r = ratio(over(parse(t[fg], t), b), b);
+    const b = over(parse(t[bg] ?? bg, t), parse(t.surface, t));
+    const r = ratio(over(parse(t[fg] ?? fg, t), b), b);
     if (r < 4.5) fails++;
     return `${fg}/${bg} ${r.toFixed(2)}${r < 4.5 ? '✗' : ''}`;
   });
   console.log('dolu/gri: ' + line.join(' · '));
+  // Devre dışı buton metni (WCAG'de zorunlu değil; okunurluk için ≥3:1 istiyoruz) ve halka izi üstünde halka (grafik ≥3:1)
+  const soft = [['disabled-bg', 'disabled-text'], ['surface-strong', 'brand-text'], ['surface', 'brand-text']].map(([bg, fg]) => {
+    const b = over(parse(t[bg] ?? bg, t), parse(t.surface, t));
+    const r = ratio(over(parse(t[fg] ?? fg, t), b), b);
+    if (r < 3) fails++;
+    return `${fg}/${bg} ${r.toFixed(2)}${r < 3 ? '✗' : ''}`;
+  });
+  console.log('≥3:1 (devre dışı / halka): ' + soft.join(' · '));
 }
 console.log(fails ? `\n${fails} çift AA (4.5:1) altında.` : '\nTümü AA (≥4.5:1).');
 process.exit(fails ? 1 : 0);

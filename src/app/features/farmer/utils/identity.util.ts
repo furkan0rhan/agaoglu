@@ -97,3 +97,41 @@ export function whatsappUrl(phone: string | null | undefined, text: string): str
   const p = normalizeTrPhone(phone);
   return `https://wa.me/${p ?? ''}?text=${encodeURIComponent(text)}`;
 }
+
+/**
+ * Çiftçinin yapıştırdığı / QR'dan okunan metinden davet kodunu çıkarır: tam link (`…/ciftci/davet/KOD`),
+ * yalnız kod (küçük harf, boşluk/tire olabilir). Tanınmazsa null.
+ */
+export function parseInviteInput(text: string | null | undefined): string | null {
+  const raw = (text ?? '').trim();
+  if (!raw) return null;
+  const m = /\/ciftci\/davet\/([^/?#\s]+)/i.exec(raw);
+  let candidate = m ? decodeURIComponent(m[1]) : raw;
+  candidate = candidate.replace(/[\s-]/g, '').toUpperCase();
+  return isInviteCodeFormat(candidate) ? candidate : null;
+}
+
+/** Tek bir yuva (slot) giriş denemesinin sonucu. */
+export type SlotAttempt = 'ok' | 'not-owner' | 'bad-password' | 'missing' | 'unknown';
+
+/**
+ * Telefonun giriş yuvalarını tarar. Yuvalar sırayla açılır (PIN sıfırlama bir sonraki boş yuvaya yeni hesap açar),
+ * dolayısıyla güncel hesap en yüksek dolu yuvadır:
+ *  - `start` (bu cihazda son başarılı yuva) ile başlanır; yoksa 0.
+ *  - 'missing' (hesap yok) kesin sondur: üstteki yuvalar da boştur → durulur. Yalnız `start` > 0 iken ilk deneme
+ *    'missing' ise (hatırlanan yuva yanlış) 0'dan baştan taranır.
+ *  - 'bad-password' / 'not-owner' / 'unknown' (e-posta koruması açıkken ayırt edilemez) → bir üst yuvaya geçilir.
+ * Döner: giriş yapılan yuva veya null. Tek yanlış PIN'de tipik deneme sayısı 2'dir (eskiden 5).
+ */
+export async function scanPhoneSlots(start: number | null, attempt: (slot: number) => Promise<SlotAttempt>): Promise<number | null> {
+  const first = start != null && Number.isInteger(start) && start > 0 && start < MAX_PHONE_SLOTS ? start : 0;
+  for (let slot = first; slot < MAX_PHONE_SLOTS; slot++) {
+    const r = await attempt(slot);
+    if (r === 'ok') return slot;
+    if (r === 'missing') {
+      if (slot === first && first > 0) return scanPhoneSlots(0, s => (s < first ? attempt(s) : Promise.resolve('missing')));
+      return null;
+    }
+  }
+  return null;
+}

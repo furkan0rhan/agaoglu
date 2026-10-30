@@ -18,6 +18,10 @@ export interface InventoryTexts {
   secBasic: string; secBasicHint: string; secPrice: string; secPriceHint: string; secStock: string; secStockHint: string;
   secRegulatoryHint: string; secGts: string; secGtsHint: string; secOther: string; jumpTo: string; summary: string;
   markupPreview: string; marginPreview: string; saveHint: string;
+  // KDV ↔ kâr (14.3)
+  purchaseIncludesVat: string; purchaseIncludesVatHint: string;
+  vatBreakdown: (gross: string, net: string, vat: string) => string; profitNetNote: string;
+  netSale: string; netCost: string; vatInPrice: string;
   // Stok hareketleri
   movementsTitle: string; colDate: string; colReason: string; colChange: string; colStockAfter: string;
   refPurchase: string; refSale: string;
@@ -27,6 +31,10 @@ export interface InventoryTexts {
   purchaseTotal: string; purchaseDocs: string; purchaseCredit: string; purchaseCash: string; purchaseList: string;
   documentInfo: string; totalsCard: string; paymentCard: string; itemsHint: string; lineCount: string;
   stockAdded: string;
+  // Parti / şarj no (karekod AI 10)
+  lotNo: string; lotNoPlaceholder: string;
+  /** Y3: bitki koruma ürününde SKT zorunlu */
+  expiryRequiredPp: string; expiryRequiredPpHint: string; gtsNoExpiry: (n: number) => string;
 }
 
 export const INVENTORY_TR: InventoryTexts = {
@@ -49,6 +57,10 @@ export const INVENTORY_TR: InventoryTexts = {
   secGts: 'GTS / ilk parti', secGtsHint: 'Karekodları okutun; her GTS 1 birim stok olur',
   secOther: 'Açıklama ve durum', jumpTo: 'Bölüme git', summary: 'Özet',
   markupPreview: 'Kâr oranı', marginPreview: 'Kâr marjı', saveHint: 'Ctrl+S ile de kaydedebilirsiniz',
+  purchaseIncludesVat: 'Alış fiyatı KDV dahil', purchaseIncludesVatHint: 'Kapalıysa alış fiyatı KDV hariç kabul edilir',
+  vatBreakdown: (g: string, n: string, v: string) => `KDV dahil satış ${g} → net ${n}, KDV ${v}`,
+  profitNetNote: 'Kâr, KDV hariç tutarlardan hesaplanır (satış fiyatı KDV dahildir).',
+  netSale: 'Net satış (KDV hariç)', netCost: 'Net alış (KDV hariç)', vatInPrice: 'Fiyattaki KDV',
 
   movementsTitle: 'Hareketler', colDate: 'Tarih', colReason: 'Açıklama', colChange: 'Değişim', colStockAfter: 'Sonraki stok',
   refPurchase: 'Alış', refSale: 'Satış',
@@ -60,6 +72,10 @@ export const INVENTORY_TR: InventoryTexts = {
   purchaseList: 'Alış belgeleri', documentInfo: 'Belge bilgileri', totalsCard: 'Toplam', paymentCard: 'Ödeme',
   itemsHint: 'Barkod okutun veya ürün adı yazın; Enter ilk sonucu ekler.', lineCount: 'kalem',
   stockAdded: 'Stoğa eklenir',
+  lotNo: 'Parti no', lotNoPlaceholder: 'Parti / şarj no (ops.)',
+  expiryRequiredPp: 'Bitki koruma ürününde son kullanma tarihi (SKT) zorunludur. Karekodda SKT yoksa kutudaki tarihi yazın.',
+  expiryRequiredPpHint: 'Bitki koruma ürünü: SKT zorunlu',
+  gtsNoExpiry: n => `${n} karekodda SKT yok; formdaki SKT bu birimlere yazılacak.`,
 };
 
 export const INVENTORY_EN: InventoryTexts = {
@@ -82,6 +98,10 @@ export const INVENTORY_EN: InventoryTexts = {
   secGts: 'GTS / first batch', secGtsHint: 'Scan the QR codes; each GTS is 1 unit of stock',
   secOther: 'Description & status', jumpTo: 'Jump to section', summary: 'Summary',
   markupPreview: 'Markup', marginPreview: 'Margin', saveHint: 'You can also save with Ctrl+S',
+  purchaseIncludesVat: 'Cost includes VAT', purchaseIncludesVatHint: 'When off, the cost price is treated as excluding VAT',
+  vatBreakdown: (g: string, n: string, v: string) => `Sale price incl. VAT ${g} → net ${n}, VAT ${v}`,
+  profitNetNote: 'Profit is calculated from amounts excluding VAT (the sale price includes VAT).',
+  netSale: 'Net sale (excl. VAT)', netCost: 'Net cost (excl. VAT)', vatInPrice: 'VAT in price',
 
   movementsTitle: 'Movements', colDate: 'Date', colReason: 'Description', colChange: 'Change', colStockAfter: 'Stock after',
   refPurchase: 'Purchase', refSale: 'Sale',
@@ -93,4 +113,8 @@ export const INVENTORY_EN: InventoryTexts = {
   purchaseList: 'Purchase documents', documentInfo: 'Document', totalsCard: 'Total', paymentCard: 'Payment',
   itemsHint: 'Scan a barcode or type a product name; Enter adds the first match.', lineCount: 'lines',
   stockAdded: 'Added to stock',
+  lotNo: 'Lot no', lotNoPlaceholder: 'Lot / batch no (opt.)',
+  expiryRequiredPp: 'An expiry date is required for plant protection products. If the code has none, enter the date on the box.',
+  expiryRequiredPpHint: 'Plant protection product: expiry required',
+  gtsNoExpiry: n => `${n} codes have no expiry; the form expiry will be used for them.`,
 };

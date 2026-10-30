@@ -25,6 +25,20 @@ export interface AccountTexts {
   customerCard: string;
   cks: string;
   paymentMethod: string;
+  /** Y11: Havale/EFT, hızlı tutar seçimi, tahsilat makbuzu */
+  transfer: string;
+  transferPayDesc: string;
+  pickNext: (v: string) => string;
+  pickOverdue: (v: string) => string;
+  pickAll: (v: string) => string;
+  amountRequired: string;
+  paymentDone: string;
+  receiptTitle: string;
+  prevBalance: string;
+  newBalance: string;
+  printReceipt: string;
+  sendWhatsApp: string;
+  receiptWaText: (business: string, customer: string, amount: string, method: string, balance: string) => string;
   // Taksit planı
   planTitle: string;
   planMeta: (open: number, total: number) => string;
@@ -115,6 +129,20 @@ export const ACCOUNT_TR: AccountTexts = {
   customerCard: 'Müşteri kartı',
   cks: 'ÇKS',
   paymentMethod: 'Ödeme yöntemi',
+  transfer: 'Havale/EFT',
+  transferPayDesc: 'Havale/EFT ile ödeme',
+  pickNext: v => `Sıradaki taksit (${v})`,
+  pickOverdue: v => `Gecikmiş (${v})`,
+  pickAll: v => `Tüm borç (${v})`,
+  amountRequired: 'Tahsil edilen tutarı yazın',
+  paymentDone: 'Tahsilat kaydedildi',
+  receiptTitle: 'Tahsilat makbuzu',
+  prevBalance: 'Önceki borç',
+  newBalance: 'Kalan borç',
+  printReceipt: 'Makbuz yazdır',
+  sendWhatsApp: "WhatsApp'la gönder",
+  receiptWaText: (business, customer, amount, method, balance) =>
+    `${business}\nSayın ${customer}, ${amount} tutarındaki ödemeniz (${method}) alınmıştır. Kalan borcunuz: ${balance}. Teşekkür ederiz.`,
   planTitle: 'Taksit Planı',
   planMeta: (o, t) => `${o} açık · toplam ${t} vade`,
   paid: 'Ödendi',
@@ -199,6 +227,20 @@ export const ACCOUNT_EN: AccountTexts = {
   customerCard: 'Customer card',
   cks: 'Farmer reg.',
   paymentMethod: 'Payment method',
+  transfer: 'Bank transfer',
+  transferPayDesc: 'Bank transfer payment',
+  pickNext: v => `Next instalment (${v})`,
+  pickOverdue: v => `Overdue (${v})`,
+  pickAll: v => `Full debt (${v})`,
+  amountRequired: 'Enter the amount collected',
+  paymentDone: 'Payment recorded',
+  receiptTitle: 'Payment receipt',
+  prevBalance: 'Previous balance',
+  newBalance: 'Remaining balance',
+  printReceipt: 'Print receipt',
+  sendWhatsApp: 'Send via WhatsApp',
+  receiptWaText: (business, customer, amount, method, balance) =>
+    `${business}\nDear ${customer}, your payment of ${amount} (${method}) has been received. Remaining balance: ${balance}. Thank you.`,
   planTitle: 'Installment plan',
   planMeta: (o, t) => `${o} open · ${t} due dates`,
   paid: 'Paid',

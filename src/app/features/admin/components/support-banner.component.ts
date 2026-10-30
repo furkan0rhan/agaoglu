@@ -27,7 +27,7 @@ import { LICENSE_TEXTS } from '../../../core/license/license.i18n';
           {{ x().supportMode }}: {{ auth.supportSession()?.tenantName }}
         </span>
         <button type="button" (click)="exit()" [disabled]="exiting()"
-          class="h-8 shrink-0 cursor-pointer rounded-token-md border border-current bg-transparent px-3 text-xs font-bold text-fg-inverse hover:bg-black/10">
+          class="h-8 shrink-0 cursor-pointer rounded-token-md border border-current bg-transparent px-3 text-xs font-bold text-fg-inverse hover:bg-danger-line">
           {{ x().supportExit }}
         </button>
       </div>
@@ -48,7 +48,7 @@ import { LICENSE_TEXTS } from '../../../core/license/license.i18n';
         <span class="min-w-0 flex-1"><b class="font-semibold">{{ warningText() }}</b> {{ x().contact }}: <span class="num">{{ contact.phone }}</span></span>
         <a routerLink="/license" class="hidden shrink-0 font-semibold text-warning-text sm:inline">{{ x().details }}</a>
         <button type="button" (click)="dismissed.set(true)" [attr.aria-label]="x().supportExit"
-          class="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-token-md border-0 bg-transparent text-warning-text hover:bg-black/5"><i class="pi pi-times text-xs" aria-hidden="true"></i></button>
+          class="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-token-md border-0 bg-transparent text-warning-text hover:bg-warning-line"><i class="pi pi-times text-xs" aria-hidden="true"></i></button>
       </div>
     }
   `,

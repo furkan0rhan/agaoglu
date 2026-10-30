@@ -31,7 +31,7 @@ import { BACKUP_COLLECTIONS, BackupCollection, BackupFile, BackupFormatError, ba
         }
       </ui-settings-row>
       @if (overdue()) {
-        <p class="m-0 border-b border-line bg-warning-soft px-3 py-2.5 text-13 text-warning-text sm:px-4">{{ t().backup.overdue }}</p>
+        <p class="m-0 border-b border-line bg-warning-soft px-3 py-2.5 text-13 text-warning-text sm:px-4">{{ overdueText() }}</p>
       }
 
       <ui-settings-row [title]="t().backup.downloadTitle" [description]="t().backup.downloadDesc">
@@ -106,6 +106,8 @@ export class BackupPanelComponent implements OnInit {
 
   readonly isAdmin = computed(() => this.auth.currentUser()?.role === 'admin');
   readonly overdue = computed(() => this.lastLoaded() && backupOverdue(this.lastBackupAt()));
+  /** Y15: hiç yedek yoksa "7 günden fazla geçti" yerine "Henüz yedek almadınız" */
+  readonly overdueText = computed(() => (this.lastBackupAt() ? this.t().backup.overdue : this.t().backup.neverTaken));
   readonly counts = computed(() => (this.preview() ? countRecords(this.preview()!) : null));
   readonly sourceName = computed(() => {
     const n = this.preview()?.tenant?.['name'];

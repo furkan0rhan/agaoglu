@@ -13,7 +13,9 @@ import { DialogModule } from 'primeng/dialog';
 import { ToastModule } from 'primeng/toast';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { CartStore } from './store/cart.store';
+import { CartState, CartStore } from './store/cart.store';
+import { CANCEL_REASON_MAX, isValidCancelReason } from '../sales/services/cancel-policy';
+import { cancelErrorText } from '../sales/services/sales.helpers';
 import { ProductStore } from '../products/store/product.store';
 import {
   SaleService, CompletedSale, CreditOptions, ProductNotFoundError, InsufficientStockError,
@@ -22,7 +24,7 @@ import {
 import { cartItemFromProduct, findByCode } from './services/cart-item.utils';
 import { addMonths, buildCreditPlan } from './services/credit-plan';
 import { HeldCart, holdCart, loadHeldCarts, MAX_HELD_CARTS, removeHeldCart, takeHeldCart } from './store/held-carts';
-import { TenantSettingsService } from '../../core/settings/tenant-settings.service';
+import { nextHarvestDate, TenantSettingsService } from '../../core/settings/tenant-settings.service';
 import { AuthService } from '../../core/auth/services/auth.service';
 import {
   checkPrescription, isPlantProtection, isValidPrescriptionNo, normalizePrescriptionNo, productTypeOf,
@@ -35,12 +37,13 @@ import { CreditService } from '../credit/services/credit.service';
 import { whatsappLink } from '../credit/services/credit.utils';
 import { CurrencyTrPipe } from '../../shared/pipes/currency-tr.pipe';
 import { BarcodeInputDirective } from '../../shared/directives/barcode-input.directive';
+import { gtinMatches, Gs1KeysDirective, ScanButtonComponent, ScanResult, scanResultFromText } from '../../shared/scanner';
 import { Customer } from '../../shared/models/customer.model';
 import { Product } from '../../shared/models/product.model';
 import { CartItem, DiscountType, SaleUnit } from '../../shared/models/sale.model';
 import { LangService } from '../../core/i18n/lang.service';
 import {
-  AvatarComponent, EmptyStateComponent, IconButtonComponent, KbdComponent, MoneyComponent, PageHeaderComponent,
+  AvatarComponent, DateFieldComponent, EmptyStateComponent, IconButtonComponent, KbdComponent, MoneyComponent, PageHeaderComponent,
   QuickCashComponent, SegmentedComponent, StatusBadgeComponent, UiSegmentOption, UiTone,
 } from '../../shared/ui';
 import { formatQty } from '../sales/services/sales.helpers';
@@ -86,10 +89,10 @@ function fromDateInput(v: string): Date | null {
   selector: 'app-pos',
   standalone: true,
   imports: [
-    RouterLink, FormsModule, CurrencyTrPipe, BarcodeInputDirective,
+    RouterLink, FormsModule, CurrencyTrPipe, BarcodeInputDirective, ScanButtonComponent, Gs1KeysDirective,
     ButtonModule, InputTextModule, InputNumberModule, DialogModule, ToastModule, ConfirmDialogModule,
     AvatarComponent, EmptyStateComponent, IconButtonComponent, KbdComponent, MoneyComponent, PageHeaderComponent,
-    QuickCashComponent, SegmentedComponent, StatusBadgeComponent,
+    QuickCashComponent, SegmentedComponent, StatusBadgeComponent, DateFieldComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-1 flex-col lg:min-h-0' },
@@ -151,10 +154,35 @@ function fromDateInput(v: string): Date | null {
       </ng-template>
     </p-dialog>
 
+    <!-- ============ Satış iptali (Y4: neden zorunlu) ============ -->
+    <p-dialog [header]="t().sales.cancelConfirmTitle" [(visible)]="showCancelSale" [modal]="true" [draggable]="false"
+      appendTo="body" styleClass="w-[420px] max-w-[calc(100vw-2rem)]"
+      (onShow)="focusById('pos-cancel-reason', true)" (onHide)="focusSearch()">
+      <div class="flex flex-col gap-3">
+        <div class="flex gap-3 rounded-token-lg border border-danger-line bg-danger-soft px-3 py-2.5 text-sm text-danger-text">
+          <i class="pi pi-exclamation-triangle mt-0.5" aria-hidden="true"></i>
+          <p class="m-0">{{ t().sales.cancelConfirmDesc }}</p>
+        </div>
+        <label class="text-sm font-semibold text-fg-secondary" for="pos-cancel-reason">{{ t().sales.cancelReason }} <span class="text-danger-text" aria-hidden="true">*</span></label>
+        <input pInputText id="pos-cancel-reason" class="h-11 w-full text-sm" [ngModel]="cancelReasonText()" (ngModelChange)="cancelReasonText.set($event ?? '')"
+          [maxlength]="cancelReasonMax" required aria-required="true" [placeholder]="t().sales.cancelReasonPlaceholder"
+          (keydown.enter)="confirmCancelLast()" />
+        <p class="m-0 text-xs text-fg-muted">{{ t().sales.cancelAudit }}</p>
+      </div>
+      <ng-template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <p-button [label]="t().common.close" severity="secondary" (onClick)="showCancelSale.set(false)" [disabled]="cancelling()" />
+          <p-button [label]="t().sales.cancelSale" icon="pi pi-undo" severity="danger" (onClick)="confirmCancelLast()"
+            [loading]="cancelling()" [disabled]="cancelling() || !cancelReasonOk()" />
+        </div>
+      </ng-template>
+    </p-dialog>
+
     <!-- ============ Kart onayı ============ -->
+    <!-- Y9: odak "Evet, tahsil edildi"de (Enter onaylar, Esc kapatır); PrimeNG ilk odaklanabilir öğeye (İptal) odaklamasın -->
     <p-dialog [header]="t().pos.cardConfirmTitle" [(visible)]="showCard" [modal]="true" [draggable]="false"
-      appendTo="body" styleClass="w-[400px] max-w-[calc(100vw-2rem)]"
-      (onShow)="focusById('card-confirm-yes', false, 120)" (onHide)="focusSearch()">
+      appendTo="body" styleClass="w-[400px] max-w-[calc(100vw-2rem)]" [focusOnShow]="false"
+      (onShow)="focusById('card-confirm-yes', false, 0)" (onHide)="focusSearch()">
       <div class="flex flex-col items-center gap-3 py-2 text-center">
         <span class="flex h-16 w-16 items-center justify-center rounded-token-xl bg-surface-strong text-fg">
           <i class="pi pi-credit-card text-3xl" aria-hidden="true"></i>
@@ -167,7 +195,7 @@ function fromDateInput(v: string): Date | null {
           <p-button [label]="t().pos.cancel" severity="secondary" styleClass="min-h-[48px]"
             (onClick)="showCard.set(false)" [disabled]="saving()" />
           <button id="card-confirm-yes" type="button" (click)="confirmCardPayment()" [disabled]="saving()"
-            class="flex min-h-[48px] flex-1 cursor-pointer items-center justify-center gap-2 rounded-token-md border-0 bg-brand px-4 text-base font-bold text-brand-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
+            class="flex min-h-[48px] flex-1 cursor-pointer items-center justify-center gap-2 rounded-token-md border-0 bg-brand px-4 text-base font-bold text-brand-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed ui-btn-disabled-soft">
             <i class="pi" [class]="saving() ? 'pi-spin pi-spinner' : 'pi-check'" aria-hidden="true"></i>
             {{ t().pos.cardConfirmYes }}
           </button>
@@ -272,8 +300,7 @@ function fromDateInput(v: string): Date | null {
           </div>
         </div>
 
-        @if (creditMode() === 'installment') {
-          <div class="flex flex-col gap-1.5">
+        <div class="flex flex-col gap-1.5">
             <span id="credit-count-label" class="text-sm font-semibold text-fg-secondary">{{ t().pos.installments }}</span>
             <div class="flex flex-wrap gap-2" role="group" aria-labelledby="credit-count-label">
               @for (n of installmentOptions; track n) {
@@ -285,12 +312,10 @@ function fromDateInput(v: string): Date | null {
               }
             </div>
           </div>
+        @if (creditMode() === 'installment') {
           <div class="grid grid-cols-2 gap-3">
-            <div class="flex min-w-0 flex-col gap-1.5">
-              <label for="credit-first-due" class="text-sm font-semibold text-fg-secondary">{{ t().pos2.firstDue }}</label>
-              <input pInputText id="credit-first-due" type="date" class="h-11 w-full" [min]="todayInput"
-                [ngModel]="creditFirstDue()" (ngModelChange)="creditFirstDue.set($event ?? '')" />
-            </div>
+            <ui-date-field inputId="credit-first-due" valueType="iso" [label]="t().pos2.firstDue" [min]="todayInput" [clearable]="false"
+              [ngModel]="creditFirstDue()" (ngModelChange)="creditFirstDue.set($event ?? '')" />
             <div class="flex min-w-0 flex-col gap-1.5">
               <span id="credit-interval-label" class="text-sm font-semibold text-fg-secondary">{{ t().pos2.interval }}</span>
               <ui-segmented [options]="intervalOptions()" [value]="creditInterval()" (valueChange)="creditInterval.set($event ?? 1)"
@@ -298,11 +323,8 @@ function fromDateInput(v: string): Date | null {
             </div>
           </div>
         } @else {
-          <div class="flex flex-col gap-1.5">
-            <label for="credit-harvest" class="text-sm font-semibold text-fg-secondary">{{ t().pos2.harvestDate }}</label>
-            <input pInputText id="credit-harvest" type="date" class="h-11 w-full" [min]="todayInput"
-              [ngModel]="creditHarvest()" (ngModelChange)="creditHarvest.set($event ?? '')" />
-          </div>
+          <ui-date-field inputId="credit-harvest" valueType="iso" [label]="t().pos2.harvestDate" [min]="todayInput" [clearable]="false"
+            [ngModel]="creditHarvest()" (ngModelChange)="creditHarvest.set($event ?? '')" />
         }
 
         @if (!creditDueValid()) {
@@ -471,7 +493,7 @@ function fromDateInput(v: string): Date | null {
 
       <!-- Fiş / kasiyer şeridi + F tuşları -->
       <div class="flex flex-wrap items-center gap-x-2.5 gap-y-2 text-13.5 text-fg-muted">
-        <ui-status-badge tone="neutral"><span class="num">{{ receiptLabel() }}</span></ui-status-badge>
+        <ui-status-badge tone="neutral" data-tour="pos-receipt"><span class="num">{{ receiptLabel() }}</span></ui-status-badge>
         <span class="truncate">{{ t().pos2.cashier }}: <b class="font-semibold text-fg-secondary">{{ cashierName() }}</b></span>
         <span class="hidden items-center gap-1.5 lg:inline-flex" aria-hidden="true">
           · <ui-kbd>F1</ui-kbd> {{ t().pos.cash }} <ui-kbd>F2</ui-kbd> {{ t().pos.card }}
@@ -490,21 +512,23 @@ function fromDateInput(v: string): Date | null {
       <div class="grid grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px]">
         <!-- ===== Sol: arama + sonuçlar + sık satılanlar ===== -->
         <div class="flex min-w-0 flex-col gap-3.5 lg:-m-[3px] lg:min-h-0 lg:overflow-y-auto lg:p-[3px]">
-          <div class="flex h-[60px] shrink-0 items-center gap-3 rounded-[11px] border-2 border-brand bg-surface pl-4 pr-2.5 shadow-focus">
+          <div data-tour="pos-search" class="flex h-[60px] shrink-0 items-center gap-3 rounded-[11px] border-2 border-brand bg-surface pl-4 pr-2.5 shadow-focus">
             <i class="pi pi-barcode text-2xl text-brand-text" aria-hidden="true"></i>
             <label for="pos-search" class="sr-only">{{ t().pos.searchLabel }}</label>
-            <input #searchInput id="pos-search" type="text" autocomplete="off" spellcheck="false"
+            <input #searchInput appGs1Keys id="pos-search" type="text" autocomplete="off" spellcheck="false"
               enterkeyhint="search" aria-controls="pos-results" aria-keyshortcuts="F4"
               class="h-full min-w-0 flex-1 border-0 bg-transparent text-17 font-semibold text-fg outline-none placeholder:font-medium placeholder:text-fg-muted lg:text-19"
-              [placeholder]="t().pos.searchPlaceholder" [ngModel]="query()" (ngModelChange)="onQuery($event)"
+              [placeholder]="t().pos.searchPlaceholder" [value]="query()" (input)="onQuery(searchInput.value)"
               (keydown)="onSearchKeydown($event)" (focus)="searchFocused.set(true)" (blur)="searchFocused.set(false)" />
             @if (query()) {
-              <ui-icon-button icon="pi-times" size="sm" [ariaLabel]="t().common.close" (click)="clearSearch()" />
+              <!-- mousedown: odak arama kutusunda kalsın (X'ten hemen sonra okutulan barkodun ilk karakterleri kaybolmasın) -->
+              <ui-icon-button icon="pi-times" size="sm" [ariaLabel]="t().common.close" (mousedown)="$event.preventDefault()" (click)="clearSearch()" />
             }
             <span class="hidden lg:inline-flex" [title]="scannerReady() ? t().pos.scannerReady : t().pos.scannerPaused">
               <span class="h-2.5 w-2.5 rounded-full" [class]="scannerReady() ? 'bg-success' : 'bg-fg-muted'"></span>
               <span class="sr-only">{{ scannerReady() ? t().pos.scannerReady : t().pos.scannerPaused }}</span>
             </span>
+            <ui-scan-button size="sm" variant="ghost" (scanned)="onCameraScan($event)" />
             <ui-kbd class="hidden lg:inline-grid">F4</ui-kbd>
           </div>
 
@@ -563,7 +587,7 @@ function fromDateInput(v: string): Date | null {
             </section>
           }
 
-          <section class="ui-card shrink-0 overflow-hidden" [attr.aria-label]="t().pos2.favorites">
+          <section data-tour="pos-favorites" class="ui-card shrink-0 overflow-hidden" [attr.aria-label]="t().pos2.favorites">
             <header class="card-head">
               <span class="card-head-icon bg-accent-soft text-accent-text"><i class="pi pi-tag text-15" aria-hidden="true"></i></span>
               <h3>{{ t().pos2.favorites }}</h3>
@@ -594,7 +618,7 @@ function fromDateInput(v: string): Date | null {
         </div>
 
         <!-- ===== Sağ: sepet ===== -->
-        <section id="pos-cart" class="ui-card flex scroll-mt-3 flex-col overflow-hidden lg:min-h-0" [attr.aria-label]="t().pos2.cart">
+        <section id="pos-cart" data-tour="pos-cart" class="ui-card flex scroll-mt-3 flex-col overflow-hidden lg:min-h-0" [attr.aria-label]="t().pos2.cart">
           @if (showDone(); as ls) {
             <!-- Satış sonrası özet -->
             <div class="flex flex-col lg:min-h-0 lg:overflow-y-auto" role="status">
@@ -674,7 +698,7 @@ function fromDateInput(v: string): Date | null {
             </header>
 
             <!-- Müşteri kartı -->
-            <div class="flex shrink-0 items-center gap-2.5 border-b border-line px-4 py-3">
+            <div data-tour="pos-customer" class="flex shrink-0 items-center gap-2.5 border-b border-line px-4 py-3">
               @if (selectedCustomer(); as c) {
                 <ui-avatar [name]="c.firstName + ' ' + c.lastName" tone="accent" />
                 <div class="min-w-0 flex-1">
@@ -728,7 +752,7 @@ function fromDateInput(v: string): Date | null {
                           <p-inputNumber #qtyInput [ngModel]="item.quantity" [inputId]="'qty-' + item._tempId"
                             [ariaLabel]="t().pos.quantity + ': ' + item.productName"
                             locale="tr-TR" [useGrouping]="false" [min]="0" [minFractionDigits]="0" [maxFractionDigits]="dec ? 2 : 0"
-                            inputStyleClass="pos-qty num h-10 w-16 rounded-none border-0 bg-surface px-1 text-center text-15 font-bold shadow-none"
+                            inputStyleClass="pos-qty num h-10 w-[4.75rem] min-w-[5ch] rounded-none border-0 bg-surface px-1 text-center text-15 font-bold shadow-none"
                             (onBlur)="applyQty(item, qtyInput)" (keydown.enter)="applyQty(item, qtyInput, true)" />
                           <span class="flex items-center bg-surface pl-0.5 pr-2.5 text-13 text-fg-muted">{{ unitLabel(item.unit) }}</span>
                           <button type="button" (click)="stepQty(item, 1)" [disabled]="item.quantity >= item.stock"
@@ -764,6 +788,14 @@ function fromDateInput(v: string): Date | null {
                   }
                 </ul>
               } @else {
+                @if (clearedCart(); as cc) {
+                  <!-- Y10: yanlışlıkla boşaltılan sepet geri alınabilir -->
+                  <div class="m-3 flex items-center gap-3 rounded-token-md border border-warning-line bg-warning-soft px-3 py-2.5 text-sm" role="status">
+                    <i class="pi pi-trash text-warning-text" aria-hidden="true"></i>
+                    <span class="min-w-0 flex-1 font-semibold text-fg">{{ t().pos2.cartCleared(cc.count) }}</span>
+                    <p-button size="small" severity="secondary" icon="pi pi-undo" [label]="t().pos2.undo" (onClick)="undoClear()" />
+                  </div>
+                }
                 <ui-empty-state icon="pi-shopping-cart" tone="accent" [title]="t().pos.emptyCart" [description]="t().pos.emptyCartHint" />
               }
             </div>
@@ -787,15 +819,15 @@ function fromDateInput(v: string): Date | null {
             </div>
 
             <!-- Ödeme -->
-            <div class="grid shrink-0 grid-cols-3 gap-2 px-4 pt-3">
+            <div data-tour="pos-pay" class="grid shrink-0 grid-cols-3 gap-2 px-4 pt-3">
               <button type="button" (click)="pay('cash')" [disabled]="!canPay()" aria-keyshortcuts="F1"
-                class="relative flex h-[66px] cursor-pointer flex-col items-center justify-center gap-1 rounded-token-lg border-0 bg-brand font-display text-base font-extrabold text-brand-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45">
+                class="relative flex h-[66px] cursor-pointer flex-col items-center justify-center gap-1 rounded-token-lg border-0 bg-brand font-display text-base font-extrabold text-brand-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed ui-btn-disabled-soft">
                 <ui-kbd tone="inverse" class="absolute left-2 top-[7px] hidden lg:inline-grid">F1</ui-kbd>
                 <i class="pi pi-wallet text-xl" aria-hidden="true"></i>{{ t().pos.cash }}
               </button>
               <button type="button" (click)="pay('card')" [disabled]="!canPay()" aria-keyshortcuts="F2"
-                class="relative flex h-[66px] cursor-pointer flex-col items-center justify-center gap-1 rounded-token-lg border border-side-line bg-side-2 font-display text-white text-base font-extrabold transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45">
-                <ui-kbd tone="inverse" class="absolute left-2 top-[7px] hidden lg:inline-grid">F2</ui-kbd>
+                class="relative flex h-[66px] cursor-pointer flex-col items-center justify-center gap-1 rounded-token-lg border border-line-strong bg-surface font-display text-fg text-base font-extrabold transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-45">
+                <ui-kbd class="absolute left-2 top-[7px] hidden lg:inline-grid">F2</ui-kbd>
                 <i class="pi pi-credit-card text-xl" aria-hidden="true"></i>{{ t().pos.card }}
               </button>
               <button type="button" (click)="payCredit()" [disabled]="!canPay()" aria-keyshortcuts="F3"
@@ -869,6 +901,13 @@ export class PosPage implements OnInit, AfterViewInit {
   /** Satış kaydedilirken tüm ödeme butonları kilitli (1.3). */
   readonly saving = signal(false);
   readonly cancelling = signal(false);
+  readonly showCancelSale = signal(false);
+  readonly cancelReasonText = signal('');
+  readonly cancelReasonOk = computed(() => isValidCancelReason(this.cancelReasonText()));
+  readonly cancelReasonMax = CANCEL_REASON_MAX;
+  /** Y10: son boşaltılan sepet (geri al için ~10 sn tutulur). */
+  readonly clearedCart = signal<{ state: CartState; count: number } | null>(null);
+  private clearedTimer: ReturnType<typeof setTimeout> | null = null;
   /** Son tamamlanan satış — sepet boşken özet + fiş. */
   readonly lastSale = signal<CompletedSale | null>(null);
   readonly showDone = computed(() => (this.cart.items().length ? null : this.lastSale()));
@@ -894,7 +933,7 @@ export class PosPage implements OnInit, AfterViewInit {
   readonly showHeld = signal(false);
   private readonly anyDialog = computed(() =>
     this.showCash() || this.showCard() || this.showCredit() || this.showCustomer() || this.showDiscount() || this.showRx()
-    || this.showHold() || this.showHeld());
+    || this.showHold() || this.showHeld() || this.showCancelSale());
   private pendingCredit = false;
 
   // ---- E-reçete ----
@@ -1024,7 +1063,7 @@ export class PosPage implements OnInit, AfterViewInit {
   readonly cashChange = computed(() => round2(Math.max(0, this.receivedCash() - this.payTotal())));
 
   readonly cardQuestion = computed(() =>
-    this.t().pos.cardConfirmQuestion.replace('{amount}', `₺${this.money(this.payTotal(), false)}`));
+    this.t().pos.cardConfirmQuestion.replace('{amount}', `${this.money(this.payTotal(), false)} ₺`));
 
   // ---- Veresiye ----
   readonly installmentOptions = INSTALLMENT_OPTIONS;
@@ -1054,7 +1093,8 @@ export class PosPage implements OnInit, AfterViewInit {
     total: this.payTotal(),
     rate: this.creditRate() || 0,
     downPayment: this.creditDown() || 0,
-    count: this.creditMode() === 'harvest' ? 1 : this.creditCount(),
+    // Y8: hasatta öde + taksit: ilk taksit hasatta, sonra aylık (peşinat her iki modda da düşülür)
+    count: this.creditCount(),
     firstDueDate: this.creditDueDate() ?? addMonths(new Date(), 1),
     intervalMonths: this.creditInterval(),
   }));
@@ -1090,8 +1130,8 @@ export class PosPage implements OnInit, AfterViewInit {
     const ls = this.lastSale();
     if (!ls) return '';
     const r = ls.receipt;
-    const credit = r.creditAmount > 0 ? `₺${this.money(r.totalWithInterest ?? r.creditAmount, false)}` : null;
-    const text = this.t().pos2.waText(this.businessName(), ls.saleNumber, `₺${this.money(r.totalAmount, false)}`, credit);
+    const credit = r.creditAmount > 0 ? `${this.money(r.totalWithInterest ?? r.creditAmount, false)} ₺` : null;
+    const text = this.t().pos2.waText(this.businessName(), ls.saleNumber, `${this.money(r.totalAmount, false)} ₺`, credit);
     const phone = ls.customerPhone ?? null;
     return whatsappLink(phone, text);
   });
@@ -1203,14 +1243,22 @@ export class PosPage implements OnInit, AfterViewInit {
     document.getElementById('pos-cart')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  /**
+   * Arama metni. Y2: kutu programla temizlendiğinde DOM değeri de HEMEN eşitlenir. (Okuyucu hızında
+   * '' → barkod → '' arasında değişiklik algılama çalışmazsa bağ "değişmedi" sayılıyor, eski barkod
+   * kutuda kalıp sonraki okutmaya ekleniyordu.)
+   */
   onQuery(v: string): void {
     this.query.set(v ?? '');
     this.activeIndex.set(0);
+    const el = this.searchInput()?.nativeElement;
+    if (el && el.value !== this.query()) el.value = this.query();
   }
 
   clearSearch(): void {
     this.onQuery('');
-    this.focusSearch();
+    // Odağı hemen geri ver (setTimeout ile değil): ardından gelen okutmanın ilk karakterleri kaybolmasın
+    if (!this.anyDialog()) this.searchInput()?.nativeElement.focus();
   }
 
   onSearchKeydown(e: KeyboardEvent): void {
@@ -1254,6 +1302,14 @@ export class PosPage implements OnInit, AfterViewInit {
     const hit = findByCode(this.productStore.products(), raw);
     if (hit) {
       this.addProduct(hit.product, hit.gtsNo);
+      return;
+    }
+    // Y3: USB okuyucudan gelen karekod (parantezli, ]d2 önekli, GS'li/GS'siz) kamera ile aynı çözülür
+    const scanned = scanResultFromText(raw);
+    if (scanned.gs1 || scanned.code !== raw) {
+      if (this.addScanned(scanned)) return;
+      this.toast(`${this.t().pos.barcodeNotFound}: ${scanned.gs1?.ean13 ?? scanned.code}`, 'warn');
+      this.searchInput()?.nativeElement.select();
       return;
     }
     const target = this.results()[this.activeIndex()] ?? null;
@@ -1347,12 +1403,30 @@ export class PosPage implements OnInit, AfterViewInit {
   }
 
   onBarcodeDetected(barcode: string): void {
-    const hit = findByCode(this.productStore.products(), barcode);
-    if (!hit) {
-      this.toast(`${this.t().pos.barcodeNotFound}: ${barcode}`, 'warn');
-      return;
+    const r = scanResultFromText(barcode);
+    if (!this.addScanned(r)) this.toast(`${this.t().pos.barcodeNotFound}: ${r.gs1?.ean13 ?? r.code}`, 'warn');
+  }
+
+  /** Kamera ile okutma: barkod/GTS ise mevcut ekleme mantığı (GTS → o birim); karekodun GTIN'i ürün barkoduysa ürün. */
+  onCameraScan(r: ScanResult): void {
+    if (!this.addScanned(r)) this.toast(`${this.t().pos.barcodeNotFound}: ${r.code}`, 'warn');
+  }
+
+  /** Okutulan kodu (kamera / USB / elle) sepete ekler; ürün bulunamazsa false. */
+  private addScanned(r: ScanResult): boolean {
+    const products = this.productStore.products();
+    const hit = findByCode(products, r.code) ?? (r.text.trim() !== r.code ? findByCode(products, r.text) : null);
+    if (hit) {
+      this.addProduct(hit.product, hit.gtsNo);
+      return true;
     }
-    this.addProduct(hit.product, hit.gtsNo);
+    const gtin = r.gs1?.gtin;
+    const byGtin = gtin ? products.find(p => p.isActive !== false && gtinMatches(p.barcode, gtin)) : null;
+    if (byGtin) {
+      this.addProduct(byGtin);
+      return true;
+    }
+    return false;
   }
 
   removeGts(item: CartItem, gtsNo: string): void {
@@ -1392,9 +1466,25 @@ export class PosPage implements OnInit, AfterViewInit {
     this.focusSearch();
   }
 
+  /** Y10: sepeti boşalt; ~10 sn "Geri al" ile eski hâline döner. */
   clearCart(): void {
+    const count = this.cart.items().length;
+    if (count) {
+      this.clearedCart.set({ state: this.cart.snapshot(), count });
+      if (this.clearedTimer) clearTimeout(this.clearedTimer);
+      this.clearedTimer = setTimeout(() => this.clearedCart.set(null), 10_000);
+    }
     this.cart.clearCart();
     this.rxSkipped = false;
+    this.focusSearch();
+  }
+
+  undoClear(): void {
+    const cc = this.clearedCart();
+    if (!cc) return;
+    if (this.clearedTimer) clearTimeout(this.clearedTimer);
+    this.clearedCart.set(null);
+    if (!this.cart.items().length) this.cart.restore(cc.state);
     this.focusSearch();
   }
 
@@ -1617,7 +1707,8 @@ export class PosPage implements OnInit, AfterViewInit {
       this.showCard.set(true);
     } else {
       this.creditMode.set('installment');
-      this.creditRate.set(0);
+      // Y30: Ayarlar → Veresiye "varsayılan vade farkı"
+      this.creditRate.set(this.settings.credit().defaultInterestRate || 0);
       this.creditCount.set(1);
       this.creditDown.set(0);
       this.creditInterval.set(1);
@@ -1625,7 +1716,9 @@ export class PosPage implements OnInit, AfterViewInit {
       const due = new Date();
       due.setDate(due.getDate() + this.settings.credit().defaultDueDays);
       this.creditFirstDue.set(toDateInput(due));
-      this.creditHarvest.set(toDateInput(addMonths(new Date(), 3)));
+      // Y8: "Hasatta öde" → Ayarlar → Veresiye "hasat tarihi"nin bir sonraki gelişi (varsayılan 15 Temmuz)
+      const cs = this.settings.credit();
+      this.creditHarvest.set(toDateInput(nextHarvestDate(new Date(), cs.harvestMonth, cs.harvestDay)));
       this.showCredit.set(true);
     }
   }
@@ -1781,33 +1874,30 @@ export class PosPage implements OnInit, AfterViewInit {
     this.printer.print(ls.receipt).catch(err => this.logger.error('Receipt print failed', err));
   }
 
-  /** Satış özetinden iptal (onaylı) — stok, veresiye ve çiftçi ambarı geri alınır. */
+  /** Satış özetinden iptal: neden zorunlu (Y4) — stok, veresiye ve çiftçi ambarı geri alınır. */
   cancelLast(): void {
-    const ls = this.lastSale();
-    if (!ls || this.cancelling()) return;
-    const s = this.t().sales;
-    this.confirmSvc.confirm({
-      key: 'pos-sale-confirm',
-      header: s.cancelConfirmTitle,
-      message: s.cancelConfirmDesc,
-      icon: 'pi pi-exclamation-triangle',
-      acceptLabel: s.cancelSale,
-      rejectLabel: this.t().common.close,
-      acceptButtonStyleClass: 'p-button-danger',
-      rejectButtonStyleClass: 'p-button-secondary',
-      accept: () => void this.doCancel(ls),
-    });
+    if (!this.lastSale() || this.cancelling()) return;
+    this.cancelReasonText.set('');
+    this.showCancelSale.set(true);
   }
 
-  private async doCancel(ls: CompletedSale): Promise<void> {
+  confirmCancelLast(): void {
+    const ls = this.lastSale();
+    if (!ls || this.cancelling() || !this.cancelReasonOk()) return;
+    void this.doCancel(ls, this.cancelReasonText());
+  }
+
+  private async doCancel(ls: CompletedSale, reason: string): Promise<void> {
     this.cancelling.set(true);
     try {
-      await this.saleSvc.cancelSale(ls.id, null);
+      await this.saleSvc.cancelSale(ls.id, reason);
+      this.showCancelSale.set(false);
       this.toast(this.t().sales.cancelSuccess, 'success');
       this.newSale();
     } catch (err) {
       this.logger.error('POS cancelSale failed', err);
-      this.toast(this.t().sales.cancelFailed, 'error');
+      const code = (err as { reason?: string } | null)?.reason;
+      this.toast(code ? cancelErrorText(this.t(), code) : this.t().sales.cancelFailed, 'error');
     } finally {
       this.cancelling.set(false);
     }

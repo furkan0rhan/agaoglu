@@ -1,4 +1,8 @@
 import { Routes } from '@angular/router';
+import { roleGuard } from '../../core/auth/guards/role.guard';
+
+/** Y5: ürün ekleme / düzenleme (fiyat) yalnız yönetici; diğer roller listeye döner. */
+const adminOnly = { canActivate: [roleGuard], data: { roles: ['admin'], fallback: '/products' } };
 
 export const productRoutes: Routes = [
   {
@@ -7,6 +11,7 @@ export const productRoutes: Routes = [
   },
   {
     path: 'new',
+    ...adminOnly,
     loadComponent: () => import('./product-form/product-form.page').then(m => m.ProductFormPage),
   },
   {
@@ -15,6 +20,7 @@ export const productRoutes: Routes = [
   },
   {
     path: ':id/edit',
+    ...adminOnly,
     loadComponent: () => import('./product-form/product-form.page').then(m => m.ProductFormPage),
   },
   {

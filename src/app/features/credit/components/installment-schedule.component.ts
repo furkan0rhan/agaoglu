@@ -59,6 +59,7 @@ interface Row {
               <div class="min-w-0">
                 <p class="m-0 text-14.5 font-semibold text-fg">
                   @if (r.item.dueDate) { {{ r.item.dueDate | date:'d MMMM y':'':locale() }} }
+                  @if (r.item.dueDerived) { <span class="ml-1 text-xs font-normal text-fg-muted" [title]="lang.lang() === 'tr' ? 'Kayıtta vade yoktu; varsayılan vade / taksit sayısından hesaplandı' : 'No due date recorded; derived from default term / instalment count'">{{ lang.lang() === 'tr' ? '(varsayılan vade)' : '(default term)' }}</span> }
                 </p>
                 <p class="num m-0 mt-0.5 text-12.5" [class]="r.late > 0 ? 'text-danger-text' : 'text-fg-muted'">{{ r.hint }}</p>
                 <ui-status-badge class="mt-1 inline-flex sm:hidden" size="sm" [tone]="r.badgeTone" [icon]="r.badgeIcon">{{ r.badge }}</ui-status-badge>
@@ -88,7 +89,7 @@ interface Row {
   `,
 })
 export class InstallmentScheduleComponent {
-  private readonly lang = inject(LangService);
+  protected readonly lang = inject(LangService);
   readonly t = this.lang.t;
   readonly a = computed(() => this.t().acc);
   readonly locale = computed(() => (this.lang.lang() === 'tr' ? 'tr' : 'en-US'));

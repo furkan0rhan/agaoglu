@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Renk Seçenekleri</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/primeicons/7.0.0/primeicons.min.css">
+<style>
+/* Sayfa çerçevesi (varyanttan bağımsız, nötr) */
+:root {
+  --pg-bg: #f4f4f1; --pg-card: #ffffff; --pg-line: #e2e2dc; --pg-text: #26282a; --pg-muted: #5d6166;
+  --radius-sm: 6px; --radius-md: 8px; --radius-lg: 10px; --radius-2xl: 12px;
+  --font-sans: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Manrope', 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--pg-bg); color: var(--pg-text); font-family: var(--font-sans); font-size: 15px; line-height: 1.45; }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 20px 16px 60px; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; }
+.pg-head { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: flex-end; justify-content: space-between; margin-bottom: 14px; }
+.pg-head h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.01em; }
+.pg-head p { margin: 4px 0 0; color: var(--pg-muted); max-width: 720px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tab { font: 600 14.5px var(--font-sans); padding: 10px 16px; border-radius: 10px; border: 1px solid var(--pg-line); background: var(--pg-card); color: var(--pg-text); cursor: pointer; display: inline-flex; gap: 10px; align-items: center; min-height: 44px; }
+.tab .dots { display: inline-flex; gap: 3px; }
+.tab .dots i { width: 12px; height: 12px; border-radius: 50%; display: block; border: 1px solid rgba(0,0,0,.08); }
+.tab[aria-selected="true"] { border-color: #26282a; box-shadow: 0 0 0 1px #26282a; }
+.themebar { display: inline-flex; border: 1px solid var(--pg-line); border-radius: 10px; background: var(--pg-card); padding: 3px; }
+.themebar button { font: 600 14px var(--font-sans); border: 0; background: transparent; padding: 8px 14px; border-radius: 8px; cursor: pointer; color: var(--pg-muted); min-height: 38px; display: inline-flex; gap: 6px; align-items: center; }
+.themebar button[aria-pressed="true"] { background: #26282a; color: #fff; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+.vdesc { background: var(--pg-card); border: 1px solid var(--pg-line); border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; }
+.vdesc b { font-family: var(--font-display); font-size: 17px; }
+.vdesc span { color: var(--pg-muted); }
+.vdesc .sum { margin-left: auto; font-weight: 700; }
+
+/* =========================== VARYANT SAHNESİ ============================= */
+/* Aşağıdaki her şey yalnız _tokens.scss değişken adlarını kullanır. */
+.stage { background: var(--bg-page); color: var(--text-primary); border-radius: 16px; padding: 16px; border: 1px solid var(--border-subtle); transition: background .2s; }
+.lbl { font: 700 11.5px var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); margin: 18px 2px 8px; }
+.lbl:first-child { margin-top: 0; }
+.grid2 { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 980px) { .grid2 { grid-template-columns: 1.05fr 1fr; } }
+
+/* Kabuk */
+.shell { display: grid; grid-template-columns: 220px 1fr; border: 1px solid var(--border-subtle); border-radius: 14px; overflow: hidden; background: var(--bg-page); min-height: 640px; }
+@media (max-width: 860px) { .shell { grid-template-columns: 1fr; } .side { display: none !important; } }
+.side { background-color: var(--side-bg); color: var(--side-text); border-right: 1px solid var(--side-line); padding: 14px 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+.brandrow { display: flex; gap: 10px; align-items: center; padding: 2px 6px 10px; }
+.logo { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: var(--brand); color: var(--brand-contrast); font-size: 18px; }
+.brandrow b { font-family: var(--font-display); font-size: 16px; display: block; color: var(--side-text); }
+.brandrow small { font-size: 12.5px; color: var(--side-muted); }
+.salebtn { margin: 2px 4px 8px; height: 46px; border-radius: 10px; border: 0; background: var(--sale); color: var(--sale-text); font: 700 15px var(--font-sans); display: flex; align-items: center; justify-content: center; gap: 8px; position: relative; cursor: pointer; }
+.kbd { font: 700 11px var(--font-sans); padding: 2px 6px; border-radius: 5px; background: rgba(255,255,255,.55); color: inherit; border: 1px solid rgba(0,0,0,.08); }
+.eyebrow { font: 700 11px var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--side-muted); padding: 10px 10px 4px; }
+.nav { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 10px; border-radius: 10px; color: var(--side-text); font-weight: 500; font-size: 14.5px; }
+.nav i { color: var(--side-muted); font-size: 16px; width: 18px; }
+.nav:hover { background: var(--side-2); }
+.nav.on { background: var(--side-active); color: var(--side-active-text); font-weight: 700; }
+.nav.on i { color: var(--side-active-text); }
+.count { margin-left: auto; min-width: 20px; height: 20px; border-radius: 6px; font: 700 11px var(--font-sans); display: grid; place-items: center; padding: 0 5px; background: var(--side-count); color: #fff; }
+.count.alt { background: var(--side-count-alt); }
+.sidefoot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--side-line); padding-top: 10px; }
+.online { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--side-muted); border: 1px solid var(--side-line); border-radius: 8px; padding: 6px 10px; }
+.online i { width: 8px; height: 8px; border-radius: 50%; background: var(--side-hi); display: block; }
+.user { display: flex; gap: 10px; align-items: center; background: var(--side-2); border-radius: 10px; padding: 8px; }
+.avatar { width: 34px; height: 34px; border-radius: 9px; background: var(--side-avatar); color: var(--side-avatar-text); display: grid; place-items: center; font-weight: 800; font-size: 13px; }
+.user b { font-size: 13.5px; display: block; } .user small { font-size: 12px; color: var(--side-muted); }
+
+.main { display: flex; flex-direction: column; min-width: 0; }
+.topbar { height: 62px; background: var(--surface); border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; gap: 12px; padding: 0 18px; }
+.topbar h2 { font-size: 19px; font-weight: 800; color: var(--text-primary); }
+.topbar small { display: block; font-size: 12.5px; color: var(--text-muted); }
+.search { margin-left: auto; height: 40px; width: min(260px, 40%); border-radius: 9px; border: 1px solid var(--border-strong); background: var(--bg-page); display: flex; align-items: center; gap: 8px; padding: 0 10px; color: var(--text-muted); font-size: 14px; }
+.iconbtn { width: 40px; height: 40px; border-radius: 9px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-secondary); display: grid; place-items: center; position: relative; }
+.iconbtn .count { position: absolute; right: -6px; top: -6px; }
+.content { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 14px; }
+
+/* Dashboard */
+.dash-top { display: grid; grid-template-columns: 1.35fr 1fr; gap: 14px; }
+@media (max-width: 760px) { .dash-top { grid-template-columns: 1fr; } }
+.hero { background-color: var(--side-bg); background-image: repeating-linear-gradient(-14deg, transparent 0 9px, var(--furrow) 9px 10px); color: var(--side-text); border: 1px solid var(--side-line); border-radius: var(--radius-lg); display: flex; flex-direction: column; min-height: 228px; overflow: hidden; }
+.hero-h { display: flex; align-items: center; gap: 10px; padding: 14px 16px 0; font-weight: 700; font-size: 14.5px; }
+.hero-ic { width: 34px; height: 34px; border-radius: 8px; background: var(--side-active); color: var(--side-em); display: grid; place-items: center; }
+.trend { margin-left: auto; font: 700 12.5px var(--font-sans); padding: 4px 8px; border-radius: 6px; background: var(--side-active); color: var(--side-em); }
+.trend.neg { background: var(--side-danger-soft); color: var(--side-danger); }
+.big { font: 800 42px/1.05 var(--font-display); letter-spacing: -0.02em; padding: 10px 16px 0; color: var(--side-text); font-variant-numeric: tabular-nums; }
+.big small { font-size: 22px; color: var(--side-muted); font-weight: 700; }
+.hero-sub { padding: 2px 16px 0; color: var(--side-soft); font-size: 13.5px; }
+.hero dl { margin: auto 0 0; display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--side-line); }
+.hero dl div { padding: 10px 14px; border-right: 1px solid var(--side-line); } .hero dl div:last-child { border-right: 0; }
+.hero dt { font-size: 12.5px; font-weight: 600; color: var(--side-soft); } .hero dd { margin: 2px 0 0; font-weight: 800; font-size: 16px; color: var(--side-text); }
+.stat-col { display: flex; flex-direction: column; gap: 10px; }
+.stat { display: flex; gap: 12px; align-items: center; border-radius: var(--radius-lg); padding: 12px 14px; border: 1px solid; }
+.stat .sq { width: 40px; height: 40px; border-radius: 9px; display: grid; place-items: center; color: var(--text-inverse); font-size: 17px; flex-shrink: 0; }
+.stat b { display: block; font-size: 14.5px; } .stat span { font-size: 13px; }
+.stat .n { margin-left: auto; font: 800 24px var(--font-display); }
+.t-warning { background: var(--warning-soft); border-color: var(--warning-line); color: var(--warning-text); } .t-warning .sq { background: var(--warning); }
+.t-danger  { background: var(--danger-soft);  border-color: var(--danger-line);  color: var(--danger-text); }  .t-danger .sq { background: var(--danger); }
+.t-info    { background: var(--info-soft);    border-color: var(--info-line);    color: var(--info-text); }    .t-info .sq { background: var(--info); }
+.t-success { background: var(--success-soft); border-color: var(--success-line); color: var(--success-text); } .t-success .sq { background: var(--success); }
+.card { background: var(--surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); }
+.card-h { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border-subtle); font-weight: 700; font-size: 15px; }
+.card-h .sub { margin-left: auto; font-weight: 500; font-size: 13px; color: var(--text-muted); }
+.dash-bottom { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; }
+@media (max-width: 760px) { .dash-bottom { grid-template-columns: 1fr; } }
+.chart { padding: 10px 14px 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--text-secondary); padding: 8px 14px 12px; border-top: 1px solid var(--border-subtle); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; } .legend i { width: 10px; height: 10px; border-radius: 3px; display: block; }
+.row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border-subtle); font-size: 14px; }
+.row:last-child { border-bottom: 0; }
+.row:hover { background: var(--surface-hover); }
+.row .ic { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand-text); flex-shrink: 0; }
+.row .ic.acc { background: var(--accent-soft); color: var(--accent-text); }
+.row b { display: block; font-weight: 600; } .row small { color: var(--text-muted); font-size: 12.5px; }
+.row .amt { margin-left: auto; font-weight: 800; font-variant-numeric: tabular-nums; }
+.quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 760px) { .quick { grid-template-columns: repeat(2, 1fr); } }
+.qa { border-radius: var(--radius-lg); border: 1px solid var(--border-subtle); background: var(--surface); padding: 12px; display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; position: relative; color: var(--text-primary); }
+.qa .ic { width: 36px; height: 36px; border-radius: 8px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand-text); }
+.qa.hero-a { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); }
+.qa.hero-a .ic { background: rgba(255,255,255,.45); color: var(--accent-contrast); }
+.qa .kbd { position: absolute; right: 8px; top: 8px; }
+
+/* Pill */
+.pill { display: inline-flex; align-items: center; gap: 5px; font: 700 12.5px var(--font-sans); padding: 3px 9px; border-radius: 6px; border: 1px solid; white-space: nowrap; }
+.pill i { font-size: 11px; }
+.p-danger  { background: var(--danger-soft);  color: var(--danger-text);  border-color: var(--danger-line); }
+.p-warning { background: var(--warning-soft); color: var(--warning-text); border-color: var(--warning-line); }
+.p-success { background: var(--success-soft); color: var(--success-text); border-color: var(--success-line); }
+.p-info    { background: var(--info-soft);    color: var(--info-text);    border-color: var(--info-line); }
+.p-neutral { background: var(--neutral-soft); color: var(--neutral-text); border-color: var(--neutral-line); }
+.p-brand   { background: var(--brand-soft);   color: var(--brand-text);   border-color: var(--brand-line); }
+.p-accent  { background: var(--accent-soft);  color: var(--accent-text);  border-color: var(--accent-line); }
+
+/* POS */
+.pos { display: flex; flex-direction: column; }
+.cart-line { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border-subtle); font-size: 14.5px; }
+.cart-line.sel { background: var(--brand-soft); }
+.cart-line small { display: block; color: var(--text-muted); font-size: 12.5px; }
+.qty { display: inline-flex; align-items: center; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; background: var(--field-bg); }
+.qty button { width: 34px; height: 34px; border: 0; background: var(--surface-muted); color: var(--text-primary); cursor: pointer; }
+.qty span { min-width: 34px; text-align: center; font-weight: 700; }
+.totals { padding: 12px 14px; background: var(--surface-muted); display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--text-secondary); }
+.totals div { display: flex; justify-content: space-between; }
+.totals .grand { color: var(--text-primary); font: 800 26px var(--font-display); margin-top: 4px; }
+.paybtns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px 14px 14px; }
+.pay { min-height: 62px; border-radius: 10px; border: 1px solid transparent; font: 700 16px var(--font-sans); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; position: relative; }
+.pay .kbd { position: absolute; left: 8px; top: 7px; }
+.pay small { font-weight: 600; font-size: 12px; opacity: .9; }
+.pay.cash { background: var(--brand); color: var(--brand-contrast); }
+.pay.cash:hover { background: var(--brand-hover); }
+.pay.card2 { background: var(--surface); color: var(--text-primary); border-color: var(--border-strong); }
+.pay.credit { background: var(--accent); color: var(--accent-contrast); }
+.pay.credit:hover { background: var(--accent-hover); }
+
+/* Tablo */
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; background: var(--table-head-bg); color: var(--text-secondary); font-weight: 700; font-size: 12.5px; letter-spacing: .02em; padding: 10px 14px; border-bottom: 1px solid var(--border-subtle); }
+td { padding: 11px 14px; border-bottom: 1px solid var(--border-subtle); color: var(--text-primary); }
+tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: var(--surface-hover); }
+td.num { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+td small { color: var(--text-muted); display: block; font-size: 12.5px; }
+.tablewrap { overflow-x: auto; }
+
+/* Form + dialog */
+.dlg-bg { background: color-mix(in srgb, var(--text-primary) 13%, var(--bg-page)); border-radius: var(--radius-lg); padding: 22px 16px; display: grid; place-items: center; }
+.dialog { width: min(440px, 100%); background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: var(--radius-2xl); box-shadow: 0 16px 40px -12px rgba(30, 40, 35, .28); overflow: hidden; }
+.dlg-h { display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: var(--surface-muted); border-bottom: 1px solid var(--border-subtle); font: 800 17px var(--font-display); }
+.dlg-h .ic { width: 34px; height: 34px; border-radius: 8px; background: var(--brand-soft); color: var(--brand-text); display: grid; place-items: center; font-size: 15px; }
+.dlg-h .x { margin-left: auto; color: var(--text-muted); }
+.dlg-b { padding: 14px 16px; display: grid; gap: 12px; }
+.field label { display: block; font-size: 13.5px; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; }
+.inp { height: 44px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--field-bg); color: var(--text-primary); display: flex; align-items: center; padding: 0 12px; font-size: 15px; gap: 8px; }
+.inp.ph { color: var(--text-muted); }
+.inp.focus { border-color: var(--brand-text); box-shadow: 0 0 0 3px var(--brand-line); }
+.inp.err { border-color: var(--danger-text); }
+.inp .end { margin-left: auto; color: var(--text-muted); }
+.errmsg { color: var(--danger-text); font-size: 13px; margin-top: 4px; display: flex; gap: 5px; align-items: center; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.seg { display: flex; background: var(--surface-muted); border: 1px solid var(--border-subtle); border-radius: 9px; padding: 3px; }
+.seg span { flex: 1; text-align: center; padding: 7px 0; border-radius: 7px; font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+.seg span.on { background: var(--surface); color: var(--text-primary); box-shadow: 0 0 0 1px var(--border-strong); }
+.dlg-f { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border-subtle); }
+.btn { height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-primary); font: 700 14.5px var(--font-sans); display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.btn.primary { background: var(--brand); border-color: var(--brand); color: var(--brand-contrast); }
+.btn.primary:hover { background: var(--brand-hover); }
+
+.stage[data-theme="dark"] .dlg-bg { background: color-mix(in srgb, #000 32%, var(--bg-page)); }
+.stage[data-theme="dark"] .dialog { box-shadow: 0 16px 40px -10px rgba(0,0,0,.6); }
+/* Toast */
+.toasts { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.toast { display: flex; gap: 10px; align-items: flex-start; background: var(--surface-raised); border: 1px solid; border-left-width: 5px; border-radius: var(--radius-lg); padding: 11px 12px; box-shadow: 0 8px 20px -10px rgba(30,40,35,.25); }
+.toast i { font-size: 17px; margin-top: 2px; }
+.toast b { display: block; font-size: 14.5px; }
+.toast span { color: var(--text-secondary); font-size: 13.5px; }
+.toast.success { border-color: var(--success-line); border-left-color: var(--success); } .toast.success i, .toast.success b { color: var(--success-text); }
+.toast.warning { border-color: var(--warning-line); border-left-color: var(--warning); } .toast.warning i, .toast.warning b { color: var(--warning-text); }
+.toast.danger  { border-color: var(--danger-line);  border-left-color: var(--danger); }  .toast.danger i, .toast.danger b { color: var(--danger-text); }
+.toast.info    { border-color: var(--info-line);    border-left-color: var(--info); }    .toast.info i, .toast.info b { color: var(--info-text); }
+
+/* Mobil çubuklar */
+.phone { width: 300px; max-width: 100%; border: 1px solid var(--border-strong); border-radius: 22px; overflow: hidden; background: var(--bg-page); display: flex; flex-direction: column; height: 300px; }
+.m-top { background: var(--side-bg); color: var(--side-text); display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--side-line); }
+.m-top b { font-size: 15px; display: block; } .m-top small { font-size: 11.5px; color: var(--side-muted); }
+.m-top .mi { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; color: var(--side-text); }
+.m-body { flex: 1; padding: 10px; display: grid; gap: 8px; align-content: start; }
+.m-nav { background: var(--side-bg); border-top: 1px solid var(--side-line); display: grid; grid-template-columns: repeat(5, 1fr); padding: 6px 4px 8px; }
+.m-nav div { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; font-weight: 600; color: var(--side-muted); padding-top: 4px; position: relative; }
+.m-nav div i { font-size: 17px; }
+.m-nav div.on { color: var(--side-active-text); }
+.m-nav div.on::before { content: ''; position: absolute; top: -6px; left: 30%; right: 30%; height: 3px; border-radius: 0 0 3px 3px; background: var(--side-hi); }
+.m-nav .salec { width: 44px; height: 44px; border-radius: 12px; background: var(--sale); color: var(--sale-text); display: grid; place-items: center; margin-top: -2px; }
+
+/* Kontrast ve token tabloları (sayfa çerçevesi renkleri) */
+.panel { background: var(--pg-card); border: 1px solid var(--pg-line); border-radius: 14px; padding: 16px; margin-top: 18px; }
+.panel h2 { font-size: 19px; margin-bottom: 4px; }
+.panel > p { margin: 0 0 12px; color: var(--pg-muted); font-size: 14px; }
+.ctable { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.ctable th { background: #f1f1ed; color: #45484c; }
+.ctable td, .ctable th { padding: 7px 10px; border-bottom: 1px solid var(--pg-line); color: var(--pg-text); }
+.ctable td.r { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ok { color: #1e6a3f; } .bad { color: #b42318; }
+.sample { display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: 700; border: 1px solid rgba(0,0,0,.08); min-width: 120px; }
+.sw { display: inline-block; width: 22px; height: 22px; border-radius: 6px; vertical-align: middle; border: 1px solid rgba(0,0,0,.14); margin-right: 8px; }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
+.tok-grid { display: grid; grid-template-columns: 1fr; gap: 6px 24px; }
+.copybtn { font: 600 14px var(--font-sans); border: 1px solid var(--pg-line); background: #26282a; color: #fff; padding: 9px 14px; border-radius: 9px; cursor: pointer; min-height: 40px; }
+.cmp { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.cmp .c { border: 1px solid var(--pg-line); border-radius: 12px; padding: 12px; }
+.cmp .c b { font-family: var(--font-display); }
+.cmp .strip { display: flex; height: 34px; border-radius: 8px; overflow: hidden; margin: 8px 0; border: 1px solid rgba(0,0,0,.08); }
+.cmp .strip i { flex: 1; }
+.cmp p { margin: 0; color: var(--pg-muted); font-size: 13.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="pg-head">
+    <div>
+      <h1>Renk seçenekleri — açık ve soft</h1>
+      <p>Yerleşim v2 "Saha / Komuta" ile aynı. Yalnız renkler değişiyor: koyu sidebar, koyu ciro kartı ve koyu çubuklar kalktı. Her varyantın açık ve uyumlu koyu teması var. Alttaki token tablosu <code>src/styles/_tokens.scss</code> değişken adlarıyla birebir aynı.</p>
+    </div>
+  </header>
+
+  <div class="controls">
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="themebar" role="group" aria-label="Tema">
+      <button type="button" data-theme="light" aria-pressed="true"><i class="pi pi-sun"></i>Açık tema</button>
+      <button type="button" data-theme="dark" aria-pressed="false"><i class="pi pi-moon"></i>Koyu tema</button>
+    </div>
+  </div>
+  <div class="vdesc" id="vdesc"></div>
+
+  <section class="stage" id="stage">
+    <div class="lbl">Uygulama kabuğu + Ana sayfa</div>
+    <div class="shell" id="shot-dashboard">
+      <aside class="side">
+        <div class="brandrow"><span class="logo"><i class="pi pi-shop"></i></span><div><b>Tarım Market</b><small>Yılmaz Zirai İlaç</small></div></div>
+        <button class="salebtn" type="button"><i class="pi pi-shopping-cart"></i>Hızlı Satış <span class="kbd">F2</span></button>
+        <div class="nav on"><i class="pi pi-home"></i>Ana Sayfa</div>
+        <div class="nav"><i class="pi pi-calculator"></i>Satış (POS)</div>
+        <div class="eyebrow">Stok</div>
+        <div class="nav"><i class="pi pi-box"></i>Ürünler <span class="count">4</span></div>
+        <div class="nav"><i class="pi pi-truck"></i>Alımlar</div>
+        <div class="eyebrow">Müşteri</div>
+        <div class="nav"><i class="pi pi-users"></i>Müşteriler</div>
+        <div class="nav"><i class="pi pi-wallet"></i>Veresiye <span class="count alt">7</span></div>
+        <div class="nav"><i class="pi pi-chart-bar"></i>Raporlar</div>
+        <div class="sidefoot">
+          <div class="online"><i></i>Çevrimiçi · eşitlendi</div>
+          <div class="user"><span class="avatar">MY</span><div><b>Mehmet Yılmaz</b><small>Sahip</small></div></div>
+        </div>
+      </aside>
+      <div class="main">
+        <div class="topbar">
+          <div><h2>Ana Sayfa</h2><small>Perşembe, 30 Ekim 2026</small></div>
+          <div class="search"><i class="pi pi-search"></i>Ürün, müşteri ara… <span class="kbd" style="margin-left:auto;background:var(--surface-muted)">Ctrl K</span></div>
+          <span class="iconbtn"><i class="pi pi-moon"></i></span>
+          <span class="iconbtn"><i class="pi pi-bell"></i><span class="count">3</span></span>
+        </div>
+        <div class="content">
+          <div class="dash-top">
+            <div class="hero">
+              <div class="hero-h"><span class="hero-ic"><i class="pi pi-wallet"></i></span>Bugünkü ciro <span class="trend"><i class="pi pi-arrow-up" style="font-size:10px"></i> %12</span></div>
+              <div class="big">48.250<small>,75 ₺</small></div>
+              <div class="hero-sub">32 satış · dün bu saatte 43.080 ₺</div>
+              <dl>
+                <div><dt>Nakit</dt><dd>21.400 ₺</dd></div>
+                <div><dt>Kart</dt><dd>18.650 ₺</dd></div>
+                <div><dt>Veresiye</dt><dd>8.200 ₺</dd></div>
+              </dl>
+            </div>
+            <div class="stat-col">
+              <div class="stat t-danger"><span class="sq"><i class="pi pi-exclamation-triangle"></i></span><div><b>Kritik stok</b><span>Hemen sipariş verin</span></div><span class="n">4</span></div>
+              <div class="stat t-warning"><span class="sq"><i class="pi pi-clock"></i></span><div><b>Vadesi geçen</b><span>7 müşteri · 36.400 ₺</span></div><span class="n">7</span></div>
+              <div class="stat t-info"><span class="sq"><i class="pi pi-calendar"></i></span><div><b>Bu hafta vade</b><span>12 taksit</span></div><span class="n">12</span></div>
+            </div>
+          </div>
+          <div class="quick">
+            <div class="qa hero-a"><span class="ic"><i class="pi pi-shopping-cart"></i></span>Yeni satış<span class="kbd">F2</span></div>
+            <div class="qa"><span class="ic"><i class="pi pi-plus"></i></span>Ürün ekle</div>
+            <div class="qa"><span class="ic"><i class="pi pi-user-plus"></i></span>Müşteri ekle</div>
+            <div class="qa"><span class="ic"><i class="pi pi-money-bill"></i></span>Tahsilat</div>
+          </div>
+          <div class="dash-bottom">
+            <div class="card">
+              <div class="card-h">Son 7 gün satış <span class="sub">kategoriye göre</span></div>
+              <div class="chart"><svg id="chart" viewBox="0 0 420 170" width="100%" role="img" aria-label="Son 7 gün satış grafiği"></svg></div>
+              <div class="legend" id="legend"></div>
+            </div>
+            <div class="card">
+              <div class="card-h">Son satışlar <span class="sub">bugün</span></div>
+              <div class="row"><span class="ic"><i class="pi pi-receipt"></i></span><div><b>Ahmet Kaya</b><small>14:32 · Nakit · 3 ürün</small></div><span class="amt">2.480 ₺</span></div>
+              <div class="row"><span class="ic acc"><i class="pi pi-wallet"></i></span><div><b>Hasan Demir</b><small>14:05 · Veresiye · 5 ürün</small></div><span class="amt">6.120 ₺</span></div>
+              <div class="row"><span class="ic"><i class="pi pi-credit-card"></i></span><div><b>Perakende</b><small>13:48 · Kart · 1 ürün</small></div><span class="amt">640 ₺</span></div>
+              <div class="row"><span class="ic"><i class="pi pi-receipt"></i></span><div><b>Fatma Şahin</b><small>13:12 · Nakit · 2 ürün</small></div><span class="amt">1.290 ₺</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div>
+        <div class="lbl">POS — sepet ve ödeme</div>
+        <div class="card pos">
+          <div class="card-h"><i class="pi pi-shopping-cart" style="color:var(--accent-text)"></i>Sepet <span class="pill p-accent" style="margin-left:6px">3 ürün</span><span class="sub">Müşteri: Ahmet Kaya</span></div>
+          <div class="cart-line"><div><b>Roundup 1 L</b><small>Herbisit · 485,00 ₺</small></div><div class="qty"><button>−</button><span>2</span><button>+</button></div><b>970,00 ₺</b></div>
+          <div class="cart-line sel"><div><b>DAP Gübre 50 kg</b><small>Gübre · 1.150,00 ₺</small></div><div class="qty"><button>−</button><span>1</span><button>+</button></div><b>1.150,00 ₺</b></div>
+          <div class="cart-line"><div><b>Konfidor 100 ml</b><small>İnsektisit · 360,00 ₺</small></div><div class="qty"><button>−</button><span>1</span><button>+</button></div><b>360,00 ₺</b></div>
+          <div class="totals"><div><span>Ara toplam</span><span>2.480,00 ₺</span></div><div><span>İskonto</span><span>0,00 ₺</span></div><div class="grand"><span>Toplam</span><span>2.480,00 ₺</span></div></div>
+          <div class="paybtns">
+            <button class="pay cash"><span class="kbd">F1</span><i class="pi pi-money-bill"></i>Nakit</button>
+            <button class="pay card2"><span class="kbd" style="background:var(--surface-muted)">F2</span><i class="pi pi-credit-card"></i>Kart</button>
+            <button class="pay credit"><span class="kbd">F3</span><i class="pi pi-wallet"></i>Veresiye</button>
+          </div>
+        </div>
+
+        <div class="lbl">Toast bildirimleri</div>
+        <div class="toasts">
+          <div class="toast success"><i class="pi pi-check-circle"></i><div><b>Satış kaydedildi</b><span>Fiş #1284 · 2.480,00 ₺</span></div></div>
+          <div class="toast warning"><i class="pi pi-exclamation-triangle"></i><div><b>Stok azalıyor</b><span>Roundup 1 L: 3 adet kaldı</span></div></div>
+          <div class="toast danger"><i class="pi pi-times-circle"></i><div><b>Yazdırılamadı</b><span>Yazıcı bağlantısını kontrol edin</span></div></div>
+          <div class="toast info"><i class="pi pi-info-circle"></i><div><b>Eşitleme tamam</b><span>12 kayıt sunucuya gönderildi</span></div></div>
+        </div>
+
+        <div class="lbl">Mobil üst / alt çubuk</div>
+        <div class="phone">
+          <div class="m-top"><span class="mi"><i class="pi pi-bars"></i></span><div style="flex:1"><b>Ana Sayfa</b><small>Çevrimiçi</small></div><span class="mi"><i class="pi pi-bell"></i></span></div>
+          <div class="m-body"><div class="stat t-warning" style="padding:9px 10px"><span class="sq" style="width:32px;height:32px"><i class="pi pi-clock"></i></span><div><b>Vadesi geçen</b><span>7 müşteri</span></div></div><div class="card" style="padding:10px;font-weight:700">Bugünkü ciro <span style="float:right">48.250 ₺</span></div></div>
+          <div class="m-nav"><div class="on"><i class="pi pi-home"></i>Ana</div><div><i class="pi pi-box"></i>Ürünler</div><div><span class="salec"><i class="pi pi-shopping-cart"></i></span></div><div><i class="pi pi-wallet"></i>Veresiye</div><div><i class="pi pi-ellipsis-h"></i>Daha</div></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="lbl">Ürün tablosu — durum pill'leri</div>
+        <div class="card tablewrap">
+          <table>
+            <thead><tr><th>Ürün</th><th>Kategori</th><th style="text-align:right">Stok</th><th>Durum</th><th style="text-align:right">Fiyat</th></tr></thead>
+            <tbody>
+              <tr><td><b>Roundup 1 L</b><small>Bayer</small></td><td>Herbisit</td><td class="num">3</td><td><span class="pill p-danger"><i class="pi pi-exclamation-circle"></i>Kritik</span></td><td class="num">485,00 ₺</td></tr>
+              <tr><td><b>Konfidor 100 ml</b><small>Bayer</small></td><td>İnsektisit</td><td class="num">9</td><td><span class="pill p-warning"><i class="pi pi-clock"></i>Azalıyor</span></td><td class="num">360,00 ₺</td></tr>
+              <tr><td><b>DAP Gübre 50 kg</b><small>Gübretaş</small></td><td>Gübre</td><td class="num">64</td><td><span class="pill p-success"><i class="pi pi-check"></i>Normal</span></td><td class="num">1.150,00 ₺</td></tr>
+              <tr><td><b>Üre %46 50 kg</b><small>Toros</small></td><td>Gübre</td><td class="num">120</td><td><span class="pill p-info"><i class="pi pi-truck"></i>Yolda</span></td><td class="num">980,00 ₺</td></tr>
+              <tr><td><b>Antracol 1 kg</b><small>Bayer</small></td><td>Fungisit</td><td class="num">0</td><td><span class="pill p-neutral"><i class="pi pi-ban"></i>Pasif</span></td><td class="num">720,00 ₺</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="lbl">Form + dialog</div>
+        <div class="dlg-bg">
+          <div class="dialog" role="dialog" aria-label="Yeni müşteri">
+            <div class="dlg-h"><span class="ic"><i class="pi pi-user-plus"></i></span>Yeni müşteri <i class="pi pi-times x"></i></div>
+            <div class="dlg-b">
+              <div class="field"><label>Ad soyad</label><div class="inp focus">Mustafa Arslan</div></div>
+              <div class="two">
+                <div class="field"><label>Telefon</label><div class="inp err">0532 41</div><div class="errmsg"><i class="pi pi-exclamation-circle"></i>Numara eksik</div></div>
+                <div class="field"><label>Köy / mahalle</label><div class="inp ph">Seçin <i class="pi pi-chevron-down end"></i></div></div>
+              </div>
+              <div class="field"><label>Müşteri tipi</label><div class="seg"><span class="on">Çiftçi</span><span>Bayi</span><span>Kurum</span></div></div>
+              <div class="field"><label>Veresiye limiti</label><div class="inp">25.000 <span class="end">₺</span></div></div>
+            </div>
+            <div class="dlg-f"><button class="btn">Vazgeç</button><button class="btn primary"><i class="pi pi-check"></i>Kaydet</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Kontrast kontrolü</h2>
+    <p id="cnote">WCAG AA: normal metin için en az 4,5:1. Hesap <code>scripts/contrast-check.mjs</code> ile aynı formül; yarı saydam renkler alttaki yüzeyle birleştirilir.</p>
+    <div class="tablewrap"><table class="ctable" id="ctable"></table></div>
+  </section>
+
+  <section class="panel">
+    <h2>Üç varyant yan yana</h2>
+    <p>Zemin · yüzey · sidebar · marka · vurgu · durumlar (açık tema).</p>
+    <div class="cmp" id="cmp"></div>
+  </section>
+
+  <section class="panel">
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
+      <div><h2>Token tablosu — <span id="tokname"></span></h2><p style="margin:0;color:var(--pg-muted);font-size:14px">Adlar <code>_tokens.scss</code> ile aynı; listede olmayanlar (yarıçap, gölge, ölçü, font) değişmiyor.</p></div>
+      <button class="copybtn" id="copy" type="button"><i class="pi pi-copy"></i> SCSS olarak kopyala</button>
+    </div>
+    <div class="tablewrap" style="margin-top:12px"><table class="ctable" id="toktable"></table></div>
+  </section>
+</div>
+
+<script>
+/*VARIANTS*/
+var VARIANTS = {
+  v1: {
+    name: '1 — Nane & Kayısı',
+    desc: 'Serin, ferah: yeşilimsi beyaz zemin, nane yeşili dolgu, kayısı vurgu. En canlı ve "temiz" olanı.',
+    light: {
+      'bg-page': '#f2f7f4', 'surface': '#ffffff', 'surface-raised': '#ffffff', 'surface-muted': '#edf4f0', 'surface-hover': '#e7f0eb', 'surface-strong': '#dce8e1', 'field-bg': '#ffffff', 'table-head-bg': '#edf4f0',
+      'border-subtle': '#dbe7e0', 'border-strong': '#bccfc4',
+      'text-primary': '#1f2d27', 'text-secondary': '#43554c', 'text-muted': '#56685f', 'text-inverse': '#17261f',
+      'brand': '#79cca2', 'brand-hover': '#66c294', 'brand-contrast': '#0f3324', 'brand-soft': '#e0f3e9', 'brand-soft-hover': '#cdebdb', 'brand-line': '#a6dbbf', 'brand-text': '#1b6646',
+      'accent': '#f6b083', 'accent-hover': '#f29f6a', 'accent-contrast': '#47210a', 'accent-soft': '#fdeee3', 'accent-line': '#f5cdb0', 'accent-text': '#8f4217',
+      'success': '#79cca2', 'success-soft': '#e0f3e9', 'success-line': '#a6dbbf', 'success-text': '#1b6646',
+      'warning': '#f2c46b', 'warning-soft': '#fdf3dc', 'warning-line': '#efd59c', 'warning-text': '#7a4e06',
+      'danger': '#f0a098', 'danger-soft': '#fde8e5', 'danger-line': '#f3c1ba', 'danger-text': '#a0302a',
+      'info': '#90bdec', 'info-soft': '#e5f0fb', 'info-line': '#b9d4f2', 'info-text': '#22568f',
+      'neutral': '#a7b6ae', 'neutral-soft': '#e8eeea', 'neutral-line': '#c9d5ce', 'neutral-text': '#43554c',
+      'side-bg': '#e6f3eb', 'side-2': '#d9ece1', 'side-line': '#c9e1d3', 'side-text': '#1f2d27', 'side-muted': '#46594f', 'side-hi': '#3fae78',
+      'side-active': '#c4e9d4', 'side-active-text': '#14553a', 'side-avatar': '#bfe4cf', 'side-avatar-text': '#14553a', 'side-em': '#1b6646', 'side-soft': '#43554c',
+      'side-danger': '#a0302a', 'side-danger-soft': '#fbdeda', 'side-count': '#c03a33', 'side-count-alt': '#b14f17', 'sale': '#f6b083', 'sale-text': '#47210a',
+      'furrow': 'rgba(63, 174, 120, 0.09)',
+      'chart-1': '#4fb386', 'chart-2': '#6fa6df', 'chart-3': '#ec8d84', 'chart-4': '#f2a767', 'chart-5': '#a99ae0', 'chart-6': '#58b9b1', 'chart-grid': '#e1ebe5'
+    },
+    dark: {
+      'bg-page': '#1a2420', 'surface': '#212d28', 'surface-raised': '#27342e', 'surface-muted': '#27342e', 'surface-hover': '#2d3b34', 'surface-strong': '#33433b', 'field-bg': '#1d2823', 'table-head-bg': '#27342e',
+      'border-subtle': '#34433c', 'border-strong': '#4a5c53',
+      'text-primary': '#e6efe9', 'text-secondary': '#bccbc3', 'text-muted': '#9bada3', 'text-inverse': '#13201a',
+      'brand': '#7fd3a8', 'brand-hover': '#9adfbb', 'brand-contrast': '#0f3324', 'brand-soft': '#2a4438', 'brand-soft-hover': '#305043', 'brand-line': '#3f6a55', 'brand-text': '#9fe3bf',
+      'accent': '#f5b48a', 'accent-hover': '#f8c6a5', 'accent-contrast': '#43200a', 'accent-soft': '#45342a', 'accent-line': '#6e4d38', 'accent-text': '#f7c09b',
+      'success': '#7fd3a8', 'success-soft': '#2a4438', 'success-line': '#3f6a55', 'success-text': '#9fe3bf',
+      'warning': '#f0cd7e', 'warning-soft': '#443b27', 'warning-line': '#6b5a33', 'warning-text': '#f3d48f',
+      'danger': '#f0a49c', 'danger-soft': '#4a2f2d', 'danger-line': '#74443f', 'danger-text': '#f6b3ab',
+      'info': '#9cc3ef', 'info-soft': '#2b3a4c', 'info-line': '#41587a', 'info-text': '#b0d0f4',
+      'neutral': '#a9b8b0', 'neutral-soft': '#2f3b35', 'neutral-line': '#4a5c53', 'neutral-text': '#bccbc3',
+      'side-bg': '#1f2b26', 'side-2': '#283731', 'side-line': '#33443c', 'side-text': '#e6efe9', 'side-muted': '#a6b8ae', 'side-hi': '#7fd3a8',
+      'side-active': '#2f4d3f', 'side-active-text': '#b4ecd0', 'side-avatar': '#335646', 'side-avatar-text': '#b4ecd0', 'side-em': '#9fe3bf', 'side-soft': '#bccbc3',
+      'side-danger': '#f6b3ab', 'side-danger-soft': '#4a2f2d', 'side-count': '#c03a33', 'side-count-alt': '#b14f17', 'sale': '#f5b48a', 'sale-text': '#43200a',
+      'furrow': 'rgba(127, 211, 168, 0.05)',
+      'chart-1': '#7fd3a8', 'chart-2': '#9cc3ef', 'chart-3': '#f0a49c', 'chart-4': '#f5b48a', 'chart-5': '#c4b8ef', 'chart-6': '#7fd0c9', 'chart-grid': '#2e3c35'
+    }
+  },
+  v2: {
+    name: '2 — Adaçayı & Krem',
+    desc: 'Sıcak, sakin: kremsi kâğıt zemin, gri-yeşil adaçayı, şeftali-kiremit vurgu. En yumuşak ve göz yormayanı.',
+    light: {
+      'bg-page': '#f7f4ec', 'surface': '#fffdf8', 'surface-raised': '#fffdf8', 'surface-muted': '#f2eee3', 'surface-hover': '#efeadf', 'surface-strong': '#e6e0d2', 'field-bg': '#fffdf8', 'table-head-bg': '#f2eee3',
+      'border-subtle': '#e6e0d3', 'border-strong': '#cdc4b1',
+      'text-primary': '#2a2c25', 'text-secondary': '#4d5044', 'text-muted': '#5f6254', 'text-inverse': '#1f241c',
+      'brand': '#9ec6a2', 'brand-hover': '#8cba91', 'brand-contrast': '#1b3822', 'brand-soft': '#e7f0e2', 'brand-soft-hover': '#d8e7d1', 'brand-line': '#b8d3b5', 'brand-text': '#3a6140',
+      'accent': '#eab691', 'accent-hover': '#e3a67b', 'accent-contrast': '#47230e', 'accent-soft': '#f9ece0', 'accent-line': '#ebcbb1', 'accent-text': '#8a4520',
+      'success': '#9ec6a2', 'success-soft': '#e7f0e2', 'success-line': '#b8d3b5', 'success-text': '#3a6140',
+      'warning': '#ebca80', 'warning-soft': '#f9f0d8', 'warning-line': '#e7d3a0', 'warning-text': '#714d12',
+      'danger': '#e8a69b', 'danger-soft': '#f9e6e1', 'danger-line': '#ebc2ba', 'danger-text': '#96392d',
+      'info': '#a8c2db', 'info-soft': '#e8eff6', 'info-line': '#c3d4e6', 'info-text': '#36597c',
+      'neutral': '#bab4a3', 'neutral-soft': '#ece8dd', 'neutral-line': '#d3ccbc', 'neutral-text': '#4d5044',
+      'side-bg': '#edf0e4', 'side-2': '#e2e8d8', 'side-line': '#d4dcc9', 'side-text': '#2a2c25', 'side-muted': '#525b4c', 'side-hi': '#6f9c76',
+      'side-active': '#d3e5cc', 'side-active-text': '#2d5234', 'side-avatar': '#cfe0c8', 'side-avatar-text': '#2d5234', 'side-em': '#3a6140', 'side-soft': '#4d5044',
+      'side-danger': '#96392d', 'side-danger-soft': '#f6dcd5', 'side-count': '#b2453a', 'side-count-alt': '#a2542a', 'sale': '#eab691', 'sale-text': '#47230e',
+      'furrow': 'rgba(111, 156, 118, 0.09)',
+      'chart-1': '#7fae86', 'chart-2': '#86a6c9', 'chart-3': '#e09486', 'chart-4': '#e3a979', 'chart-5': '#b4a0cf', 'chart-6': '#c9b46a', 'chart-grid': '#e9e4d8'
+    },
+    dark: {
+      'bg-page': '#22231e', 'surface': '#2a2b25', 'surface-raised': '#31332c', 'surface-muted': '#31332c', 'surface-hover': '#373930', 'surface-strong': '#3e4036', 'field-bg': '#25261f', 'table-head-bg': '#31332c',
+      'border-subtle': '#3b3d34', 'border-strong': '#535649',
+      'text-primary': '#eeebe0', 'text-secondary': '#c9c6b8', 'text-muted': '#a8a597', 'text-inverse': '#1d2119',
+      'brand': '#a8cfac', 'brand-hover': '#bddbc0', 'brand-contrast': '#1b3822', 'brand-soft': '#34442f', 'brand-soft-hover': '#3d5137', 'brand-line': '#55704f', 'brand-text': '#bcdcbd',
+      'accent': '#ebbd9c', 'accent-hover': '#f0ccb1', 'accent-contrast': '#47230e', 'accent-soft': '#4a3a2d', 'accent-line': '#6f5440', 'accent-text': '#f0c6a7',
+      'success': '#a8cfac', 'success-soft': '#34442f', 'success-line': '#55704f', 'success-text': '#bcdcbd',
+      'warning': '#eccf8f', 'warning-soft': '#47402a', 'warning-line': '#6b5f3a', 'warning-text': '#f0d69c',
+      'danger': '#eaa99f', 'danger-soft': '#4c3330', 'danger-line': '#744b45', 'danger-text': '#f2b8ae',
+      'info': '#b0c8e0', 'info-soft': '#323c48', 'info-line': '#4c5c70', 'info-text': '#c0d4e9',
+      'neutral': '#b8b3a2', 'neutral-soft': '#383a31', 'neutral-line': '#535649', 'neutral-text': '#c9c6b8',
+      'side-bg': '#2a2d25', 'side-2': '#33372d', 'side-line': '#3e4337', 'side-text': '#eeebe0', 'side-muted': '#b1b2a2', 'side-hi': '#a8cfac',
+      'side-active': '#3d5137', 'side-active-text': '#cbe5cb', 'side-avatar': '#415a3c', 'side-avatar-text': '#cbe5cb', 'side-em': '#bcdcbd', 'side-soft': '#c9c6b8',
+      'side-danger': '#f2b8ae', 'side-danger-soft': '#4c3330', 'side-count': '#b2453a', 'side-count-alt': '#a2542a', 'sale': '#ebbd9c', 'sale-text': '#47230e',
+      'furrow': 'rgba(168, 207, 172, 0.05)',
+      'chart-1': '#9fcba6', 'chart-2': '#a3bedc', 'chart-3': '#eba395', 'chart-4': '#edb88d', 'chart-5': '#c5b2de', 'chart-6': '#d8c47c', 'chart-grid': '#393b33'
+    }
+  },
+  v3: {
+    name: '3 — Çayır & Gökyüzü',
+    desc: 'Havadar, modern: gök mavisine çalan açık griler, taze çayır yeşili, şeftali vurgu. En "ekran / uygulama" hissi veren.',
+    light: {
+      'bg-page': '#f3f6f9', 'surface': '#ffffff', 'surface-raised': '#ffffff', 'surface-muted': '#edf2f6', 'surface-hover': '#e8eef3', 'surface-strong': '#dde5ec', 'field-bg': '#ffffff', 'table-head-bg': '#edf2f6',
+      'border-subtle': '#dfe6ed', 'border-strong': '#bfccd8',
+      'text-primary': '#1e2833', 'text-secondary': '#45515e', 'text-muted': '#596572', 'text-inverse': '#172433',
+      'brand': '#8fd19e', 'brand-hover': '#7cc78d', 'brand-contrast': '#123619', 'brand-soft': '#e4f5e8', 'brand-soft-hover': '#d1eed8', 'brand-line': '#ade0b9', 'brand-text': '#216b37',
+      'accent': '#ffb48f', 'accent-hover': '#fca37a', 'accent-contrast': '#4a200a', 'accent-soft': '#fff0e7', 'accent-line': '#fbd0b9', 'accent-text': '#924216',
+      'success': '#8fd19e', 'success-soft': '#e4f5e8', 'success-line': '#ade0b9', 'success-text': '#216b37',
+      'warning': '#f5cf74', 'warning-soft': '#fdf5dc', 'warning-line': '#f0dca2', 'warning-text': '#765106',
+      'danger': '#f4a3a3', 'danger-soft': '#fde9e9', 'danger-line': '#f5c6c6', 'danger-text': '#a32f2f',
+      'info': '#94c3ef', 'info-soft': '#e6f1fc', 'info-line': '#bcd8f4', 'info-text': '#20588f',
+      'neutral': '#a9b5c2', 'neutral-soft': '#e8edf2', 'neutral-line': '#ccd6df', 'neutral-text': '#45515e',
+      'side-bg': '#e6f2f2', 'side-2': '#d9eaeb', 'side-line': '#c8dde0', 'side-text': '#1e2833', 'side-muted': '#4a5867', 'side-hi': '#4fb36a',
+      'side-active': '#d3eedb', 'side-active-text': '#1a5c2e', 'side-avatar': '#cce9d4', 'side-avatar-text': '#1a5c2e', 'side-em': '#216b37', 'side-soft': '#45515e',
+      'side-danger': '#a32f2f', 'side-danger-soft': '#fbdcdc', 'side-count': '#c03b3b', 'side-count-alt': '#b14f17', 'sale': '#ffb48f', 'sale-text': '#4a200a',
+      'furrow': 'rgba(79, 179, 106, 0.13)',
+      'chart-1': '#5cbf77', 'chart-2': '#6aa8e6', 'chart-3': '#ef8a8a', 'chart-4': '#f6a873', 'chart-5': '#a596e6', 'chart-6': '#4dbdc6', 'chart-grid': '#e3e9ef'
+    },
+    dark: {
+      'bg-page': '#1b222b', 'surface': '#222a35', 'surface-raised': '#28313d', 'surface-muted': '#28313d', 'surface-hover': '#2e3845', 'surface-strong': '#354050', 'field-bg': '#1e2530', 'table-head-bg': '#28313d',
+      'border-subtle': '#333e4b', 'border-strong': '#4a5767',
+      'text-primary': '#e7edf3', 'text-secondary': '#bfc9d4', 'text-muted': '#9ca8b5', 'text-inverse': '#142030',
+      'brand': '#96d8a6', 'brand-hover': '#b0e3bc', 'brand-contrast': '#123619', 'brand-soft': '#284236', 'brand-soft-hover': '#2e4d3e', 'brand-line': '#3f6a52', 'brand-text': '#a9e4b7',
+      'accent': '#ffbd9c', 'accent-hover': '#ffcfb6', 'accent-contrast': '#4a200a', 'accent-soft': '#4a3631', 'accent-line': '#74503f', 'accent-text': '#ffc6a8',
+      'success': '#96d8a6', 'success-soft': '#284236', 'success-line': '#3f6a52', 'success-text': '#a9e4b7',
+      'warning': '#f3d382', 'warning-soft': '#443e2c', 'warning-line': '#6b6038', 'warning-text': '#f5da95',
+      'danger': '#f4abab', 'danger-soft': '#4a2f35', 'danger-line': '#744550', 'danger-text': '#f7baba',
+      'info': '#9fcaf2', 'info-soft': '#263b52', 'info-line': '#3c5a7a', 'info-text': '#b3d5f6',
+      'neutral': '#a9b5c2', 'neutral-soft': '#2e3845', 'neutral-line': '#4a5767', 'neutral-text': '#bfc9d4',
+      'side-bg': '#212a35', 'side-2': '#2a3441', 'side-line': '#35414f', 'side-text': '#e7edf3', 'side-muted': '#a7b3c0', 'side-hi': '#96d8a6',
+      'side-active': '#2c4a3b', 'side-active-text': '#bdeccb', 'side-avatar': '#2f5341', 'side-avatar-text': '#bdeccb', 'side-em': '#a9e4b7', 'side-soft': '#bfc9d4',
+      'side-danger': '#f7baba', 'side-danger-soft': '#4a2f35', 'side-count': '#c03b3b', 'side-count-alt': '#b14f17', 'sale': '#ffbd9c', 'sale-text': '#4a200a',
+      'furrow': 'rgba(150, 216, 166, 0.05)',
+      'chart-1': '#7fd096', 'chart-2': '#85b9ec', 'chart-3': '#f19b9b', 'chart-4': '#f8b688', 'chart-5': '#b6a9ec', 'chart-6': '#6ccbd3', 'chart-grid': '#303a47'
+    }
+  }
+};
+
+/* Kontrol edilen çiftler: [etiket, metin, zemin, (zeminin altı)] — contrast-check.mjs ile aynı mantık */
+var PAIRS = [
+  ['Ana metin / kart', 'text-primary', 'surface'],
+  ['İkincil metin / kart', 'text-secondary', 'surface'],
+  ['Soluk metin / kart', 'text-muted', 'surface'],
+  ['Soluk metin / şerit', 'text-muted', 'surface-muted'],
+  ['Soluk metin / sayfa', 'text-muted', 'bg-page'],
+  ['F1 Nakit · Kaydet (marka dolgu)', 'brand-contrast', 'brand'],
+  ['F3 Veresiye · Yeni satış (vurgu)', 'accent-contrast', 'accent'],
+  ['Hızlı Satış (sidebar)', 'sale-text', 'sale'],
+  ['Dolu başarı ikon karesi', 'text-inverse', 'success'],
+  ['Dolu uyarı ikon karesi', 'text-inverse', 'warning'],
+  ['Dolu kritik ikon karesi', 'text-inverse', 'danger'],
+  ['Dolu bilgi ikon karesi', 'text-inverse', 'info'],
+  ['Marka pill / seçili satır', 'brand-text', 'brand-soft', 'surface'],
+  ['Vurgu pill', 'accent-text', 'accent-soft', 'surface'],
+  ['Normal pill', 'success-text', 'success-soft', 'surface'],
+  ['Uyarı pill / blok', 'warning-text', 'warning-soft', 'surface'],
+  ['Kritik pill / blok', 'danger-text', 'danger-soft', 'surface'],
+  ['Bilgi pill / blok', 'info-text', 'info-soft', 'surface'],
+  ['Nötr pill', 'neutral-text', 'neutral-soft', 'surface'],
+  ['Kritik metin / kart (form hatası)', 'danger-text', 'surface'],
+  ['Marka metin / kart', 'brand-text', 'surface'],
+  ['Sidebar metin', 'side-text', 'side-bg'],
+  ['Sidebar soluk metin', 'side-muted', 'side-bg'],
+  ['Sidebar soluk / kullanıcı kutusu', 'side-muted', 'side-2'],
+  ['Sidebar aktif öğe (pill)', 'side-active-text', 'side-active', 'side-bg'],
+  ['Ciro kartı ikincil', 'side-soft', 'side-bg'],
+  ['Ciro trend pill', 'side-em', 'side-active', 'side-bg'],
+  ['Ciro negatif trend', 'side-danger', 'side-danger-soft', 'side-bg'],
+  ['Sayaç rozeti (kritik)', '#ffffff', 'side-count'],
+  ['Sayaç rozeti (veresiye)', '#ffffff', 'side-count-alt']
+];
+
+function hexToRgba(v) {
+  v = String(v).trim();
+  var m = v.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (m) { var h = m[1]; if (h.length === 3) h = h.split('').map(function (c) { return c + c; }).join(''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16), 1]; }
+  m = v.match(/^rgba?\(([^)]+)\)$/);
+  if (m) { var p = m[1].split(',').map(parseFloat); return [p[0], p[1], p[2], p[3] == null ? 1 : p[3]]; }
+  throw new Error('Renk çözülemedi: ' + v);
+}
+function over(fg, bg) { var a = fg[3]; return [0, 1, 2].map(function (i) { return fg[i] * a + bg[i] * (1 - a); }).concat(1); }
+function lum(c) { var x = c.slice(0, 3).map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * x[0] + 0.7152 * x[1] + 0.0722 * x[2]; }
+function ratio(a, b) { var l = [lum(a), lum(b)].sort(function (x, y) { return y - x; }); return (l[0] + 0.05) / (l[1] + 0.05); }
+function col(t, k) { return hexToRgba(k.charAt(0) === '#' ? k : t[k]); }
+function checkTheme(t) {
+  return PAIRS.map(function (p) {
+    var base = p[3] ? col(t, p[3]) : col(t, 'surface');
+    var bg = over(col(t, p[2]), base);
+    var fg = over(col(t, p[1]), bg);
+    return { label: p[0], fg: p[1], bg: p[2], r: ratio(fg, bg), fgc: fg, bgc: bg };
+  });
+}
+/*END*/
+
+(function () {
+  if (typeof document === 'undefined') return;
+  var state = { v: 'v1', theme: 'light' };
+  try { var s = JSON.parse(localStorage.getItem('renk-secenekleri') || '{}'); if (VARIANTS[s.v]) state.v = s.v; if (s.theme === 'dark' || s.theme === 'light') state.theme = s.theme; } catch (e) {}
+  var qs = new URLSearchParams(location.search);
+  if (VARIANTS[qs.get('v')]) state.v = qs.get('v');
+  if (qs.get('theme') === 'dark' || qs.get('theme') === 'light') state.theme = qs.get('theme');
+  if (qs.get('shot')) { document.body.style.zoom = qs.get('shot') === '1' ? '0.8' : qs.get('shot'); document.querySelector('.pg-head').style.display = 'none'; }
+
+  var stage = document.getElementById('stage');
+  var tabs = document.getElementById('tabs');
+  Object.keys(VARIANTS).forEach(function (k) {
+    var v = VARIANTS[k], b = document.createElement('button');
+    b.className = 'tab'; b.type = 'button'; b.setAttribute('role', 'tab'); b.dataset.v = k;
+    b.innerHTML = '<span class="dots">' + ['side-bg', 'brand', 'accent', 'warning-soft'].map(function (c) { return '<i style="background:' + v.light[c] + '"></i>'; }).join('') + '</span>' + v.name;
+    b.onclick = function () { state.v = k; render(); };
+    tabs.appendChild(b);
+  });
+  document.querySelectorAll('.themebar button').forEach(function (b) { b.onclick = function () { state.theme = b.dataset.theme; render(); }; });
+
+  function fmt(r) { return r.toFixed(1).replace('.', ',') + ':1'; }
+  function hex(c) { return '#' + c.slice(0, 3).map(function (x) { return Math.round(x).toString(16).padStart(2, '0'); }).join(''); }
+
+  function chart(t) {
+    var svg = document.getElementById('chart'), days = ['Cum', 'Cmt', 'Paz', 'Pzt', 'Sal', 'Çar', 'Per'];
+    var data = [[9, 5, 3, 6, 2, 3], [12, 6, 2, 7, 3, 4], [4, 2, 1, 2, 1, 1], [10, 7, 3, 5, 2, 4], [8, 5, 2, 6, 3, 3], [11, 6, 4, 7, 2, 5], [13, 8, 3, 8, 3, 4]];
+    var h = '', W = 420, H = 150, x0 = 30, bw = 34, gap = (W - x0 - 7 * bw) / 7, max = 45;
+    for (var g = 0; g <= 4; g++) { var y = H - g * (H - 10) / 4; h += '<line x1="' + x0 + '" x2="' + W + '" y1="' + y + '" y2="' + y + '" stroke="' + t['chart-grid'] + '" stroke-width="1"/><text x="' + (x0 - 6) + '" y="' + (y + 4) + '" text-anchor="end" font-size="10" fill="' + t['text-muted'] + '">' + (g * 10) + 'B</text>'; }
+    data.forEach(function (d, i) {
+      var x = x0 + gap / 2 + i * (bw + gap), y = H;
+      d.forEach(function (v, j) { var hh = v / max * (H - 10); y -= hh; h += '<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + Math.max(hh - 1.5, 0) + '" rx="2" fill="' + t['chart-' + (j + 1)] + '"/>'; });
+      h += '<text x="' + (x + bw / 2) + '" y="' + (H + 15) + '" text-anchor="middle" font-size="11" fill="' + t['text-secondary'] + '">' + days[i] + '</text>';
+    });
+    svg.innerHTML = h;
+    document.getElementById('legend').innerHTML = ['Herbisit', 'İnsektisit', 'Fungisit', 'Gübre', 'Tohum', 'Diğer'].map(function (n, i) { return '<span><i style="background:' + t['chart-' + (i + 1)] + '"></i>' + n + '</span>'; }).join('');
+  }
+
+  function render() {
+    var V = VARIANTS[state.v], t = V[state.theme];
+    Object.keys(t).forEach(function (k) { stage.style.setProperty('--' + k, t[k]); });
+    stage.dataset.theme = state.theme;
+    document.querySelectorAll('.tab').forEach(function (b) { b.setAttribute('aria-selected', b.dataset.v === state.v ? 'true' : 'false'); });
+    document.querySelectorAll('.themebar button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.theme === state.theme ? 'true' : 'false'); });
+    chart(t);
+
+    var L = checkTheme(V.light), D = checkTheme(V.dark);
+    var fails = L.concat(D).filter(function (r) { return r.r < 4.5; }).length;
+    var minL = Math.min.apply(null, L.map(function (r) { return r.r; })), minD = Math.min.apply(null, D.map(function (r) { return r.r; }));
+    document.getElementById('vdesc').innerHTML = '<b>' + V.name + '</b><span>' + V.desc + '</span><span class="sum ' + (fails ? 'bad' : 'ok') + '">' + (fails ? '✗ ' + fails + ' çift AA altında' : '✓ ' + (L.length * 2) + ' çiftin tümü AA · en düşük ' + fmt(Math.min(minL, minD))) + '</span>';
+
+    var rows = '<thead><tr><th>Kullanım</th><th>Çift (metin / zemin)</th><th>Açık örnek</th><th style="text-align:right">Açık</th><th>Koyu örnek</th><th style="text-align:right">Koyu</th></tr></thead><tbody>';
+    L.forEach(function (l, i) {
+      var d = D[i];
+      rows += '<tr><td>' + l.label + '</td><td><code>' + l.fg + '</code> / <code>' + l.bg + '</code></td>' +
+        '<td><span class="sample" style="background:' + hex(l.bgc) + ';color:' + hex(l.fgc) + '">Satış 2.480 ₺</span></td><td class="r ' + (l.r >= 4.5 ? 'ok' : 'bad') + '">' + (l.r >= 4.5 ? '✓ ' : '✗ ') + fmt(l.r) + '</td>' +
+        '<td><span class="sample" style="background:' + hex(d.bgc) + ';color:' + hex(d.fgc) + '">Satış 2.480 ₺</span></td><td class="r ' + (d.r >= 4.5 ? 'ok' : 'bad') + '">' + (d.r >= 4.5 ? '✓ ' : '✗ ') + fmt(d.r) + '</td></tr>';
+    });
+    document.getElementById('ctable').innerHTML = rows + '</tbody>';
+
+    document.getElementById('tokname').textContent = V.name;
+    var GROUPS = [
+      ['Zemin / yüzey', ['bg-page', 'surface', 'surface-raised', 'surface-muted', 'surface-hover', 'surface-strong', 'field-bg', 'table-head-bg']],
+      ['Kenarlık', ['border-subtle', 'border-strong']],
+      ['Metin', ['text-primary', 'text-secondary', 'text-muted', 'text-inverse']],
+      ['Marka', ['brand', 'brand-hover', 'brand-contrast', 'brand-soft', 'brand-soft-hover', 'brand-line', 'brand-text']],
+      ['Vurgu', ['accent', 'accent-hover', 'accent-contrast', 'accent-soft', 'accent-line', 'accent-text']],
+      ['Durum', ['success', 'success-soft', 'success-line', 'success-text', 'warning', 'warning-soft', 'warning-line', 'warning-text', 'danger', 'danger-soft', 'danger-line', 'danger-text', 'info', 'info-soft', 'info-line', 'info-text', 'neutral', 'neutral-soft', 'neutral-line', 'neutral-text']],
+      ['Sidebar / ciro kartı / mobil çubuk', ['side-bg', 'side-2', 'side-line', 'side-text', 'side-muted', 'side-hi', 'side-active', 'side-active-text', 'side-avatar', 'side-avatar-text', 'side-em', 'side-soft', 'side-danger', 'side-danger-soft', 'side-count', 'side-count-alt', 'sale', 'sale-text', 'furrow']],
+      ['Grafik', ['chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5', 'chart-6', 'chart-grid']]
+    ];
+    var tr = '<thead><tr><th>Grup</th><th>Değişken</th><th>Açık (:root)</th><th>Koyu (html.dark)</th></tr></thead><tbody>';
+    GROUPS.forEach(function (g) {
+      g[1].forEach(function (k, i) {
+        tr += '<tr><td>' + (i === 0 ? '<b>' + g[0] + '</b>' : '') + '</td><td><code>--' + k + '</code></td><td><span class="sw" style="background:' + V.light[k] + '"></span><code>' + V.light[k] + '</code></td><td><span class="sw" style="background:' + V.dark[k] + '"></span><code>' + V.dark[k] + '</code></td></tr>';
+      });
+    });
+    document.getElementById('toktable').innerHTML = tr + '</tbody>';
+    document.getElementById('copy').onclick = function () {
+      var out = '// ' + V.name + '\n:root {\n';
+      GROUPS.forEach(function (g) { g[1].forEach(function (k) { out += '  --' + k + ': ' + V.light[k] + ';\n'; }); });
+      out += '}\n\nhtml.dark {\n';
+      GROUPS.forEach(function (g) { g[1].forEach(function (k) { out += '  --' + k + ': ' + V.dark[k] + ';\n'; }); });
+      out += '}\n';
+      var btn = this;
+      try { navigator.clipboard.writeText(out).then(function () { btn.textContent = 'Kopyalandı'; setTimeout(function () { btn.innerHTML = '<i class="pi pi-copy"></i> SCSS olarak kopyala'; }, 1500); }); } catch (e) {}
+    };
+
+    var cmp = '';
+    Object.keys(VARIANTS).forEach(function (k) {
+      var v = VARIANTS[k], l = v.light;
+      cmp += '<div class="c"><b>' + v.name + '</b><div class="strip">' + ['bg-page', 'surface', 'side-bg', 'side-active', 'brand', 'accent', 'success-soft', 'warning-soft', 'danger-soft', 'info-soft'].map(function (c) { return '<i title="--' + c + '" style="background:' + l[c] + '"></i>'; }).join('') + '</div><p>' + v.desc + '</p></div>';
+    });
+    document.getElementById('cmp').innerHTML = cmp;
+    try { localStorage.setItem('renk-secenekleri', JSON.stringify(state)); } catch (e) {}
+  }
+  render();
+})();
+</script>
+</body>
+</html>

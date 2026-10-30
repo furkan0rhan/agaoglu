@@ -193,8 +193,13 @@ export function toSheetRows(docs: readonly BackupDoc[]): (string | number | bool
 }
 
 /** Son yedek `days` günden eskiyse (veya hiç yoksa) true */
-export function backupOverdue(lastBackupAt: Date | null, now: Date = new Date(), days: number = BACKUP_REMINDER_DAYS): boolean {
-  if (!lastBackupAt) return true;
+/**
+ * @param tenantCreatedAt Y15: hiç yedek yoksa, işletme `days` günden yeniyse uyarı verme (yeni hesapta ürkütücü / yanlış).
+ */
+export function backupOverdue(
+  lastBackupAt: Date | null, now: Date = new Date(), days: number = BACKUP_REMINDER_DAYS, tenantCreatedAt: Date | null = null,
+): boolean {
+  if (!lastBackupAt) return !tenantCreatedAt || now.getTime() - tenantCreatedAt.getTime() > days * 86_400_000;
   return now.getTime() - lastBackupAt.getTime() > days * 86_400_000;
 }
 

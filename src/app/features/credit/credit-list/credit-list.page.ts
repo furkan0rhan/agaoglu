@@ -53,7 +53,7 @@ type DueFilter = 'all' | 'overdue' | 'week';
             @for (f of filters(); track f.value) {
               <button type="button" (click)="filter.set(f.value)" [attr.aria-pressed]="filter() === f.value"
                 class="inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-token-md border px-3.5 text-13.5 font-semibold transition-colors"
-                [class]="filter() === f.value ? 'border-fg bg-fg text-surface' : 'border-line-strong bg-surface text-fg-secondary hover:bg-surface-hover'">
+                [class]="filter() === f.value ? 'border-brand-line bg-brand-soft text-brand-text' : 'border-line-strong bg-surface text-fg-secondary hover:bg-surface-hover'">
                 @if (f.value === 'overdue') { <span class="h-2 w-2 rounded-full bg-danger" aria-hidden="true"></span> }
                 @if (f.value === 'week') { <span class="h-2 w-2 rounded-full bg-warning" aria-hidden="true"></span> }
                 {{ f.label }}<span class="num opacity-70">{{ f.count }}</span>

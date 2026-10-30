@@ -19,6 +19,10 @@ export class ReceiptBusinessService {
   private readonly logger = inject(LoggerService);
   private cache: { tenantId: string; value: ReceiptBusiness } | null = null;
 
+  constructor() {
+    this.auth.onSessionChange(() => this.invalidate());
+  }
+
   async get(): Promise<ReceiptBusiness> {
     const tenantId = this.auth.currentTenantId();
     if (this.cache?.tenantId === tenantId) return this.cache.value;

@@ -93,6 +93,8 @@ export interface DealerProductOption {
   id: string;
   name: string;
   productType: string | null;
+  /** Satış birimi (adet / kg / lt …) */
+  unit: string | null;
   requiresPrescription: boolean;
   phiDays: number | null;
   activeIngredient: string | null;
@@ -109,6 +111,9 @@ export interface NewInvite {
 }
 
 export type NewRecommendation = Omit<Recommendation, 'id' | 'createdAt' | 'status'>;
+
+/** Bağlantı izleyicisinin müşteri kartından okuduğu alanlar. */
+export interface CustomerLinkInfo { balance: number | null; farmerId: string | null }
 
 export interface DealerFarmerRepository {
   getTenantName(tenantId: string): Promise<string>;
@@ -131,6 +136,31 @@ export interface DealerFarmerRepository {
    * veresiye bakiyesini bağlantıya yansıtır. Döner: yazılan satış sayısı.
    */
   syncCustomerToFarmer(link: FarmerLink, tenantName: string): Promise<number>;
+  /**
+   * Müşteri kartına bağlı çiftçiyi işaretler (`customers.farmerId`; koparılınca null). Yalnız bilgi amaçlı ipucu —
+   * senkron her zaman `farmerLinks` üzerinden bağlantıyı bulur.
+   */
+  setCustomerFarmerId(customerId: string, farmerId: string | null): Promise<void>;
+  /** İşletmenin bağlantılarını canlı izler (yalnız sunucu onaylı anlık görüntüler). Döner: aboneliği bitir. */
+  watchTenantLinks(tenantId: string, next: (links: FarmerLink[]) => void, error: (err: unknown) => void): () => void;
+  /** Tek müşteri kartının bakiye / farmerId alanlarını canlı izler. */
+  watchCustomer(customerId: string, next: (c: CustomerLinkInfo | null) => void, error: (err: unknown) => void): () => void;
+
+  // --- İşletme geneli ("Çiftçiler" sayfası ve ana sayfa kutusu, TASKS 14.9). Paylaşım izni kuralda zorlanır. ---
+  /** İşletmenin tüm çiftçi bağlantıları (aktif + koparılmış). */
+  listTenantLinks(tenantId: string): Promise<FarmerLink[]>;
+  /** Kullanılmamış ve iptal edilmemiş davetler (süresi geçmişler dahil; ekranda ayrılır). */
+  listTenantOpenInvites(tenantId: string): Promise<FarmerInvite[]>;
+  revokeInvite(code: string): Promise<void>;
+  /** Son öneri/reçete kayıtları (yeniden eskiye). */
+  listTenantRecommendations(tenantId: string, max: number): Promise<Recommendation[]>;
+  /** Bu işletmeyle paylaşılan aktif tarlalar (tüm çiftçiler). */
+  listTenantSharedFields(tenantId: string): Promise<FarmField[]>;
+  listTenantSharedSeasons(tenantId: string): Promise<Season[]>;
+  /** Paylaşılan son defter kayıtları (tarihe göre yeniden eskiye). */
+  listTenantRecentLogs(tenantId: string, max: number): Promise<ApplicationLog[]>;
+  /** Hasat bekleme süresi `from` tarihinde/sonrasında biten paylaşılan kayıtlar. */
+  listTenantPhiLogs(tenantId: string, from: Date, max: number): Promise<ApplicationLog[]>;
 }
 
 export const FARMER_ACCOUNT_REPOSITORY = new InjectionToken<FarmerAccountRepository>('FarmerAccountRepository', {

@@ -18,6 +18,8 @@ export interface PurchaseItem {
   vatRate: number;
   expiryDate: Timestamp | null;
   gtsNumbers: string[];
+  /** Parti / şarj no (karekod AI 10). Eski kayıtlarda yoktur. */
+  lotNo?: string | null;
   /** quantity × unitCost (KDV hariç, iskonto öncesi) */
   lineSubtotal: number;
   /** Satırın KDV'si (iskonto öncesi) */

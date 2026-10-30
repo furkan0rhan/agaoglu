@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { UiTone } from './tone';
 
+/** Halka koyu `-text` tonlarıyla çizilir: pastel dolgu (--brand vb.) krem zeminde çok soluk kalıyordu (14.12). */
 const STROKE: Record<UiTone, string> = {
-  neutral: 'var(--text-secondary)', brand: 'var(--brand)', accent: 'var(--accent)', success: 'var(--success)',
-  warning: 'var(--warning)', danger: 'var(--danger)', info: 'var(--info)',
+  neutral: 'var(--text-secondary)', brand: 'var(--brand-text)', accent: 'var(--accent-text)', success: 'var(--success-text)',
+  warning: 'var(--warning-text)', danger: 'var(--danger-text)', info: 'var(--info-text)',
 };
 
 /**

@@ -35,10 +35,7 @@
               {
                 "glob": "**/*",
                 "input": "src/assets",
-                "output": "assets",
-                "ignore": [
-                  "_orig/**"
-                ]
+                "output": "assets"
               }
             ],
             "styles": [

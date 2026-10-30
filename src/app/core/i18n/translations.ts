@@ -12,7 +12,7 @@ export type Lang = 'tr' | 'en';
 export interface Translations {
   /** Mevzuat: e-reçete, ruhsat, GTS izlenebilirlik (ürün / POS / satış). */
   compliance: {
-    sectionTitle: string; sectionSubtitle: string; productType: string;
+    sectionTitle: string; productType: string;
     typeBitkiKoruma: string; typeGubre: string; typeTohum: string; typeFide: string; typeDiger: string;
     requiresPrescription: string; requiresPrescriptionHint: string;
     licenseNo: string; activeIngredient: string; phiDays: string; phiHint: string; toxicityClass: string;
@@ -45,7 +45,7 @@ export interface Translations {
     offline: string; offlineDesc: string;
     team: string; adminPanel: string;
     account: string; logout: string; mainMenu: string; userMenu: string;
-    collapseMenu: string; expandMenu: string; searchHint: string; language: string; online: string;
+    collapseMenu: string; expandMenu: string; language: string; online: string;
   };
   common: {
     save: string; cancel: string; edit: string; add: string; delete: string;
@@ -67,7 +67,7 @@ export interface Translations {
     hasAccount: string; goLogin: string;
     forgotTitle: string; forgotSubtitle: string; sendReset: string;
     backToLogin: string; resetSent: string;
-    verifyTitle: string; verifySubtitle: string; resendEmail: string; goHome: string;
+    verifyTitle: string; verifySubtitle: string; resendEmail: string;
     verifyConfirm: string; otherAccount: string;
     notVerifiedYet: string; resendFailed: string;
     errUserNotFound: string; errWrongPassword: string;
@@ -80,62 +80,61 @@ export interface Translations {
   dashboard: {
     title: string; dateFormat: string;
     todaySales: string; todayLabel: string;
-    totalProducts: string; activeProducts: string;
+    totalProducts: string;
     criticalStock: string; warning: string;
-    expiryDate: string; attention: string; in30Days: string;
-    criticalStockWarning: string; expiringProducts: string;
+    expiryDate: string; in30Days: string;
+    expiringProducts: string;
     transactions: string; items: string;
     expired: string; expiresToday: string; daysLeft: string;
     weekSales: string; monthSales: string; todayGrossProfit: string; estimated: string;
-    recentSales: string; noSalesToday: string; viewReports: string;
-    quickActions: string; newSale: string; newSaleDesc: string; addProduct: string; addProductDesc: string;
-    collect: string; collectDesc: string; viewAll: string; stockOk: string; noExpiring: string;
+    recentSales: string; noSalesToday: string;
+    quickActions: string; newSale: string; addProduct: string;
+    collect: string; viewAll: string; stockOk: string; noExpiring: string;
     goodMorning: string; goodAfternoon: string; goodEvening: string; firstSaleHint: string; revenue: string;
   };
   products: {
     title: string; newProduct: string; editProduct: string; addProduct: string;
     editSubtitle: string; addSubtitle: string;
-    searchPlaceholder: string; criticalStock: string; nearExpiry: string;
+    searchPlaceholder: string; criticalStock: string;
     loadError: string; noProducts: string; addFirst: string;
-    addToCart: string; salePrice: string; criticalStockWarn: string;
+    addToCart: string; salePrice: string;
     expired: string; expiresToday: string; daysLeftPrefix: string;
-    detail: string; currentStock: string; minStockWarn: string;
-    productInfo: string; stockMovements: string; viewAll: string;
-    noMovements: string; stockActions: string; addStock: string;
+    detail: string; currentStock: string;
+    stockMovements: string; viewAll: string;
+    noMovements: string; addStock: string;
     removeStock: string; viewMovements: string;
-    prices: string; purchasePrice: string; vat: string; margin: string;
-    batches: string; batchCount: string; noBatches: string; noExpiry: string;
+    purchasePrice: string; vat: string; margin: string;
+    batches: string; noExpiry: string;
     piece: string;
     formName: string; formBarcode: string; formBrand: string; formCategory: string;
-    formPricing: string; formVat: string; formStockInfo: string; formStockQty: string;
-    formMinStock: string; formFirstBatch: string; formGtsNo: string;
+    formVat: string; formStockQty: string;
+    formMinStock: string; formGtsNo: string;
     formExpiry: string; formDescription: string; formIsActive: string;
     formIsActiveDesc: string; formNameRequired: string;
     formCategoryPlaceholder: string; formVatPlaceholder: string;
-    formGtsPlaceholder: string; formExpiryPlaceholder: string;
+    formExpiryPlaceholder: string;
     formDescriptionPlaceholder: string; formBarcodePlaceholder: string;
     formBrandPlaceholder: string;
     dialogAddStock: string; dialogRemoveStock: string;
     dialogQty: string; dialogReason: string; dialogSupplier: string;
     dialogSelectSupplier: string; dialogGts: string; dialogExpiry: string;
-    dialogReasonPlaceholder: string; dialogGtsPlaceholder: string;
+    dialogReasonPlaceholder: string;
     dialogExpiryPlaceholder: string; dialogAdd: string; dialogRemove: string;
     updated: string; added: string; stockUpdated: string;
     updateFailed: string; stockFailed: string;
     permissionError: string; categoryOther: string;
-    categoryPlaceholder: string;
     stockIn: string; stockOut: string;
     infoName: string; infoCategory: string; infoBarcode: string; infoBrand: string;
     infoMinStock: string; infoVat: string; infoExpiry: string; infoDescription: string;
     totalMovements: string; movementsIn: string; movementsOut: string;
     active: string; passive: string; makeActive: string; makePassive: string;
-    statusUpdated: string; statusFailed: string; showPassive: string; passiveTag: string;
+    statusUpdated: string; statusFailed: string; showPassive: string;
     deleteTitle: string; deleteConfirm: string; deleteAccept: string; deleteCancel: string;
     deleted: string; deleteFailed: string;
     dialogGtsScanPlaceholder: string; dialogGtsDuplicate: string;
-    dialogGtsListEmpty: string; dialogQtyAuto: string; dialogGtsUnit: string;
+    dialogGtsListEmpty: string;
     gtsListTitle: string; gtsAddBtn: string; gtsColExpiry: string; gtsColAdded: string;
-    gtsColQty: string; gtsNone: string; gtsEmpty: string;
+    gtsNone: string; gtsEmpty: string;
     gtsRemoveTitle: string; gtsRemoveConfirm: string; gtsRemoved: string; gtsSaved: string;
     gtsColCode: string; dayShort: string; locale: string; expiredBadge: string; expiredUnits: string;
     mismatchTitle: string; mismatchStock: string; mismatchBatchTotal: string;
@@ -145,38 +144,40 @@ export interface Translations {
     gtsRemoveQtyTitle: string; gtsRemoveQtyLabel: string; gtsRemoveQtyHint: string;
     gtsDuplicateOther: string; barcodeDuplicate: string; vatInvalid: string;
     categoryRequired: string; salePriceRequired: string; formStockEditHint: string;
-    movementsLimitNote: string; formGtsMultiHint: string;
+    movementsLimitNote: string;
     unitLabel: string; unitAdet: string; unitKg: string; unitLt: string; unitPaket: string; unitCuval: string; unitMetre: string;
     unitDecimalHint: string; markup: string; productCount: string; loadMore: string; outOfStock: string;
-    quickFilters: string; cartIncrease: string; cartDecrease: string; inCart: string; gtsChipRemove: string;
+    cartIncrease: string; cartDecrease: string; inCart: string; gtsChipRemove: string;
     reconcileHint: string; gtsUnitsCount: string;
   };
   pos: {
-    title: string; emptyCart: string; emptyCartDesc: string; goToProducts: string;
+    title: string; emptyCart: string; goToProducts: string;
     clearCart: string; selectCustomer: string;
-    orderSummary: string; subtotal: string; discount: string; total: string;
-    cashPayment: string; cardPayment: string; creditPayment: string;
+    subtotal: string; discount: string; total: string;
+    cashPayment: string; creditPayment: string;
     cash: string; card: string;
     totalAmount: string; receivedAmount: string; change: string;
     complete: string; cancel: string;
-    basketAmount: string; interestRate: string; installments: string;
+    interestRate: string; installments: string;
     interestAmount: string; totalWithInterest: string; perInstallment: string;
+    /** Y12: fişte veresiyeye yazılan borç (peşinat düşülmüş, vade farkı dahil) — "toplam" değildir. */
+    creditDebtWithInterest: string;
     searchCustomer: string; noCustomer: string;
     saleCompleted: string; saleFailed: string; barcodeNotFound: string; added: string;
-    items: string; itemUnit: string;
+    items: string;
     outOfStock: string; stockLimit: string; insufficientCash: string;
     remainingToCredit: string; creditNeedsCustomer: string;
-    viewDetail: string; productUnavailable: string; globalDiscount: string;
+    productUnavailable: string; globalDiscount: string;
     insufficientStock: string; expiredUnitsWarn: string; batchShortfallWarn: string;
     confirmSaleTitle: string; confirmSellAnyway: string;
     units: { adet: string; kg: string; lt: string; paket: string; cuval: string; metre: string };
     pageTitle: string; searchLabel: string; searchPlaceholder: string; scannerReady: string; scannerPaused: string;
-    noResults: string; resultsHint: string; searchResults: string; allProducts: string; moreResults: string;
+    noResults: string; moreResults: string;
     inCart: string; stock: string; quantity: string; decrease: string; increase: string; removeItem: string;
     emptyCartHint: string; changeCustomer: string; removeCustomer: string;
-    addDiscount: string; discountPercent: string; discountAmount: string; discountValue: string; removeDiscount: string;
+    discountPercent: string; discountAmount: string; discountValue: string; removeDiscount: string;
     cardConfirmTitle: string; cardConfirmQuestion: string; cardConfirmYes: string;
-    exactAmount: string; quickAmounts: string; printReceipt: string; newSale: string; lastInstallment: string;
+    printReceipt: string; newSale: string;
   };
   sales: {
     title: string; subtitle: string; saleRef: string; cancelRef: string;
@@ -189,8 +190,14 @@ export interface Translations {
     cashPaid: string; cardPaid: string; creditAmount: string; change: string;
     cancelSale: string; cancelConfirmTitle: string; cancelConfirmDesc: string;
     cancelReason: string; cancelSuccess: string; cancelFailed: string; alreadyCancelled: string;
-    cancelledAt: string; count: string; totalRevenue: string;
+    cancelledAt: string; count: string;
+    /** Y4: iptal yetkisi / zorunlu neden */
+    cancelReasonPlaceholder: string; cancelReasonRequired: string; cancelDeniedOwn: string; cancelDeniedToday: string;
+    cancelDeniedRole: string; cancelAudit: string;
     printReceipt: string; thankYou: string; receiptTotal: string; items: string;
+    /** Y12 fiş: KDV dökümü, borçlu imza; Y11 tahsilat makbuzu */
+    vatBreakdown: string; vatBase: string; vatUnknown: string; debtorSignature: string;
+    paymentReceipt: string; paymentAmount: string; prevBalance: string; newBalance: string; methodTransfer: string;
   };
   customers: {
     title: string; newCustomer: string; searchPlaceholder: string;
@@ -203,14 +210,14 @@ export interface Translations {
     phonePlaceholder: string; emailPlaceholder: string;
     addressPlaceholder: string; notesPlaceholder: string; tcNoPlaceholder: string;
     firstNameRequired: string; lastNameRequired: string; phoneRequired: string;
-    customerInfo: string; debtStatus: string;
+    customerInfo: string;
     noDebt: string; debt: string; totalDebt: string;
-    totalPaid: string; remainingBalance: string; accountSummary: string;
-    transactions: string; noTransactions: string; viewTransactions: string;
+    totalPaid: string; accountSummary: string;
+    transactions: string; noTransactions: string;
     added: string; updated: string; saveFailed: string;
     showArchived: string; archivedBadge: string; restore: string; restored: string;
     deleteTitle: string; deleteConfirm: string; deleted: string; deleteFailed: string; deleteHasBalance: string;
-    countSuffix: string; emptyHint: string; collectPayment: string; emailInvalid: string; tcNoInvalid: string;
+    countSuffix: string; emptyHint: string; emailInvalid: string; tcNoInvalid: string;
     village: string; villagePlaceholder: string; cksNo: string; cksNoPlaceholder: string;
     creditLimit: string; creditLimitHint: string; phoneInvalid: string; tcNoChecksum: string; tcNeedsConsent: string;
     kvkkTitle: string; kvkkShow: string; kvkkSection: string; kvkkInfo: string; kvkkLoadFailed: string; print: string;
@@ -225,22 +232,21 @@ export interface Translations {
   credit: {
     title: string; debtors: string; searchPlaceholder: string;
     noDebtors: string; debt: string;
-    cashCollection: string; cardCollection: string;
     currentDebt: string; collectionAmount: string; note: string;
-    notePlaceholder: string; descriptionPlaceholder: string;
+    notePlaceholder: string;
     collected: string; collectFailed: string;
-    movementHistory: string; records: string; saveFailed: string;
+    records: string; saveFailed: string;
     noTransactions: string;
-    paidWithCard: string; paidCash: string; paid: string;
+    paid: string;
     cashPayDesc: string; cardPayDesc: string;
     overpayment: string; noDebtToCollect: string; savedOffline: string;
     totalReceivable: string; debtorCount: string; largestDebt: string; customerCard: string;
     pending: string; amountPositive: string; balanceAfter: string;
     collection: string; cash: string; card: string; saleReversal: string; creditSale: string;
     filterAll: string; filterOverdue: string; filterDueWeek: string; overdueTotal: string; overdueCustomers: string;
-    daysLate: string; overdueBadge: string; nextDue: string; dueThisWeek: string; noFilterResult: string;
-    installmentPlan: string; installmentNo: string; dueDate: string; remaining: string; noDueItems: string; undatedDebt: string;
-    creditLimit: string; limitExceeded: string; limitAvailable: string; downPayment: string;
+    daysLate: string; nextDue: string; dueThisWeek: string; noFilterResult: string;
+    dueDate: string; remaining: string; undatedDebt: string;
+    creditLimit: string; limitExceeded: string; downPayment: string;
     statement: string; statementFrom: string; statementTo: string; statementCreate: string; statementFailed: string;
     stTitle: string; stPeriod: string; stCustomer: string; stDate: string; stDescription: string;
     stDebit: string; stCredit: string; stBalance: string; stOpening: string; stClosing: string; stTotal: string;
@@ -248,7 +254,7 @@ export interface Translations {
   };
   reports: {
     title: string; subtitle: string;
-    totalRevenue: string; saleCount: string; sale: string; avgSale: string;
+    saleCount: string; sale: string;
     paymentTypes: string; cash: string; card: string; credit: string; mixed: string;
     expenseTotal: string; netProfit: string;
     salesTrend: string; noData: string;
@@ -258,7 +264,7 @@ export interface Translations {
     thisYear: string; monthsShort: string; dateLocale: string;
     grossProfit: string; cost: string; costEstimatedNote: string;
     interestIncome: string; interestIncomeNote: string;
-    collections: string; collectionsCash: string; collectionsCard: string;
+    collections: string; collectionsCash: string; collectionsCard: string; collectionsTransfer: string;
     cashRegister: string; cashSales: string; cardSales: string; creditSales: string; netCash: string; netCashNote: string;
     topProducts: string; byCategory: string; product: string; category: string; quantity: string; revenue: string;
     uncategorized: string; exportExcel: string; exportPdf: string; exportFailed: string;
@@ -272,7 +278,7 @@ export interface Translations {
     expenseName: string; expenseNamePlaceholder: string;
     amount: string; category: string; date: string; note: string;
     notePlaceholder: string; recurring: string; recurringDesc: string;
-    editExpense: string; addExpenseTitle: string;
+    addExpenseTitle: string;
     added: string; deleted: string;
     deleteTitle: string; deleteConfirm: string; deleteYes: string; deleteNo: string;
     deleteSeries: string; deleteOnlyThis: string; deleteSeriesConfirm: string; seriesDeleted: string;
@@ -281,7 +287,7 @@ export interface Translations {
   suppliers: {
     title: string; newSupplier: string; searchPlaceholder: string;
     noInfo: string; noSuppliers: string;
-    editSupplier: string; addSupplier: string;
+    addSupplier: string;
     editSubtitle: string; addSubtitle: string;
     companyName: string; companyNamePlaceholder: string; companyNameRequired: string;
     contactPerson: string; contactPersonPlaceholder: string; contactShort: string;
@@ -301,21 +307,18 @@ export interface Translations {
   };
   stockCount: {
     title: string; subtitle: string; complete: string;
-    searchPlaceholder: string; countedLabel: string; diffLabel: string;
-    system: string; noChanges: string; changes: string;
+    searchPlaceholder: string; countedLabel: string;
+    system: string; changes: string;
     shortage: string; surplus: string; completed: string;
-    confirmTitle: string; confirmSubtitle: string;
-    reason: string; batchAffected: string; noExpiry: string; apply: string;
-    shortageExpiry: string; shortageDamage: string; shortageTheft: string;
-    shortageCountError: string; shortageOther: string;
-    surplusCountError: string; surplusReturn: string; surplusOther: string;
+    confirmSubtitle: string;
+    reason: string; noExpiry: string; apply: string;
     failed: string;
     productsLabel: string; changesLabel: string; completedTitle: string;
     newCount: string; goToProducts: string; partialError: string;
     corrected: string; reasonsTitle: string; updated: string;
     expiryPrefix: string;
     fefoLabel: string; applying: string; errorsTitle: string; retryFailed: string;
-    countedOfTotal: string; matched: string; movementReason: string;
+    matched: string; movementReason: string;
   };
   settings: {
     title: string; subtitle: string;
@@ -327,15 +330,15 @@ export interface Translations {
     changePassword: string; currentPassword: string;
     newPassword: string; confirmPassword: string;
     passwordMismatch: string; changePasswordBtn: string;
-    appInfo: string; appName: string; version: string; platform: string;
+    appName: string; version: string; platform: string;
     logout: string; logoutDesc: string; logoutBtn: string;
     nameUpdated: string; updateFailed: string;
     verificationSent: string; emailUpdateFailed: string;
     wrongPassword: string; passwordChanged: string; passwordFailed: string;
     emailInUse: string;
-    personalInfo: string; security: string;
-    business: string; businessDesc: string; businessName: string; address: string; phone: string;
-    taxOffice: string; taxNo: string; receiptFooter: string; receiptFooterHint: string;
+    security: string;
+    business: string; businessName: string; address: string; phone: string;
+    taxOffice: string; taxNo: string; receiptFooter: string;
     businessSaved: string; businessSaveFailed: string; businessLoadFailed: string; businessReadOnly: string;
     platformDesktop: string; platformAndroid: string; platformWeb: string;
   };
@@ -360,7 +363,7 @@ export interface Translations {
 
 const TR: Translations = {
   compliance: {
-    sectionTitle: 'Mevzuat', sectionSubtitle: 'Ruhsat, e-reçete ve etiket bilgileri', productType: 'Ürün türü',
+    sectionTitle: 'Mevzuat', productType: 'Ürün türü',
     typeBitkiKoruma: 'Bitki koruma ürünü (zirai ilaç)', typeGubre: 'Gübre', typeTohum: 'Tohum', typeFide: 'Fide / Fidan', typeDiger: 'Diğer',
     requiresPrescription: 'E-reçete zorunlu',
     requiresPrescriptionHint: "Bakanlığın BKÜ Veri Tabanı'nda reçeteli olarak listelenen ürünlerde açık tutun. Satışta e-reçete no ve müşteri istenir.",
@@ -407,7 +410,7 @@ const TR: Translations = {
     team: 'Ekip',
     adminPanel: 'Yönetim Paneli',
     account: 'Hesabım', logout: 'Çıkış Yap', mainMenu: 'Ana menü', userMenu: 'Kullanıcı menüsü',
-    collapseMenu: 'Menüyü daralt', expandMenu: 'Menüyü genişlet', searchHint: 'Ürün ara veya barkod okut', language: 'Dil', online: 'Çevrimiçi',
+    collapseMenu: 'Menüyü daralt', expandMenu: 'Menüyü genişlet', language: 'Dil', online: 'Çevrimiçi',
   },
   common: {
     save: 'Kaydet', cancel: 'İptal', edit: 'Düzenle', add: 'Ekle', delete: 'Sil',
@@ -433,7 +436,7 @@ const TR: Translations = {
     forgotTitle: 'Şifre Sıfırla', forgotSubtitle: 'E-posta adresinize sıfırlama bağlantısı göndereceğiz',
     sendReset: 'Sıfırlama Gönder', backToLogin: 'Giriş sayfasına dön', resetSent: 'Sıfırlama e-postası gönderildi',
     verifyTitle: 'E-postanızı Doğrulayın', verifySubtitle: 'Kayıt e-postanıza doğrulama bağlantısı gönderdik',
-    resendEmail: 'Tekrar Gönder', goHome: 'Ana Sayfaya Git',
+    resendEmail: 'Tekrar Gönder',
     verifyConfirm: 'Doğruladım, Devam Et', otherAccount: 'Farklı hesapla giriş yap',
     notVerifiedYet: 'E-posta henüz doğrulanmadı. Maildeki linke tıkladıktan sonra tekrar dene.',
     resendFailed: 'Mail gönderilemedi, biraz bekleyip tekrar dene.',
@@ -464,18 +467,17 @@ const TR: Translations = {
   dashboard: {
     title: 'Ana Sayfa', dateFormat: 'tr-TR',
     todaySales: 'Bugünkü Satış', todayLabel: 'Bugün',
-    totalProducts: 'Toplam Ürün', activeProducts: 'aktif ürün',
+    totalProducts: 'Toplam Ürün',
     criticalStock: 'Kritik Stok', warning: 'Uyarı',
-    expiryDate: 'Son Kullanma', attention: 'Dikkat', in30Days: '30 gün içinde',
-    criticalStockWarning: 'Kritik Stok Uyarısı',
+    expiryDate: 'Son Kullanma', in30Days: '30 gün içinde',
     expiringProducts: 'Son Kullanma Tarihi Yaklaşan Ürünler',
     transactions: 'işlem', items: 'ürün',
     expired: 'SKT geçmiş', expiresToday: 'Bugün son', daysLeft: 'gün kaldı',
     weekSales: 'Bu Hafta', monthSales: 'Bu Ay', todayGrossProfit: 'Bugünkü Brüt Kâr', estimated: 'tahmini',
-    recentSales: 'Son Satışlar', noSalesToday: 'Henüz satış yok', viewReports: 'Raporlar',
-    quickActions: 'Hızlı İşlemler', newSale: 'Yeni Satış', newSaleDesc: 'Barkod okut, sepete ekle',
-    addProduct: 'Ürün Ekle', addProductDesc: 'Stoğa yeni ürün gir',
-    collect: 'Tahsilat', collectDesc: 'Veresiye ödemesi al', viewAll: 'Tümünü gör',
+    recentSales: 'Son Satışlar', noSalesToday: 'Henüz satış yok',
+    quickActions: 'Hızlı İşlemler', newSale: 'Yeni Satış',
+    addProduct: 'Ürün Ekle',
+    collect: 'Tahsilat', viewAll: 'Tümünü gör',
     stockOk: 'Tüm ürünlerin stoğu yeterli', noExpiring: '30 gün içinde SKT dolan ürün yok',
     goodMorning: 'Günaydın', goodAfternoon: 'İyi günler', goodEvening: 'İyi akşamlar',
     firstSaleHint: 'İlk satışı yaptığınızda burada görünecek', revenue: 'Ciro',
@@ -485,28 +487,27 @@ const TR: Translations = {
     editProduct: 'Ürünü Düzenle', addProduct: 'Yeni Ürün Ekle',
     editSubtitle: 'Ürün bilgilerini güncelleyin', addSubtitle: 'Yeni ürün bilgilerini girin',
     searchPlaceholder: 'Ürün adı, barkod veya marka ara...',
-    criticalStock: 'Kritik Stok', nearExpiry: 'Yakın SKT',
+    criticalStock: 'Kritik Stok',
     loadError: 'Ürünler yüklenemedi', noProducts: 'Ürün bulunamadı', addFirst: 'Ürün Ekle',
-    addToCart: 'Sepete Ekle', salePrice: 'Satış Fiyatı', criticalStockWarn: 'Kritik stok',
+    addToCart: 'Sepete Ekle', salePrice: 'Satış Fiyatı',
     expired: 'SKT geçmiş', expiresToday: 'Bugün son', daysLeftPrefix: 'SKT:',
-    detail: 'Ürün Detayı', currentStock: 'Mevcut Stok', minStockWarn: 'Min. stok:',
-    productInfo: 'Ürün Bilgileri', stockMovements: 'Son Stok Hareketleri',
+    detail: 'Ürün Detayı', currentStock: 'Mevcut Stok',
+    stockMovements: 'Son Stok Hareketleri',
     viewAll: 'Tümünü gör', noMovements: 'Henüz stok hareketi yok',
-    stockActions: 'Stok İşlemleri', addStock: 'Stok Ekle', removeStock: 'Stok Çıkar',
+    addStock: 'Stok Ekle', removeStock: 'Stok Çıkar',
     viewMovements: 'Stok Hareketleri',
-    prices: 'Fiyatlar', purchasePrice: 'Alış Fiyatı', vat: 'KDV', margin: 'Kâr Marjı',
-    batches: 'Partiler', batchCount: 'parti', noBatches: 'Parti kaydı yok', noExpiry: 'SKT yok',
+    purchasePrice: 'Alış Fiyatı', vat: 'KDV', margin: 'Kâr Marjı',
+    batches: 'Partiler', noExpiry: 'SKT yok',
     piece: 'adet',
     formName: 'Ürün Adı *', formBarcode: 'Barkod', formBrand: 'Marka', formCategory: 'Kategori *',
-    formPricing: 'Fiyatlandırma', formVat: 'KDV Oranı (%)', formStockInfo: 'Stok Bilgileri',
+    formVat: 'KDV Oranı (%)',
     formStockQty: 'Stok Miktarı *', formMinStock: 'Minimum Stok',
-    formFirstBatch: 'İlk Parti Bilgileri', formGtsNo: 'GTS No',
+    formGtsNo: 'GTS No',
     formExpiry: 'Son Kullanma Tarihi', formDescription: 'Açıklama',
     formIsActive: 'Ürün Aktif', formIsActiveDesc: 'Kapalıysa ürün listede ve satışta görünmez',
     formNameRequired: 'Ürün adı zorunlu',
     formCategoryPlaceholder: 'Kategori seçin veya yazın',
     formVatPlaceholder: 'Örn: 0, 1, 10, 20',
-    formGtsPlaceholder: 'Bu partinin GTS numarası',
     formExpiryPlaceholder: 'Tarih seçin',
     formDescriptionPlaceholder: 'Ürün açıklaması (opsiyonel)',
     formBarcodePlaceholder: 'Barkod numarası',
@@ -515,13 +516,11 @@ const TR: Translations = {
     dialogQty: 'Miktar', dialogReason: 'Neden', dialogSupplier: 'Tedarikçi',
     dialogSelectSupplier: 'Tedarikçi seçin...', dialogGts: 'GTS No', dialogExpiry: 'Son Kullanma Tarihi',
     dialogReasonPlaceholder: 'Örn: Sayım, iade, tedarik...',
-    dialogGtsPlaceholder: 'Bu partinin GTS numarası',
     dialogExpiryPlaceholder: 'GG.AA.YYYY',
     dialogAdd: 'Ekle', dialogRemove: 'Çıkar',
     updated: 'Ürün güncellendi', added: 'Ürün eklendi', stockUpdated: 'Stok güncellendi',
     updateFailed: 'Güncelleme başarısız', stockFailed: 'Stok güncellenemedi',
     permissionError: 'Yetki hatası — Firebase kurallarını kontrol edin', categoryOther: 'Diğer',
-    categoryPlaceholder: 'Kategori seçin veya yazın',
     stockIn: 'Stok girişi', stockOut: 'Stok çıkışı',
     infoName: 'Ürün Adı', infoCategory: 'Kategori', infoBarcode: 'Barkod', infoBrand: 'Marka',
     infoMinStock: 'Min. Stok', infoVat: 'KDV Oranı', infoExpiry: 'Son Kullanma',
@@ -529,7 +528,7 @@ const TR: Translations = {
     totalMovements: 'Toplam', movementsIn: 'Girişler', movementsOut: 'Çıkışlar',
     active: 'Aktif', passive: 'Pasif', makeActive: 'Aktif Et', makePassive: 'Pasif Yap',
     statusUpdated: 'Ürün durumu güncellendi', statusFailed: 'Durum güncellenemedi',
-    showPassive: 'Pasif Ürünler', passiveTag: 'Pasif',
+    showPassive: 'Pasif Ürünler',
     deleteTitle: 'Ürünü Sil',
     deleteConfirm: 'Bu ürün listeden kaldırılsın mı? Kayıt korunur, "Pasif Ürünler" filtresinden geri getirebilirsiniz.',
     deleteAccept: 'Sil', deleteCancel: 'İptal',
@@ -537,10 +536,8 @@ const TR: Translations = {
     dialogGtsScanPlaceholder: 'GTS / karekod okut veya yaz, Enter',
     dialogGtsDuplicate: 'Bu GTS zaten eklendi',
     dialogGtsListEmpty: 'Henüz GTS eklenmedi — okutunca adet otomatik artar (opsiyonel)',
-    dialogQtyAuto: 'Adet (GTS sayısına göre otomatik)',
-    dialogGtsUnit: 'GTS\'li birim',
     gtsListTitle: 'GTS / Karekod Listesi', gtsAddBtn: 'GTS Ekle', gtsColExpiry: 'SKT',
-    gtsColAdded: 'Eklenme', gtsColQty: 'Adet', gtsNone: 'GTS\'siz',
+    gtsColAdded: 'Eklenme', gtsNone: 'GTS\'siz',
     gtsEmpty: 'Henüz parti/GTS kaydı yok',
     gtsRemoveTitle: 'Birimi Sil', gtsRemoveConfirm: 'Bu birim/GTS stoktan çıkarılsın mı?',
     gtsRemoved: 'Birim çıkarıldı', gtsSaved: 'Güncellendi',
@@ -561,33 +558,32 @@ const TR: Translations = {
     salePriceRequired: 'Satış fiyatı 0\'dan büyük olmalı',
     formStockEditHint: 'Stok ve partiler ürün detayındaki GTS / parti tablosundan yönetilir.',
     movementsLimitNote: 'Son {n} hareket gösteriliyor',
-    formGtsMultiHint: 'GTS girilirse 1 birime yazılır; kalan adet GTS\'siz parti olur.',
     unitLabel: 'Birim', unitAdet: 'adet', unitKg: 'kg', unitLt: 'lt', unitPaket: 'paket', unitCuval: 'çuval', unitMetre: 'metre',
     unitDecimalHint: 'kg, lt ve metrede ondalıklı miktar girilebilir (ör. 12,5)',
     markup: 'Kâr Oranı (maliyete göre)', productCount: 'ürün', loadMore: 'Daha fazla göster', outOfStock: 'Tükendi',
-    quickFilters: 'Hızlı filtreler', cartIncrease: 'Sepette artır', cartDecrease: 'Sepette azalt', inCart: 'Sepette',
+    cartIncrease: 'Sepette artır', cartDecrease: 'Sepette azalt', inCart: 'Sepette',
     gtsChipRemove: "GTS'yi listeden çıkar",
     reconcileHint: 'Stok ile GTS / parti tablosundaki toplam aynı olmalı.',
     gtsUnitsCount: 'kayıt',
   },
   pos: {
     title: 'Sepet', emptyCart: 'Sepet boş',
-    emptyCartDesc: 'Ürünler sayfasından ürün ekleyebilirsiniz',
     goToProducts: 'Ürünlere Git', clearCart: 'Temizle', selectCustomer: 'Müşteri Seç',
-    orderSummary: 'Sipariş Özeti', subtotal: 'Ara Toplam', discount: 'İndirim', total: 'Toplam',
-    cashPayment: 'Nakit Ödeme', cardPayment: 'Kart ile Öde', creditPayment: 'Veresiye',
+    subtotal: 'Ara Toplam', discount: 'İndirim', total: 'Toplam',
+    cashPayment: 'Nakit Ödeme', creditPayment: 'Veresiye',
     cash: 'Nakit', card: 'Kart',
     totalAmount: 'Toplam Tutar', receivedAmount: 'Alınan Tutar', change: 'Para Üstü',
     complete: 'Tamamla', cancel: 'İptal',
-    basketAmount: 'Sepet Tutarı', interestRate: 'Vade Farkı (%)', installments: 'Taksit Sayısı',
+    interestRate: 'Vade Farkı (%)', installments: 'Taksit Sayısı',
     interestAmount: 'Vade Farkı', totalWithInterest: 'Toplam (faizli)', perInstallment: 'Taksit',
+    creditDebtWithInterest: 'Veresiye borcu (vade farkı dahil)',
     searchCustomer: 'Ad veya telefon ara...', noCustomer: 'Müşteri bulunamadı',
     saleCompleted: 'Satış tamamlandı!', saleFailed: 'Satış kaydedilemedi!',
-    barcodeNotFound: 'Barkod bulunamadı', added: 'eklendi', items: 'ürün', itemUnit: 'adet',
+    barcodeNotFound: 'Barkod bulunamadı', added: 'eklendi', items: 'ürün',
     outOfStock: 'Stokta yok', stockLimit: 'Stok sınırına ulaşıldı', insufficientCash: 'Alınan tutar toplamdan az',
     remainingToCredit: 'Kalan tutar veresiyeye yazılacak',
     creditNeedsCustomer: 'Eksik tutarı veresiyeye yazmak için önce müşteri seçin',
-    viewDetail: 'Detayı gör', productUnavailable: 'Ürün bulunamadı veya pasif', globalDiscount: 'Sepet İndirimi',
+    productUnavailable: 'Ürün bulunamadı veya pasif', globalDiscount: 'Sepet İndirimi',
     insufficientStock: 'Yetersiz stok', expiredUnitsWarn: 'Süresi geçmiş birim satılıyor',
     batchShortfallWarn: 'Parti kaydı yetersiz (stok ile parti toplamı uyuşmuyor)',
     confirmSaleTitle: 'Satışı onayla', confirmSellAnyway: 'Yine de sat',
@@ -595,17 +591,16 @@ const TR: Translations = {
     pageTitle: 'Hızlı Satış', searchLabel: 'Ürün ara',
     searchPlaceholder: 'Barkod okutun veya ürün adı / GTS yazın',
     scannerReady: 'Barkod okuyucu hazır', scannerPaused: 'Okuyucu beklemede',
-    noResults: 'Eşleşen ürün yok', resultsHint: '↑ ↓ ile seçin, Enter ile ekleyin',
-    searchResults: 'Arama sonuçları', allProducts: 'Ürünler', moreResults: 'Daha fazlası için aramayı daraltın',
+    noResults: 'Eşleşen ürün yok',
+    moreResults: 'Daha fazlası için aramayı daraltın',
     inCart: 'Sepette', stock: 'Stok', quantity: 'Miktar', decrease: 'Azalt', increase: 'Artır', removeItem: 'Sepetten çıkar',
     emptyCartHint: 'Barkod okutun ya da ürün adını yazıp Enter’a basın',
     changeCustomer: 'Değiştir', removeCustomer: 'Müşteriyi kaldır',
-    addDiscount: 'İndirim', discountPercent: 'Yüzde (%)', discountAmount: 'Tutar (₺)', discountValue: 'İndirim değeri',
+    discountPercent: 'Yüzde (%)', discountAmount: 'Tutar (₺)', discountValue: 'İndirim değeri',
     removeDiscount: 'İndirimi kaldır',
     cardConfirmTitle: 'Kart ile tahsilat', cardConfirmQuestion: '{amount} kartla tahsil edildi mi?',
     cardConfirmYes: 'Evet, tahsil edildi',
-    exactAmount: 'Tam tutar', quickAmounts: 'Hızlı tutar', printReceipt: 'Fiş Yazdır', newSale: 'Yeni Satış',
-    lastInstallment: 'Son taksit',
+    printReceipt: 'Fiş Yazdır', newSale: 'Yeni Satış',
   },
   sales: {
     title: 'Satışlar', subtitle: 'Satış geçmişi, iptal ve iade', saleRef: 'Satış', cancelRef: 'İptal',
@@ -619,9 +614,18 @@ const TR: Translations = {
     cashPaid: 'Nakit', cardPaid: 'Kart', creditAmount: 'Veresiye', change: 'Para Üstü',
     cancelSale: 'İptal Et / İade', cancelConfirmTitle: 'Satışı iptal et',
     cancelConfirmDesc: 'Stok geri yüklenecek ve varsa veresiye borcu düşülecek. Bu işlem geri alınamaz.',
-    cancelReason: 'İptal nedeni (opsiyonel)', cancelSuccess: 'Satış iptal edildi', cancelFailed: 'Satış iptal edilemedi',
-    alreadyCancelled: 'Satış zaten iptal edilmiş', cancelledAt: 'İptal tarihi', count: 'satış', totalRevenue: 'Toplam Ciro',
+    cancelReason: 'İptal nedeni', cancelSuccess: 'Satış iptal edildi', cancelFailed: 'Satış iptal edilemedi',
+    alreadyCancelled: 'Satış zaten iptal edilmiş', cancelledAt: 'İptal tarihi', count: 'satış',
+    cancelReasonPlaceholder: 'Örn. müşteri vazgeçti, yanlış ürün okutuldu',
+    cancelReasonRequired: 'İptal nedenini yazın (en az 3 karakter)',
+    cancelDeniedOwn: 'Kasiyer yalnız kendi yaptığı satışı iptal edebilir. Yöneticinize başvurun.',
+    cancelDeniedToday: 'Kasiyer yalnız bugünkü satışı iptal edebilir. Geçmiş günün satışı için yöneticinize başvurun.',
+    cancelDeniedRole: 'Satış iptali için yetkiniz yok. Yöneticinize başvurun.',
+    cancelAudit: 'İptal, nedeni ve yapan kişiyle birlikte denetim kaydına yazılır.',
     printReceipt: 'Fiş Yazdır', thankYou: 'Teşekkür ederiz, yine bekleriz', receiptTotal: 'TOPLAM', items: 'kalem',
+    vatBreakdown: 'KDV dökümü', vatBase: 'Matrah', vatUnknown: 'KDV oranı bilinmiyor', debtorSignature: 'Borçlu imza',
+    paymentReceipt: 'TAHSİLAT MAKBUZU', paymentAmount: 'Tahsil edilen', prevBalance: 'Önceki borç', newBalance: 'Kalan borç',
+    methodTransfer: 'Havale/EFT',
   },
   customers: {
     title: 'Müşteriler', newCustomer: 'Yeni Müşteri',
@@ -636,18 +640,17 @@ const TR: Translations = {
     addressPlaceholder: 'Adres (opsiyonel)', notesPlaceholder: 'Not (opsiyonel)',
     tcNoPlaceholder: '11 haneli TC kimlik no',
     firstNameRequired: 'Ad zorunlu', lastNameRequired: 'Soyad zorunlu', phoneRequired: 'Telefon zorunlu',
-    customerInfo: 'Müşteri Bilgileri', debtStatus: 'Borç Durumu',
+    customerInfo: 'Müşteri Bilgileri',
     noDebt: 'Borç yok', debt: 'Borç', totalDebt: 'Toplam Borç',
-    totalPaid: 'Toplam Ödeme', remainingBalance: 'Kalan Bakiye', accountSummary: 'Cari Özet',
+    totalPaid: 'Toplam Ödeme', accountSummary: 'Cari Özet',
     transactions: 'İşlemler', noTransactions: 'Henüz işlem yok',
-    viewTransactions: 'Cari Hareketleri Görüntüle',
     added: 'Müşteri eklendi', updated: 'Müşteri güncellendi', saveFailed: 'Kaydedilemedi',
     showArchived: 'Arşivdekiler', archivedBadge: 'Arşivde', restore: 'Geri Al', restored: 'Müşteri geri alındı',
     deleteTitle: 'Müşteriyi Sil', deleteConfirm: 'Müşteri arşivlenecek; geçmiş kayıtları korunur. Devam edilsin mi?',
     deleted: 'Müşteri arşivlendi', deleteFailed: 'Müşteri silinemedi',
     deleteHasBalance: 'Bakiyesi olan müşteri silinemez. Önce tahsilat yapın.',
     countSuffix: 'müşteri', emptyHint: 'İlk müşterinizi ekleyerek veresiye takibine başlayın.',
-    collectPayment: 'Tahsilat Al', emailInvalid: 'Geçerli bir e-posta girin',
+    emailInvalid: 'Geçerli bir e-posta girin',
     tcNoInvalid: 'TC kimlik no 11 haneli olmalı',
     village: 'Köy / Mahalle', villagePlaceholder: 'Köy veya mahalle (opsiyonel)',
     cksNo: 'ÇKS Kayıt No', cksNoPlaceholder: 'Çiftçi Kayıt Sistemi no (opsiyonel)',
@@ -676,13 +679,12 @@ const TR: Translations = {
   credit: {
     title: 'Veresiye / Cari', debtors: 'müşteri borçlu',
     searchPlaceholder: 'Müşteri ara...', noDebtors: 'Veresiyeli müşteri yok', debt: 'Borç',
-    cashCollection: 'Nakit Tahsilat', cardCollection: 'Kart ile Tahsilat',
     currentDebt: 'Mevcut Borç', collectionAmount: 'Tahsilat Tutarı',
-    note: 'Not', notePlaceholder: 'Açıklama', descriptionPlaceholder: 'Açıklama',
+    note: 'Not', notePlaceholder: 'Açıklama',
     collected: 'Tahsilat kaydedildi', collectFailed: 'Tahsilat kaydedilemedi',
-    movementHistory: 'Hareket Geçmişi', records: 'kayıt', saveFailed: 'Kayıt başarısız',
+    records: 'kayıt', saveFailed: 'Kayıt başarısız',
     noTransactions: 'Henüz hareket yok',
-    paidWithCard: 'kart ile', paidCash: 'nakit', paid: 'ödendi',
+    paid: 'ödendi',
     cashPayDesc: 'Nakit ödeme', cardPayDesc: 'Kart ile ödeme',
     overpayment: 'Tahsilat tutarı mevcut borçtan fazla olamaz',
     noDebtToCollect: 'Bu müşterinin borcu yok',
@@ -694,11 +696,11 @@ const TR: Translations = {
     saleReversal: 'Satış iptali', creditSale: 'Veresiye satış',
     filterAll: 'Tümü', filterOverdue: 'Vadesi geçenler', filterDueWeek: 'Bu hafta vadesi gelenler',
     overdueTotal: 'Gecikmiş Alacak', overdueCustomers: 'müşteri gecikmede',
-    daysLate: 'gün gecikti', overdueBadge: 'Gecikmiş', nextDue: 'Sıradaki vade', dueThisWeek: 'Bu hafta',
+    daysLate: 'gün gecikti', nextDue: 'Sıradaki vade', dueThisWeek: 'Bu hafta',
     noFilterResult: 'Bu filtreye uyan müşteri yok',
-    installmentPlan: 'Vade ve Taksitler', installmentNo: 'Taksit', dueDate: 'Vade', remaining: 'Kalan',
-    noDueItems: 'Vadeli borç yok', undatedDebt: 'Vadesiz (eski) borç',
-    creditLimit: 'Veresiye Limiti', limitExceeded: 'Veresiye limiti aşıldı', limitAvailable: 'Limite kalan',
+    dueDate: 'Vade', remaining: 'Kalan',
+    undatedDebt: 'Vadesiz (eski) borç',
+    creditLimit: 'Veresiye Limiti', limitExceeded: 'Veresiye limiti aşıldı',
     downPayment: 'Peşinat',
     statement: 'Hesap Ekstresi (PDF)', statementFrom: 'Başlangıç', statementTo: 'Bitiş',
     statementCreate: 'Ekstre Oluştur', statementFailed: 'Ekstre oluşturulamadı',
@@ -709,7 +711,7 @@ const TR: Translations = {
   },
   reports: {
     title: 'Raporlar', subtitle: 'Satış ve gelir analizleri',
-    totalRevenue: 'Toplam Ciro', saleCount: 'Satış Sayısı', sale: 'satış', avgSale: 'Ort. Satış',
+    saleCount: 'Satış Sayısı', sale: 'satış',
     paymentTypes: 'Ödeme Tipleri', cash: 'Nakit', card: 'Kart', credit: 'Veresiye', mixed: 'Karma',
     expenseTotal: 'Toplam Gider', netProfit: 'Net Kâr',
     salesTrend: 'Satış Trendi', noData: 'Bu dönem veri yok',
@@ -719,7 +721,7 @@ const TR: Translations = {
     thisYear: 'Bu Yıl', monthsShort: 'Oca,Şub,Mar,Nis,May,Haz,Tem,Ağu,Eyl,Eki,Kas,Ara', dateLocale: 'tr-TR',
     grossProfit: 'Brüt Kâr', cost: 'Maliyet', costEstimatedNote: 'Tahmini: bazı eski satışlarda maliyet kaydı yok, ürünün güncel alış fiyatı kullanıldı.',
     interestIncome: 'Vade Farkı Geliri', interestIncomeNote: 'Faizli veresiye satışlarının vade farkı; ciroya ve net kâra dahil değildir.',
-    collections: 'Tahsilat', collectionsCash: 'Tahsilat (Nakit)', collectionsCard: 'Tahsilat (Kart)',
+    collections: 'Tahsilat', collectionsCash: 'Tahsilat (Nakit)', collectionsCard: 'Tahsilat (Kart)', collectionsTransfer: 'Tahsilat (Havale/EFT)',
     cashRegister: 'Gün Sonu / Kasa Özeti', cashSales: 'Nakit Satış', cardSales: 'Kartlı Satış', creditSales: 'Veresiye Satış',
     netCash: 'Net Nakit', netCashNote: 'Nakit satış + nakit tahsilat − gider',
     topProducts: 'En Çok Satan 10 Ürün', byCategory: 'Kategori Bazlı Satış', product: 'Ürün', category: 'Kategori',
@@ -737,7 +739,7 @@ const TR: Translations = {
     amount: 'Tutar (₺)', category: 'Kategori', date: 'Tarih', note: 'Not',
     notePlaceholder: 'Opsiyonel açıklama', recurring: 'Tekrarlı Gider',
     recurringDesc: 'Her ay otomatik tekrar etsin',
-    editExpense: 'Gider Düzenle', addExpenseTitle: 'Gider Ekle',
+    addExpenseTitle: 'Gider Ekle',
     added: 'Gider eklendi', deleted: 'Gider silindi',
     deleteTitle: 'Gider Sil', deleteConfirm: 'Bu gideri silmek istediğinize emin misiniz?',
     deleteYes: 'Evet, Sil', deleteNo: 'Hayır',
@@ -751,7 +753,7 @@ const TR: Translations = {
     title: 'Tedarikçiler', newSupplier: 'Yeni Tedarikçi',
     searchPlaceholder: 'Firma adı veya telefon ara...',
     noInfo: 'Bilgi yok', noSuppliers: 'Tedarikçi bulunamadı',
-    editSupplier: 'Tedarikçiyi Düzenle', addSupplier: 'Yeni Tedarikçi',
+    addSupplier: 'Yeni Tedarikçi',
     editSubtitle: 'Tedarikçi bilgilerini güncelleyin', addSubtitle: 'Yeni tedarikçi ekleyin',
     companyName: 'Firma Adı *', companyNamePlaceholder: 'Tedarikçi firma adı',
     companyNameRequired: 'Firma adı zorunlu',
@@ -776,14 +778,11 @@ const TR: Translations = {
   stockCount: {
     title: 'Stok Sayımı', subtitle: 'Sayılan adedi girin, farkı onaylayın',
     complete: 'Tamamla', searchPlaceholder: 'Ürün ara...',
-    countedLabel: 'Sayılan', diffLabel: 'Fark', system: 'Sistem',
-    noChanges: 'Hiçbir değişiklik yok', changes: 'değişiklik',
+    countedLabel: 'Sayılan', system: 'Sistem',
+    changes: 'değişiklik',
     shortage: 'Eksik', surplus: 'Fazla', completed: 'Stok sayımı tamamlandı',
-    confirmTitle: 'Stok Düzeltmeleri', confirmSubtitle: 'Aşağıdaki değişiklikler uygulanacak',
-    reason: 'Neden', batchAffected: 'Etkilenecek Parti', noExpiry: 'SKT yok', apply: 'Uygula',
-    shortageExpiry: 'SKT geçimi', shortageDamage: 'Bozulma / hasar',
-    shortageTheft: 'Çalıntı / kayıp', shortageCountError: 'Sayım hatası', shortageOther: 'Diğer',
-    surplusCountError: 'Sayım hatası', surplusReturn: 'İade / iade alımı', surplusOther: 'Diğer',
+    confirmSubtitle: 'Aşağıdaki değişiklikler uygulanacak',
+    reason: 'Neden', noExpiry: 'SKT yok', apply: 'Uygula',
     failed: 'Stok güncellenemedi',
     productsLabel: 'Ürün', changesLabel: 'Fark Var',
     completedTitle: 'Sayım Tamamlandı', newCount: 'Yeni Sayım',
@@ -791,7 +790,7 @@ const TR: Translations = {
     corrected: 'düzeltildi', reasonsTitle: 'Fark Nedenleri', updated: 'güncellendi',
     expiryPrefix: 'SKT:',
     fefoLabel: 'FEFO', applying: 'Uygulanıyor', errorsTitle: 'Uygulanamayan ürünler', retryFailed: 'Hatalıları tekrar dene',
-    countedOfTotal: 'sayıldı', matched: 'Tutuyor', movementReason: 'Stok sayımı',
+    matched: 'Tutuyor', movementReason: 'Stok sayımı',
   },
   settings: {
     title: 'Ayarlar & Profil', subtitle: 'Hesap bilgileri ve uygulama ayarları',
@@ -803,18 +802,17 @@ const TR: Translations = {
     changePassword: 'Şifre Değiştir', currentPassword: 'Mevcut şifre',
     newPassword: 'Yeni şifre', confirmPassword: 'Yeni şifre tekrar',
     passwordMismatch: 'Şifreler eşleşmiyor', changePasswordBtn: 'Şifreyi Değiştir',
-    appInfo: 'Uygulama', appName: 'Uygulama Adı', version: 'Sürüm', platform: 'Platform',
+    appName: 'Uygulama Adı', version: 'Sürüm', platform: 'Platform',
     logout: 'Oturumu Kapat', logoutDesc: 'Hesabınızdan güvenli çıkış yapın', logoutBtn: 'Çıkış Yap',
     nameUpdated: 'Ad soyad güncellendi', updateFailed: 'Güncelleme başarısız',
     verificationSent: 'Doğrulama e-postası gönderildi. Linke tıklayınca e-postanız güncellenir.',
     emailUpdateFailed: 'E-posta güncellenemedi', wrongPassword: 'Mevcut şifre yanlış',
     passwordChanged: 'Şifre değiştirildi', passwordFailed: 'Şifre değiştirilemedi',
     emailInUse: 'Bu e-posta başka bir hesapta kullanılıyor',
-    personalInfo: 'Kişisel Bilgiler', security: 'Güvenlik',
-    business: 'İşletme Bilgileri', businessDesc: 'Fişte ve raporlarda görünen bilgiler',
+    security: 'Güvenlik',
+    business: 'İşletme Bilgileri',
     businessName: 'İşletme adı', address: 'Adres', phone: 'Telefon',
     taxOffice: 'Vergi dairesi', taxNo: 'Vergi no', receiptFooter: 'Fiş alt notu',
-    receiptFooterHint: "Fişin en altına basılır (ör. \"Bizi tercih ettiğiniz için teşekkürler\")",
     businessSaved: 'İşletme bilgileri kaydedildi', businessSaveFailed: 'İşletme bilgileri kaydedilemedi',
     businessLoadFailed: 'İşletme bilgileri yüklenemedi', businessReadOnly: 'Bu bilgileri yalnızca yönetici değiştirebilir.',
     platformDesktop: 'Masaüstü', platformAndroid: 'Android', platformWeb: 'Web',
@@ -838,7 +836,7 @@ const TR: Translations = {
 
 const EN: Translations = {
   compliance: {
-    sectionTitle: 'Regulatory', sectionSubtitle: 'License, e-prescription and label information', productType: 'Product type',
+    sectionTitle: 'Regulatory', productType: 'Product type',
     typeBitkiKoruma: 'Plant protection product (pesticide)', typeGubre: 'Fertilizer', typeTohum: 'Seed', typeFide: 'Seedling / Sapling', typeDiger: 'Other',
     requiresPrescription: 'E-prescription required',
     requiresPrescriptionHint: "Keep on for products listed as prescription-only in the Ministry's PPP database. Sales will ask for the e-prescription no and a customer.",
@@ -885,7 +883,7 @@ const EN: Translations = {
     team: 'Team',
     adminPanel: 'Admin Panel',
     account: 'My Account', logout: 'Sign Out', mainMenu: 'Main menu', userMenu: 'User menu',
-    collapseMenu: 'Collapse menu', expandMenu: 'Expand menu', searchHint: 'Search products or scan barcode', language: 'Language', online: 'Online',
+    collapseMenu: 'Collapse menu', expandMenu: 'Expand menu', language: 'Language', online: 'Online',
   },
   common: {
     save: 'Save', cancel: 'Cancel', edit: 'Edit', add: 'Add', delete: 'Delete',
@@ -910,7 +908,7 @@ const EN: Translations = {
     forgotTitle: 'Reset Password', forgotSubtitle: "We'll send a reset link to your email",
     sendReset: 'Send Reset Link', backToLogin: 'Back to login', resetSent: 'Reset email sent',
     verifyTitle: 'Verify Your Email', verifySubtitle: 'We sent a verification link to your email',
-    resendEmail: 'Resend', goHome: 'Go to Home',
+    resendEmail: 'Resend',
     verifyConfirm: 'Verified, Continue', otherAccount: 'Sign in with different account',
     notVerifiedYet: 'Email not yet verified. Click the link in the email then try again.',
     resendFailed: 'Failed to send email. Please wait a moment and try again.',
@@ -941,18 +939,17 @@ const EN: Translations = {
   dashboard: {
     title: 'Dashboard', dateFormat: 'en-US',
     todaySales: "Today's Sales", todayLabel: 'Today',
-    totalProducts: 'Total Products', activeProducts: 'active products',
+    totalProducts: 'Total Products',
     criticalStock: 'Critical Stock', warning: 'Warning',
-    expiryDate: 'Expiry Date', attention: 'Attention', in30Days: 'within 30 days',
-    criticalStockWarning: 'Critical Stock Alert',
+    expiryDate: 'Expiry Date', in30Days: 'within 30 days',
     expiringProducts: 'Products Nearing Expiry',
     transactions: 'transactions', items: 'products',
     expired: 'Expired', expiresToday: 'Expires today', daysLeft: 'days left',
     weekSales: 'This Week', monthSales: 'This Month', todayGrossProfit: "Today's Gross Profit", estimated: 'estimated',
-    recentSales: 'Recent Sales', noSalesToday: 'No sales yet', viewReports: 'Reports',
-    quickActions: 'Quick Actions', newSale: 'New Sale', newSaleDesc: 'Scan barcode, add to cart',
-    addProduct: 'Add Product', addProductDesc: 'Add a new product to stock',
-    collect: 'Collect Payment', collectDesc: 'Receive a credit payment', viewAll: 'View all',
+    recentSales: 'Recent Sales', noSalesToday: 'No sales yet',
+    quickActions: 'Quick Actions', newSale: 'New Sale',
+    addProduct: 'Add Product',
+    collect: 'Collect Payment', viewAll: 'View all',
     stockOk: 'All products are sufficiently stocked', noExpiring: 'No products expiring within 30 days',
     goodMorning: 'Good morning', goodAfternoon: 'Good afternoon', goodEvening: 'Good evening',
     firstSaleHint: 'Your first sale will show up here', revenue: 'Revenue',
@@ -962,28 +959,27 @@ const EN: Translations = {
     editProduct: 'Edit Product', addProduct: 'Add New Product',
     editSubtitle: 'Update product information', addSubtitle: 'Enter new product details',
     searchPlaceholder: 'Search by name, barcode or brand...',
-    criticalStock: 'Critical Stock', nearExpiry: 'Near Expiry',
+    criticalStock: 'Critical Stock',
     loadError: 'Failed to load products', noProducts: 'No products found', addFirst: 'Add Product',
-    addToCart: 'Add to Cart', salePrice: 'Sale Price', criticalStockWarn: 'Critical stock',
+    addToCart: 'Add to Cart', salePrice: 'Sale Price',
     expired: 'Expired', expiresToday: 'Expires today', daysLeftPrefix: 'Exp:',
-    detail: 'Product Detail', currentStock: 'Current Stock', minStockWarn: 'Min stock:',
-    productInfo: 'Product Information', stockMovements: 'Recent Stock Movements',
+    detail: 'Product Detail', currentStock: 'Current Stock',
+    stockMovements: 'Recent Stock Movements',
     viewAll: 'View all', noMovements: 'No stock movements yet',
-    stockActions: 'Stock Actions', addStock: 'Add Stock', removeStock: 'Remove Stock',
+    addStock: 'Add Stock', removeStock: 'Remove Stock',
     viewMovements: 'Stock Movements',
-    prices: 'Prices', purchasePrice: 'Purchase Price', vat: 'VAT', margin: 'Profit Margin',
-    batches: 'Batches', batchCount: 'batches', noBatches: 'No batch records', noExpiry: 'No expiry',
+    purchasePrice: 'Purchase Price', vat: 'VAT', margin: 'Profit Margin',
+    batches: 'Batches', noExpiry: 'No expiry',
     piece: 'pcs',
     formName: 'Product Name *', formBarcode: 'Barcode', formBrand: 'Brand', formCategory: 'Category *',
-    formPricing: 'Pricing', formVat: 'VAT Rate (%)', formStockInfo: 'Stock Info',
+    formVat: 'VAT Rate (%)',
     formStockQty: 'Stock Quantity *', formMinStock: 'Minimum Stock',
-    formFirstBatch: 'Initial Batch Info', formGtsNo: 'GTS No',
+    formGtsNo: 'GTS No',
     formExpiry: 'Expiry Date', formDescription: 'Description',
     formIsActive: 'Product Active', formIsActiveDesc: 'If off, product is hidden from list and sales',
     formNameRequired: 'Product name is required',
     formCategoryPlaceholder: 'Select or type category',
     formVatPlaceholder: 'e.g. 0, 1, 10, 20',
-    formGtsPlaceholder: 'GTS number for this batch',
     formExpiryPlaceholder: 'Select date',
     formDescriptionPlaceholder: 'Product description (optional)',
     formBarcodePlaceholder: 'Barcode number',
@@ -992,13 +988,11 @@ const EN: Translations = {
     dialogQty: 'Quantity', dialogReason: 'Reason', dialogSupplier: 'Supplier',
     dialogSelectSupplier: 'Select supplier...', dialogGts: 'GTS No', dialogExpiry: 'Expiry Date',
     dialogReasonPlaceholder: 'e.g. Count, return, supply...',
-    dialogGtsPlaceholder: 'GTS number for this batch',
     dialogExpiryPlaceholder: 'DD.MM.YYYY',
     dialogAdd: 'Add', dialogRemove: 'Remove',
     updated: 'Product updated', added: 'Product added', stockUpdated: 'Stock updated',
     updateFailed: 'Update failed', stockFailed: 'Stock update failed',
     permissionError: 'Permission error — check Firebase rules', categoryOther: 'Other',
-    categoryPlaceholder: 'Select or type category',
     stockIn: 'Stock in', stockOut: 'Stock out',
     infoName: 'Product Name', infoCategory: 'Category', infoBarcode: 'Barcode', infoBrand: 'Brand',
     infoMinStock: 'Min. Stock', infoVat: 'VAT Rate', infoExpiry: 'Expiry',
@@ -1006,7 +1000,7 @@ const EN: Translations = {
     totalMovements: 'Total', movementsIn: 'Inflows', movementsOut: 'Outflows',
     active: 'Active', passive: 'Passive', makeActive: 'Activate', makePassive: 'Deactivate',
     statusUpdated: 'Product status updated', statusFailed: 'Failed to update status',
-    showPassive: 'Passive Products', passiveTag: 'Passive',
+    showPassive: 'Passive Products',
     deleteTitle: 'Delete Product',
     deleteConfirm: 'Remove this product from the list? The record is kept and can be restored from the "Passive Products" filter.',
     deleteAccept: 'Delete', deleteCancel: 'Cancel',
@@ -1014,10 +1008,8 @@ const EN: Translations = {
     dialogGtsScanPlaceholder: 'Scan or type GTS / QR, press Enter',
     dialogGtsDuplicate: 'This GTS is already added',
     dialogGtsListEmpty: 'No GTS added yet — scanning auto-increments quantity (optional)',
-    dialogQtyAuto: 'Quantity (auto from GTS count)',
-    dialogGtsUnit: 'GTS unit',
     gtsListTitle: 'GTS / QR List', gtsAddBtn: 'Add GTS', gtsColExpiry: 'Expiry',
-    gtsColAdded: 'Added', gtsColQty: 'Qty', gtsNone: 'No GTS',
+    gtsColAdded: 'Added', gtsNone: 'No GTS',
     gtsEmpty: 'No batch/GTS records yet',
     gtsRemoveTitle: 'Remove Unit', gtsRemoveConfirm: 'Remove this unit/GTS from stock?',
     gtsRemoved: 'Unit removed', gtsSaved: 'Updated',
@@ -1038,33 +1030,32 @@ const EN: Translations = {
     salePriceRequired: 'Sale price must be greater than 0',
     formStockEditHint: 'Stock and batches are managed from the GTS / batch table on the product detail page.',
     movementsLimitNote: 'Showing the last {n} movements',
-    formGtsMultiHint: 'If a GTS is entered it is assigned to 1 unit; the rest becomes a batch without GTS.',
     unitLabel: 'Unit', unitAdet: 'pcs', unitKg: 'kg', unitLt: 'L', unitPaket: 'pack', unitCuval: 'sack', unitMetre: 'm',
     unitDecimalHint: 'Decimal quantities are allowed for kg, L and m (e.g. 12.5)',
     markup: 'Markup (on cost)', productCount: 'products', loadMore: 'Show more', outOfStock: 'Out of stock',
-    quickFilters: 'Quick filters', cartIncrease: 'Increase in cart', cartDecrease: 'Decrease in cart', inCart: 'In cart',
+    cartIncrease: 'Increase in cart', cartDecrease: 'Decrease in cart', inCart: 'In cart',
     gtsChipRemove: 'Remove GTS from list',
     reconcileHint: 'Stock should equal the total in the GTS / batch table.',
     gtsUnitsCount: 'records',
   },
   pos: {
     title: 'Cart', emptyCart: 'Cart is empty',
-    emptyCartDesc: 'You can add products from the Products page',
     goToProducts: 'Go to Products', clearCart: 'Clear', selectCustomer: 'Select Customer',
-    orderSummary: 'Order Summary', subtotal: 'Subtotal', discount: 'Discount', total: 'Total',
-    cashPayment: 'Cash Payment', cardPayment: 'Pay by Card', creditPayment: 'Credit',
+    subtotal: 'Subtotal', discount: 'Discount', total: 'Total',
+    cashPayment: 'Cash Payment', creditPayment: 'Credit',
     cash: 'Cash', card: 'Card',
     totalAmount: 'Total Amount', receivedAmount: 'Amount Received', change: 'Change',
     complete: 'Complete', cancel: 'Cancel',
-    basketAmount: 'Cart Total', interestRate: 'Interest Rate (%)', installments: 'Installments',
+    interestRate: 'Interest Rate (%)', installments: 'Installments',
     interestAmount: 'Interest', totalWithInterest: 'Total (with interest)', perInstallment: 'Installment',
+    creditDebtWithInterest: 'Credit debt (incl. interest)',
     searchCustomer: 'Search by name or phone...', noCustomer: 'No customer found',
     saleCompleted: 'Sale completed!', saleFailed: 'Sale could not be saved!',
-    barcodeNotFound: 'Barcode not found', added: 'added', items: 'items', itemUnit: 'pcs',
+    barcodeNotFound: 'Barcode not found', added: 'added', items: 'items',
     outOfStock: 'Out of stock', stockLimit: 'Stock limit reached', insufficientCash: 'Amount received is less than total',
     remainingToCredit: 'Remaining amount will be added to credit',
     creditNeedsCustomer: 'Select a customer first to put the remaining amount on credit',
-    viewDetail: 'View details', productUnavailable: 'Product not found or inactive', globalDiscount: 'Cart Discount',
+    productUnavailable: 'Product not found or inactive', globalDiscount: 'Cart Discount',
     insufficientStock: 'Insufficient stock', expiredUnitsWarn: 'Selling expired units',
     batchShortfallWarn: 'Not enough batch records (stock and batch total differ)',
     confirmSaleTitle: 'Confirm sale', confirmSellAnyway: 'Sell anyway',
@@ -1072,17 +1063,16 @@ const EN: Translations = {
     pageTitle: 'Quick Sale', searchLabel: 'Search products',
     searchPlaceholder: 'Scan a barcode or type product name / GTS',
     scannerReady: 'Barcode scanner ready', scannerPaused: 'Scanner paused',
-    noResults: 'No matching products', resultsHint: 'Use ↑ ↓ to select, Enter to add',
-    searchResults: 'Search results', allProducts: 'Products', moreResults: 'Refine your search to see more',
+    noResults: 'No matching products',
+    moreResults: 'Refine your search to see more',
     inCart: 'In cart', stock: 'Stock', quantity: 'Quantity', decrease: 'Decrease', increase: 'Increase', removeItem: 'Remove from cart',
     emptyCartHint: 'Scan a barcode or type a product name and press Enter',
     changeCustomer: 'Change', removeCustomer: 'Remove customer',
-    addDiscount: 'Discount', discountPercent: 'Percent (%)', discountAmount: 'Amount (₺)', discountValue: 'Discount value',
+    discountPercent: 'Percent (%)', discountAmount: 'Amount (₺)', discountValue: 'Discount value',
     removeDiscount: 'Remove discount',
     cardConfirmTitle: 'Card payment', cardConfirmQuestion: 'Was {amount} charged to the card?',
     cardConfirmYes: 'Yes, charged',
-    exactAmount: 'Exact amount', quickAmounts: 'Quick amounts', printReceipt: 'Print Receipt', newSale: 'New Sale',
-    lastInstallment: 'Last installment',
+    printReceipt: 'Print Receipt', newSale: 'New Sale',
   },
   sales: {
     title: 'Sales', subtitle: 'Sales history, cancellations and refunds', saleRef: 'Sale', cancelRef: 'Cancellation',
@@ -1096,9 +1086,18 @@ const EN: Translations = {
     cashPaid: 'Cash', cardPaid: 'Card', creditAmount: 'Credit', change: 'Change',
     cancelSale: 'Cancel / Refund', cancelConfirmTitle: 'Cancel sale',
     cancelConfirmDesc: 'Stock will be restored and any credit debt will be reversed. This cannot be undone.',
-    cancelReason: 'Reason (optional)', cancelSuccess: 'Sale cancelled', cancelFailed: 'Sale could not be cancelled',
-    alreadyCancelled: 'Sale is already cancelled', cancelledAt: 'Cancelled at', count: 'sales', totalRevenue: 'Total Revenue',
+    cancelReason: 'Cancellation reason', cancelSuccess: 'Sale cancelled', cancelFailed: 'Sale could not be cancelled',
+    alreadyCancelled: 'Sale is already cancelled', cancelledAt: 'Cancelled at', count: 'sales',
+    cancelReasonPlaceholder: 'e.g. customer changed mind, wrong item scanned',
+    cancelReasonRequired: 'Enter a reason (at least 3 characters)',
+    cancelDeniedOwn: 'Cashiers can only cancel their own sales. Ask a manager.',
+    cancelDeniedToday: 'Cashiers can only cancel today\'s sales. Ask a manager for older sales.',
+    cancelDeniedRole: 'You are not allowed to cancel sales. Ask a manager.',
+    cancelAudit: 'The cancellation is recorded in the audit log with its reason and user.',
     printReceipt: 'Print Receipt', thankYou: 'Thank you, see you again', receiptTotal: 'TOTAL', items: 'items',
+    vatBreakdown: 'VAT breakdown', vatBase: 'Net', vatUnknown: 'VAT rate unknown', debtorSignature: 'Debtor signature',
+    paymentReceipt: 'PAYMENT RECEIPT', paymentAmount: 'Amount received', prevBalance: 'Previous balance', newBalance: 'Remaining balance',
+    methodTransfer: 'Bank transfer',
   },
   customers: {
     title: 'Customers', newCustomer: 'New Customer',
@@ -1114,18 +1113,17 @@ const EN: Translations = {
     tcNoPlaceholder: '11-digit national ID number',
     firstNameRequired: 'First name is required', lastNameRequired: 'Last name is required',
     phoneRequired: 'Phone is required',
-    customerInfo: 'Customer Information', debtStatus: 'Debt Status',
+    customerInfo: 'Customer Information',
     noDebt: 'No debt', debt: 'Debt', totalDebt: 'Total Debt',
-    totalPaid: 'Total Paid', remainingBalance: 'Remaining Balance', accountSummary: 'Account Summary',
+    totalPaid: 'Total Paid', accountSummary: 'Account Summary',
     transactions: 'Transactions', noTransactions: 'No transactions yet',
-    viewTransactions: 'View Account Transactions',
     added: 'Customer added', updated: 'Customer updated', saveFailed: 'Save failed',
     showArchived: 'Archived', archivedBadge: 'Archived', restore: 'Restore', restored: 'Customer restored',
     deleteTitle: 'Delete Customer', deleteConfirm: 'The customer will be archived; history is kept. Continue?',
     deleted: 'Customer archived', deleteFailed: 'Could not delete customer',
     deleteHasBalance: 'A customer with an outstanding balance cannot be deleted. Collect payment first.',
     countSuffix: 'customers', emptyHint: 'Add your first customer to start tracking credit sales.',
-    collectPayment: 'Collect Payment', emailInvalid: 'Enter a valid email',
+    emailInvalid: 'Enter a valid email',
     tcNoInvalid: 'National ID must be 11 digits',
     village: 'Village / Neighbourhood', villagePlaceholder: 'Village or neighbourhood (optional)',
     cksNo: 'Farmer Registry No (ÇKS)', cksNoPlaceholder: 'Farmer Registry System no (optional)',
@@ -1154,13 +1152,12 @@ const EN: Translations = {
   credit: {
     title: 'Credit / Current Account', debtors: 'customers in debt',
     searchPlaceholder: 'Search customer...', noDebtors: 'No customers with credit', debt: 'Debt',
-    cashCollection: 'Cash Collection', cardCollection: 'Card Collection',
     currentDebt: 'Current Debt', collectionAmount: 'Collection Amount',
-    note: 'Note', notePlaceholder: 'Description', descriptionPlaceholder: 'Description',
+    note: 'Note', notePlaceholder: 'Description',
     collected: 'Collection recorded', collectFailed: 'Collection could not be saved',
-    movementHistory: 'Transaction History', records: 'records', saveFailed: 'Save failed',
+    records: 'records', saveFailed: 'Save failed',
     noTransactions: 'No transactions yet',
-    paidWithCard: 'by card', paidCash: 'cash', paid: 'paid',
+    paid: 'paid',
     cashPayDesc: 'Cash payment', cardPayDesc: 'Card payment',
     overpayment: 'Payment cannot exceed the current debt',
     noDebtToCollect: 'This customer has no debt',
@@ -1172,11 +1169,11 @@ const EN: Translations = {
     saleReversal: 'Sale cancelled', creditSale: 'Credit sale',
     filterAll: 'All', filterOverdue: 'Overdue', filterDueWeek: 'Due this week',
     overdueTotal: 'Overdue Receivables', overdueCustomers: 'customers overdue',
-    daysLate: 'days late', overdueBadge: 'Overdue', nextDue: 'Next due', dueThisWeek: 'This week',
+    daysLate: 'days late', nextDue: 'Next due', dueThisWeek: 'This week',
     noFilterResult: 'No customers match this filter',
-    installmentPlan: 'Due Dates and Installments', installmentNo: 'Installment', dueDate: 'Due', remaining: 'Remaining',
-    noDueItems: 'No scheduled debt', undatedDebt: 'Debt without due date',
-    creditLimit: 'Credit Limit', limitExceeded: 'Credit limit exceeded', limitAvailable: 'Available',
+    dueDate: 'Due', remaining: 'Remaining',
+    undatedDebt: 'Debt without due date',
+    creditLimit: 'Credit Limit', limitExceeded: 'Credit limit exceeded',
     downPayment: 'Down payment',
     statement: 'Account Statement (PDF)', statementFrom: 'From', statementTo: 'To',
     statementCreate: 'Create Statement', statementFailed: 'Statement could not be created',
@@ -1187,7 +1184,7 @@ const EN: Translations = {
   },
   reports: {
     title: 'Reports', subtitle: 'Sales and revenue analysis',
-    totalRevenue: 'Total Revenue', saleCount: 'Sales Count', sale: 'sales', avgSale: 'Avg Sale',
+    saleCount: 'Sales Count', sale: 'sales',
     paymentTypes: 'Payment Types', cash: 'Cash', card: 'Card', credit: 'Credit', mixed: 'Mixed',
     expenseTotal: 'Total Expenses', netProfit: 'Net Profit',
     salesTrend: 'Sales Trend', noData: 'No data for this period',
@@ -1197,7 +1194,7 @@ const EN: Translations = {
     thisYear: 'This Year', monthsShort: 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec', dateLocale: 'en-US',
     grossProfit: 'Gross Profit', cost: 'Cost', costEstimatedNote: 'Estimated: some older sales have no cost snapshot; current purchase price was used.',
     interestIncome: 'Interest Income', interestIncomeNote: 'Interest on credit sales; not included in revenue or net profit.',
-    collections: 'Collections', collectionsCash: 'Collections (Cash)', collectionsCard: 'Collections (Card)',
+    collections: 'Collections', collectionsCash: 'Collections (Cash)', collectionsCard: 'Collections (Card)', collectionsTransfer: 'Collections (Bank transfer)',
     cashRegister: 'End of Day / Register', cashSales: 'Cash Sales', cardSales: 'Card Sales', creditSales: 'Credit Sales',
     netCash: 'Net Cash', netCashNote: 'Cash sales + cash collections − expenses',
     topProducts: 'Top 10 Products', byCategory: 'Sales by Category', product: 'Product', category: 'Category',
@@ -1215,7 +1212,7 @@ const EN: Translations = {
     amount: 'Amount (₺)', category: 'Category', date: 'Date', note: 'Note',
     notePlaceholder: 'Optional description', recurring: 'Recurring Expense',
     recurringDesc: 'Automatically repeat every month',
-    editExpense: 'Edit Expense', addExpenseTitle: 'Add Expense',
+    addExpenseTitle: 'Add Expense',
     added: 'Expense added', deleted: 'Expense deleted',
     deleteTitle: 'Delete Expense', deleteConfirm: 'Are you sure you want to delete this expense?',
     deleteYes: 'Yes, Delete', deleteNo: 'No',
@@ -1229,7 +1226,7 @@ const EN: Translations = {
     title: 'Suppliers', newSupplier: 'New Supplier',
     searchPlaceholder: 'Search by company name or phone...',
     noInfo: 'No info', noSuppliers: 'No suppliers found',
-    editSupplier: 'Edit Supplier', addSupplier: 'New Supplier',
+    addSupplier: 'New Supplier',
     editSubtitle: 'Update supplier information', addSubtitle: 'Add new supplier',
     companyName: 'Company Name *', companyNamePlaceholder: 'Supplier company name',
     companyNameRequired: 'Company name is required',
@@ -1254,14 +1251,11 @@ const EN: Translations = {
   stockCount: {
     title: 'Stock Count', subtitle: 'Enter counted quantity, confirm differences',
     complete: 'Complete', searchPlaceholder: 'Search product...',
-    countedLabel: 'Counted', diffLabel: 'Diff', system: 'System',
-    noChanges: 'No changes', changes: 'changes',
+    countedLabel: 'Counted', system: 'System',
+    changes: 'changes',
     shortage: 'Shortage', surplus: 'Surplus', completed: 'Stock count completed',
-    confirmTitle: 'Stock Adjustments', confirmSubtitle: 'The following changes will be applied',
-    reason: 'Reason', batchAffected: 'Affected Batch', noExpiry: 'No expiry', apply: 'Apply',
-    shortageExpiry: 'Expiry passed', shortageDamage: 'Damage / spoilage',
-    shortageTheft: 'Theft / loss', shortageCountError: 'Count error', shortageOther: 'Other',
-    surplusCountError: 'Count error', surplusReturn: 'Return / return purchase', surplusOther: 'Other',
+    confirmSubtitle: 'The following changes will be applied',
+    reason: 'Reason', noExpiry: 'No expiry', apply: 'Apply',
     failed: 'Stock update failed',
     productsLabel: 'Products', changesLabel: 'Changes',
     completedTitle: 'Count Complete', newCount: 'New Count',
@@ -1269,7 +1263,7 @@ const EN: Translations = {
     corrected: 'corrected', reasonsTitle: 'Difference Reasons', updated: 'updated',
     expiryPrefix: 'Exp:',
     fefoLabel: 'FEFO', applying: 'Applying', errorsTitle: 'Products that failed', retryFailed: 'Retry failed',
-    countedOfTotal: 'counted', matched: 'Matches', movementReason: 'Stock count',
+    matched: 'Matches', movementReason: 'Stock count',
   },
   settings: {
     title: 'Settings & Profile', subtitle: 'Account information and app settings',
@@ -1281,18 +1275,17 @@ const EN: Translations = {
     changePassword: 'Change Password', currentPassword: 'Current password',
     newPassword: 'New password', confirmPassword: 'Confirm new password',
     passwordMismatch: 'Passwords do not match', changePasswordBtn: 'Change Password',
-    appInfo: 'Application', appName: 'App Name', version: 'Version', platform: 'Platform',
+    appName: 'App Name', version: 'Version', platform: 'Platform',
     logout: 'Sign Out', logoutDesc: 'Securely sign out of your account', logoutBtn: 'Sign Out',
     nameUpdated: 'Full name updated', updateFailed: 'Update failed',
     verificationSent: 'Verification email sent. Your email will be updated after clicking the link.',
     emailUpdateFailed: 'Email could not be updated', wrongPassword: 'Current password is wrong',
     passwordChanged: 'Password changed', passwordFailed: 'Password could not be changed',
     emailInUse: 'This email is used by another account',
-    personalInfo: 'Personal Information', security: 'Security',
-    business: 'Business Information', businessDesc: 'Shown on receipts and reports',
+    security: 'Security',
+    business: 'Business Information',
     businessName: 'Business name', address: 'Address', phone: 'Phone',
     taxOffice: 'Tax office', taxNo: 'Tax no', receiptFooter: 'Receipt footer',
-    receiptFooterHint: 'Printed at the bottom of the receipt (e.g. "Thank you for choosing us")',
     businessSaved: 'Business information saved', businessSaveFailed: 'Business information could not be saved',
     businessLoadFailed: 'Business information could not be loaded', businessReadOnly: 'Only an administrator can change this information.',
     platformDesktop: 'Desktop', platformAndroid: 'Android', platformWeb: 'Web',

@@ -13,20 +13,19 @@ import { LangService } from '../../../core/i18n/lang.service';
 import { CurrencyTrPipe } from '../../../shared/pipes/currency-tr.pipe';
 import { Purchase } from '../../../shared/models/purchase.model';
 import {
-  EmptyStateComponent, GlassCardComponent, MoneyComponent, PageHeaderComponent, StatusBadgeComponent,
+  DateFieldComponent, EmptyStateComponent, GlassCardComponent, MoneyComponent, normalizeDay, PageHeaderComponent, StatusBadgeComponent,
 } from '../../../shared/ui';
 import { SumStripComponent, SumStripItem } from '../../products/components/sum-strip.component';
 import { SupplierService } from '../../suppliers/services/supplier.service';
 import { PurchaseService } from '../services/purchase.service';
 import { roundKurus } from '../services/purchase.utils';
-import { fromDateInput, toDateInput } from '../services/date-input';
 
 @Component({
   selector: 'app-purchase-list',
   standalone: true,
   imports: [
     RouterLink, FormsModule, DatePipe, NgTemplateOutlet, ButtonModule, InputTextModule, SelectModule, ToastModule,
-    PageHeaderComponent, GlassCardComponent, EmptyStateComponent, StatusBadgeComponent, MoneyComponent, SumStripComponent,
+    PageHeaderComponent, GlassCardComponent, EmptyStateComponent, StatusBadgeComponent, MoneyComponent, SumStripComponent, DateFieldComponent,
   ],
   providers: [MessageService],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -43,14 +42,10 @@ import { fromDateInput, toDateInput } from '../services/date-input';
 
       <ui-glass-card [title]="inv().purchaseList" icon="pi-file" tone="info" padding="none">
         <div class="grid grid-cols-2 gap-3 border-b border-line p-3 sm:px-4 lg:grid-cols-[repeat(2,minmax(0,11rem))_minmax(0,18rem)] lg:items-end">
-          <div class="flex min-w-0 flex-col gap-1">
-            <label class="text-xs font-semibold text-fg-secondary" for="pu-from">{{ t().sales.from }}</label>
-            <input pInputText id="pu-from" type="date" class="h-11 w-full text-sm" [ngModel]="from()" (ngModelChange)="from.set($event)" />
-          </div>
-          <div class="flex min-w-0 flex-col gap-1">
-            <label class="text-xs font-semibold text-fg-secondary" for="pu-to">{{ t().sales.to }}</label>
-            <input pInputText id="pu-to" type="date" class="h-11 w-full text-sm" [ngModel]="to()" (ngModelChange)="to.set($event)" />
-          </div>
+          <ui-date-field class="!gap-1" inputId="pu-from" labelClass="text-xs font-semibold text-fg-secondary" [label]="t().sales.from"
+            [ngModel]="from()" (ngModelChange)="from.set($event)" />
+          <ui-date-field class="!gap-1" inputId="pu-to" labelClass="text-xs font-semibold text-fg-secondary" [label]="t().sales.to"
+            endOfDay [ngModel]="to()" (ngModelChange)="to.set($event)" />
           <div class="col-span-2 flex min-w-0 flex-col gap-1 lg:col-span-1">
             <label class="text-xs font-semibold text-fg-secondary" for="pu-supplier">{{ t().purchases.supplierFilter }}</label>
             <p-select inputId="pu-supplier" [options]="supplierOptions()" optionLabel="label" optionValue="value"
@@ -151,14 +146,15 @@ export class PurchaseListPage {
   private readonly currency = new CurrencyTrPipe();
 
   private readonly now = new Date();
-  readonly from = signal(toDateInput(new Date(this.now.getFullYear(), this.now.getMonth(), 1)));
-  readonly to = signal(toDateInput(this.now));
+  readonly from = signal<Date | null>(new Date(this.now.getFullYear(), this.now.getMonth(), 1));
+  /** Bitiş: seçilen günün sonu (23:59:59.999). */
+  readonly to = signal<Date | null>(normalizeDay(this.now, true));
   readonly supplierId = signal<string | null>(null);
   readonly loading = signal(true);
 
   private readonly range = computed(() => ({
-    start: fromDateInput(this.from()) ?? new Date(this.now.getFullYear(), this.now.getMonth(), 1),
-    end: fromDateInput(this.to(), true) ?? this.now,
+    start: this.from() ?? new Date(this.now.getFullYear(), this.now.getMonth(), 1),
+    end: this.to() ?? this.now,
   }));
 
   readonly purchases = toSignal(

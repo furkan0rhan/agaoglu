@@ -1,6 +1,7 @@
 import type { Product } from '../../shared/models/product.model';
 import { productTypeOf } from '../../shared/utils/regulatory.utils';
 import type { UiTone } from '../../shared/ui';
+import { markupPct as pricingMarkupPct } from '../../shared/utils/pricing';
 
 /**
  * Tasarım v2 (C) ürün/stok/alış ekranlarının ortak görünüm yardımcıları.
@@ -12,7 +13,7 @@ export function chipClass(active: boolean, danger = false): string {
   const base = 'inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-token-md border px-3.5 text-sm font-semibold transition-colors';
   if (!active) return `${base} border-line-strong bg-surface text-fg-secondary hover:bg-surface-hover hover:text-fg`;
   if (danger) return `${base} border-danger bg-danger-soft text-danger-text`;
-  return `${base} border-fg bg-fg text-surface`;
+  return `${base} border-brand-line bg-brand-soft text-brand-text`;
 }
 
 /** Çip içindeki sayaç (seçiliyken metin rengini alır). */
@@ -62,10 +63,23 @@ export function productIcon(p: Pick<Product, 'productType' | 'category'>): strin
   }
 }
 
-/** Kâr oranı (maliyete göre, tam sayı %) — alış 0 ise null. */
-export function markupPct(p: Pick<Product, 'purchasePrice' | 'salePrice'>): number | null {
-  if (!(p.purchasePrice > 0)) return null;
-  return Math.round(((p.salePrice - p.purchasePrice) / p.purchasePrice) * 100);
+/**
+ * Kâr oranı (maliyete göre, tam sayı %) — net alış 0 ise null.
+ * KDV hariç net satış / net alıştan hesaplanır (tek kaynak: shared/utils/pricing.ts).
+ */
+export function markupPct(
+  p: Pick<Product, 'purchasePrice' | 'salePrice'> & Partial<Pick<Product, 'vatRate' | 'purchasePriceIncludesVat'>>,
+): number | null {
+  const m = pricingMarkupPct(p.salePrice, p.purchasePrice, p.vatRate, !!p.purchasePriceIncludesVat);
+  return m == null ? null : Math.round(m * 10) / 10;
+}
+
+/** Y24: yüzde her yerde aynı hassasiyette ve Türkçe biçimde: "%9,8". */
+export function formatPctNumber(m: number, locale = 'tr-TR'): string {
+  return m.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+}
+export function formatPct(m: number | null | undefined, locale = 'tr-TR'): string {
+  return m == null || !Number.isFinite(m) ? '—' : `%${formatPctNumber(m, locale)}`;
 }
 
 /** Satır içi kritik kenar sınıfı (README: `shadow-[inset_3px_0_0_var(--danger)]`). */

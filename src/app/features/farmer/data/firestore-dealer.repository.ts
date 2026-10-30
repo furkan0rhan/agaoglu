@@ -1,18 +1,22 @@
 import { inject, Injectable } from '@angular/core';
 import {
-  Firestore, collection, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, updateDoc, where, writeBatch,
+  Firestore, collection, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where, writeBatch,
   DocumentData, Timestamp,
 } from '@angular/fire/firestore';
 import {
   ApplicationLog, FarmerInvite, FarmerLink, FarmField, FARMER_INVITE_TTL_DAYS, PrescriberInfo, Recommendation, Season,
 } from '../../../shared/models/farmer.model';
 import { productRequiresPrescription, productTypeOf } from '../../../shared/utils/regulatory.utils';
-import type { Product } from '../../../shared/models/product.model';
+import { productUnit, type Product } from '../../../shared/models/product.model';
 import { generateInviteCode } from '../utils/identity.util';
-import type { DealerFarmerRepository, DealerProductOption, NewInvite, NewRecommendation } from './repositories';
+import { DebtTxLike, farmerDebtSummary } from '../utils/debt-schedule.util';
+import type { CustomerLinkInfo, DealerFarmerRepository, DealerProductOption, NewInvite, NewRecommendation } from './repositories';
 import { fromDate, toField, toInvite, toLink, toLog, toRecommendation, toSeason } from './converters';
 
-/** Bayi tarafı Firestore implementasyonu (müşteri detayındaki çiftçi paneli). Dinleyici yok, getDocs. */
+/**
+ * Bayi tarafı Firestore implementasyonu (müşteri detayındaki çiftçi paneli). Çoğunlukla getDocs; tek istisna
+ * bağlantı izleyicisinin (FarmerLinkWatcher) kullandığı `watch*` dinleyicileri.
+ */
 
 type Data = Record<string, unknown>;
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -95,6 +99,7 @@ export class FirestoreDealerFarmerRepository implements DealerFarmerRepository {
       target: r.target.trim(),
       items: r.items.map(i => ({
         productId: i.productId, productName: i.productName.trim(), dose: i.dose.trim(), phiDays: i.phiDays, requiresPrescription: i.requiresPrescription,
+        productType: i.productType ?? null, unit: i.unit ?? null,
       })),
       prescriptionNo: r.prescriptionNo?.trim() || null,
       windowStart: fromDate(r.windowStart), windowEnd: fromDate(r.windowEnd), notes: r.notes?.trim() || null,
@@ -130,13 +135,16 @@ export class FirestoreDealerFarmerRepository implements DealerFarmerRepository {
 
   async syncCustomerToFarmer(link: FarmerLink, tenantName: string): Promise<number> {
     if (link.status !== 'active') return 0;
-    const [custSnap, salesSnap, existingSnap] = await Promise.all([
+    const [custSnap, salesSnap, existingSnap, txSnap] = await Promise.all([
       getDoc(doc(this.fs, 'customers', link.customerId)),
       getDocs(query(
         collection(this.fs, 'sales'), where('tenantId', '==', link.tenantId), where('customerId', '==', link.customerId),
         orderBy('createdAt', 'desc'), limit(50),
       )),
       getDocs(query(collection(this.fs, 'farmerPurchases'), where('tenantId', '==', link.tenantId), where('farmerId', '==', link.farmerId))),
+      // Vade/taksit planı için borç kayıtları (yalnız eşitlik filtresi → bileşik indeks gerekmez). Okunamazsa takvimsiz devam.
+      getDocs(query(collection(this.fs, 'creditTransactions'), where('tenantId', '==', link.tenantId), where('customerId', '==', link.customerId)))
+        .catch(() => null),
     ]);
 
     const existing = new Map(existingSnap.docs.map(d => [d.id, str(d.data()['status'])]));
@@ -157,9 +165,96 @@ export class FirestoreDealerFarmerRepository implements DealerFarmerRepository {
       batch.set(doc(this.fs, 'farmerPurchases', s.id), saleToPurchase(s.id, s.data(), link, tenantName, products), { merge: true });
     }
     const balance = custSnap.exists() ? num(custSnap.data()['balance']) : null;
-    batch.update(doc(this.fs, 'farmerLinks', link.id), { balance, balanceUpdatedAt: serverTimestamp(), tenantName });
+    const linkPatch: Data = { balance, balanceUpdatedAt: serverTimestamp(), tenantName };
+    if (txSnap) {
+      const saleNumbers = new Map<string, string>();
+      for (const sd of salesSnap.docs) { const no = str(sd.data()['saleNumber']); if (no) saleNumbers.set(sd.id, no); }
+      const txs = txSnap.docs.map(d => ({ id: d.id, ...d.data() }) as unknown as DebtTxLike);
+      const sum = farmerDebtSummary(txs, balance, saleNumbers);
+      linkPatch['nextDue'] = sum.nextDue ? { date: Timestamp.fromDate(sum.nextDue.date), amount: sum.nextDue.amount } : null;
+      linkPatch['overdueAmount'] = sum.overdueAmount;
+      linkPatch['schedule'] = sum.schedule.map(i => ({ ...i, dueDate: fromDate(i.dueDate) }));
+    }
+    batch.update(doc(this.fs, 'farmerLinks', link.id), linkPatch);
     await batch.commit();
     return toWrite.length;
+  }
+
+  watchTenantLinks(tenantId: string, next: (links: FarmerLink[]) => void, error: (err: unknown) => void): () => void {
+    return onSnapshot(
+      query(collection(this.fs, 'farmerLinks'), where('tenantId', '==', tenantId)),
+      snap => {
+        // Kendi yazdığımız (bekleyen) değişikliği değil sunucunun onayladığını değerlendir: aksi halde döngü olur
+        if (snap.metadata.hasPendingWrites) return;
+        next(snap.docs.map(d => toLink(d.id, d.data({ serverTimestamps: 'estimate' }))));
+      },
+      error,
+    );
+  }
+
+  watchCustomer(customerId: string, next: (c: CustomerLinkInfo | null) => void, error: (err: unknown) => void): () => void {
+    return onSnapshot(
+      doc(this.fs, 'customers', customerId),
+      snap => {
+        if (snap.metadata.hasPendingWrites) return;
+        const d = snap.exists() ? snap.data() : null;
+        next(d ? { balance: num(d['balance']), farmerId: str(d['farmerId']) } : null);
+      },
+      error,
+    );
+  }
+
+  async setCustomerFarmerId(customerId: string, farmerId: string | null): Promise<void> {
+    await updateDoc(doc(this.fs, 'customers', customerId), { farmerId });
+  }
+
+  // --- İşletme geneli (Çiftçiler sayfası) ---
+
+  async listTenantLinks(tenantId: string): Promise<FarmerLink[]> {
+    const snap = await getDocs(query(collection(this.fs, 'farmerLinks'), where('tenantId', '==', tenantId)));
+    return snap.docs.map(d => toLink(d.id, d.data()));
+  }
+
+  async listTenantOpenInvites(tenantId: string): Promise<FarmerInvite[]> {
+    // İki eşitlik filtresi: tek alan indeksleriyle karşılanır (bileşik indeks gerekmez)
+    const snap = await getDocs(query(collection(this.fs, 'farmerInvites'), where('tenantId', '==', tenantId), where('used', '==', false)));
+    return snap.docs.map(d => toInvite(d.id, d.data())).filter(i => !i.revoked);
+  }
+
+  async revokeInvite(code: string): Promise<void> {
+    await updateDoc(doc(this.fs, 'farmerInvites', code), { revoked: true });
+  }
+
+  async listTenantRecommendations(tenantId: string, max: number): Promise<Recommendation[]> {
+    const snap = await getDocs(query(
+      collection(this.fs, 'recommendations'), where('tenantId', '==', tenantId), orderBy('createdAt', 'desc'), limit(max),
+    ));
+    return snap.docs.map(d => toRecommendation(d.id, d.data()));
+  }
+
+  async listTenantSharedFields(tenantId: string): Promise<FarmField[]> {
+    const snap = await getDocs(query(collection(this.fs, 'fields'), where('sharedTenantIds', 'array-contains', tenantId)));
+    return snap.docs.map(d => toField(d.id, d.data())).filter(f => f.isActive);
+  }
+
+  async listTenantSharedSeasons(tenantId: string): Promise<Season[]> {
+    const snap = await getDocs(query(collection(this.fs, 'seasons'), where('sharedTenantIds', 'array-contains', tenantId)));
+    return snap.docs.map(d => toSeason(d.id, d.data()));
+  }
+
+  async listTenantRecentLogs(tenantId: string, max: number): Promise<ApplicationLog[]> {
+    const snap = await getDocs(query(
+      collection(this.fs, 'applicationLogs'), where('sharedTenantIds', 'array-contains', tenantId), orderBy('date', 'desc'), limit(max),
+    ));
+    return snap.docs.map(d => toLog(d.id, d.data()));
+  }
+
+  async listTenantPhiLogs(tenantId: string, from: Date, max: number): Promise<ApplicationLog[]> {
+    const snap = await getDocs(query(
+      collection(this.fs, 'applicationLogs'), where('sharedTenantIds', 'array-contains', tenantId),
+      where('earliestHarvestDate', '>=', Timestamp.fromDate(from)), orderBy('earliestHarvestDate'), limit(max),
+    ));
+    return snap.docs.map(d => toLog(d.id, d.data()));
   }
 }
 
@@ -174,12 +269,13 @@ function toProductOption(id: string, p: Partial<Product>): DealerProductOption {
   return {
     id, name: p.name ?? '', productType: productTypeOf({ productType: p.productType, category: p.category ?? '' }),
     requiresPrescription: productRequiresPrescription({ requiresPrescription: p.requiresPrescription, productType: p.productType }),
+    unit: productUnit(p),
     phiDays: num(p.phiDays), activeIngredient: str(p.activeIngredient),
   };
 }
 
 /** Satış → çiftçi ambarı kaydı. Alış/maliyet fiyatı (costPrice) ve bayi iç alanları AKTARILMAZ. */
-function saleToPurchase(saleId: string, s: Data, link: FarmerLink, tenantName: string, products: Map<string, Partial<Product>>): DocumentData {
+export function saleToPurchase(saleId: string, s: Data, link: FarmerLink, tenantName: string, products: Map<string, Partial<Product>>): DocumentData {
   const items = ((s['items'] as Data[] | undefined) ?? []).map(it => {
     const pid = str(it['productId']) ?? '';
     const p = products.get(pid) ?? {};
@@ -191,14 +287,16 @@ function saleToPurchase(saleId: string, s: Data, link: FarmerLink, tenantName: s
     const productType = productTypeOf({ productType: p.productType, category: p.category ?? '' });
     // Veri minimizasyonu: bitki koruma ürünlerinde fiyat çiftçi tarafına hiç aktarılmaz (md. 7 ihtiyatlı yorum)
     const hidePrice = productType === 'bitki_koruma';
+    const requiresPrescription = typeof it['requiresPrescription'] === 'boolean' ? it['requiresPrescription'] as boolean
+      : productRequiresPrescription({ requiresPrescription: p.requiresPrescription, productType: p.productType });
     return {
       productId: pid, productName: str(it['productName']) ?? p.name ?? '', quantity: num(it['quantity']) ?? 0,
       unit: str(it['unit']) ?? p.unit ?? 'adet',
       unitPrice: hidePrice ? 0 : num(it['unitPrice']) ?? 0, totalPrice: hidePrice ? 0 : num(it['totalPrice']) ?? 0,
       productType,
-      requiresPrescription: typeof it['requiresPrescription'] === 'boolean' ? it['requiresPrescription']
-        : productRequiresPrescription({ requiresPrescription: p.requiresPrescription, productType: p.productType }),
-      prescriptionNo: str(it['prescriptionNo']) ?? str(s['prescriptionNo']),
+      requiresPrescription,
+      // Satış düzeyindeki e-reçete no YALNIZ reçeteli kaleme düşer (gübreye reçete yazılmaz — rapor #6)
+      prescriptionNo: str(it['prescriptionNo']) ?? (requiresPrescription ? str(s['prescriptionNo']) : null),
       activeIngredient: str(p.activeIngredient), licenseNo: str(it['licenseNo']) ?? str(p.licenseNo),
       phiDays: num(p.phiDays), gtsNos: [...new Set(gts)], expiryDate: expiries[0] ?? null,
     };

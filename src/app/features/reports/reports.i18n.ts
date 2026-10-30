@@ -17,6 +17,11 @@ const TR = {
   allSuppliers: 'Tedarikçiler',
   netProfitHint: (exp: string) => `Gider: ${exp}`,
   avgHint: (n: number, avg: string) => `${n} satış · ort. ${avg}`,
+  revenueGross: 'Ciro (KDV dahil)',
+  netSales: 'Net satış (KDV hariç)',
+  vat: 'KDV',
+  vatHint: (vat: string) => `KDV: ${vat}`,
+  vatEstimatedNote: 'Tahmini: bazı eski satışlarda KDV oranı kaydı yok, ürünün güncel KDV oranı kullanıldı.',
 };
 
 export type ReportTexts = typeof TR;
@@ -35,6 +40,11 @@ const EN: ReportTexts = {
   allSuppliers: 'Suppliers',
   netProfitHint: (exp: string) => `Expenses: ${exp}`,
   avgHint: (n: number, avg: string) => `${n} sales · avg ${avg}`,
+  revenueGross: 'Revenue (incl. VAT)',
+  netSales: 'Net sales (excl. VAT)',
+  vat: 'VAT',
+  vatHint: (vat: string) => `VAT: ${vat}`,
+  vatEstimatedNote: 'Estimated: some older sales have no VAT rate record; the current VAT rate was used.',
 };
 
 export const REPORT_TEXTS: Record<Lang, ReportTexts> = { tr: TR, en: EN };

@@ -1,18 +1,22 @@
 import { computed, inject } from '@angular/core';
-import { signalStore, withState, withComputed, withMethods, patchState } from '@ngrx/signals';
+import { signalStore, withState, withComputed, withMethods, withHooks, patchState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { pipe, switchMap, tap, catchError, EMPTY, timer, retry } from 'rxjs';
 import { Product } from '../../../shared/models/product.model';
 import { ProductService } from '../services/product.service';
 import { TenantSettingsService } from '../../../core/settings/tenant-settings.service';
+import { AuthService } from '../../../core/auth/services/auth.service';
+import { LangService } from '../../../core/i18n/lang.service';
+import { userErrorMessage } from '../../../core/error/user-error';
 
 interface ProductState {
   products: Product[];
-  selectedProduct: Product | null;
   loading: boolean;
   /** İlk snapshot geldi mi? (onSnapshot canlı kalır; tekrar yüklemeye gerek yok) */
   loaded: boolean;
   error: string | null;
+  /** Verinin ait olduğu oturum (`uid|tenantId`). Oturum değişince store sıfırlanır (Y1). */
+  sessionKey: string;
   searchQuery: string;
   selectedCategory: string | null;
   showLowStockOnly: boolean;
@@ -21,10 +25,10 @@ interface ProductState {
 
 const initialState: ProductState = {
   products: [],
-  selectedProduct: null,
   loading: false,
   loaded: false,
   error: null,
+  sessionKey: '',
   searchQuery: '',
   selectedCategory: null,
   showLowStockOnly: false,
@@ -85,12 +89,18 @@ export const ProductStore = signalStore(
   };
   }),
 
-  withMethods((store, svc = inject(ProductService), settings = inject(TenantSettingsService)) => {
-    /** Canlı (onSnapshot) ürün aboneliğini (yeniden) başlatır. Mümkünse ensureLoaded() kullanın. */
-    const loadProducts = rxMethod<void>(
+  withMethods((store, svc = inject(ProductService), settings = inject(TenantSettingsService),
+    auth = inject(AuthService), lang = inject(LangService)) => {
+    const failText = () => userErrorMessage(null, lang.t().products.loadError, lang.lang());
+    const errorText = (err: unknown) => userErrorMessage(err, lang.t().products.loadError, lang.lang());
+    /**
+     * Canlı (onSnapshot) ürün aboneliği. `true`: (yeniden) başlat · `false`: aboneliği kapat (oturum sıfırlama).
+     * switchMap önceki aboneliği her çağrıda kapatır.
+     */
+    const subscription = rxMethod<boolean>(
       pipe(
-        tap(() => patchState(store, { loading: true, error: null })),
-        switchMap(() =>
+        tap(on => { if (on) patchState(store, { loading: true, error: null }); }),
+        switchMap(on => !on ? EMPTY :
           svc.getAll$().pipe(
             tap(products => patchState(store, { products, loading: false, loaded: true })),
             retry({
@@ -101,31 +111,48 @@ export const ProductStore = signalStore(
                   patchState(store, { loading: true, error: null });
                   return timer(5000);
                 }
-                patchState(store, { loading: false, error: err?.message ?? 'Ürünler yüklenemedi.' });
+                patchState(store, { loading: false, error: errorText(err) });
                 return EMPTY;
               }
             }),
             catchError((err) => {
-              patchState(store, { loading: false, error: err?.message ?? 'Ürünler yüklenemedi.' });
+              patchState(store, { loading: false, error: err ? errorText(err) : failText() });
               return EMPTY;
             })
           )
         )
       )
     );
+    /** Store'u boş duruma döndürür ve canlı aboneliği kapatır (çıkış / kullanıcı ya da işletme değişimi). */
+    const reset = (): void => {
+      subscription(false);
+      patchState(store, { ...initialState });
+    };
+    /** Geçerli oturum için aboneliği başlatır. */
+    const loadProducts = (): void => {
+      if (!auth.currentTenantId()) return;
+      patchState(store, { sessionKey: auth.sessionKey() });
+      subscription(true);
+    };
     return {
     loadProducts,
-    /** Store henüz yüklenmediyse ve yüklenmiyorsa bir kez yükler; canlı abonelik açıkken tekrar okumaz. */
+    reset,
+    /**
+     * Store henüz bu oturum için yüklenmediyse bir kez yükler; canlı abonelik açıkken tekrar okumaz.
+     * Başka oturumun (önceki kullanıcı/işletme) verisi duruyorsa önce sıfırlar.
+     */
     ensureLoaded: (): void => {
       settings.ensureLoaded(); // SKT eşikleri (idempotent)
-      if (store.loaded() || store.loading()) return;
+      const key = auth.sessionKey();
+      if (!key || !auth.currentTenantId()) return;
+      if (store.sessionKey() === key && (store.loaded() || store.loading())) return;
+      if (store.sessionKey() !== key) reset();
       loadProducts();
     },
     setSearch: (q: string) => patchState(store, { searchQuery: q }),
     setCategory: (c: string | null) => patchState(store, { selectedCategory: c }),
     toggleLowStock: () => patchState(store, { showLowStockOnly: !store.showLowStockOnly() }),
     toggleExpiring: () => patchState(store, { showExpiringOnly: !store.showExpiringOnly() }),
-    selectProduct: (p: Product | null) => patchState(store, { selectedProduct: p }),
     findByBarcode: (barcode: string) => {
       const code = barcode?.trim();
       if (!code) return null;
@@ -134,5 +161,17 @@ export const ProductStore = signalStore(
     clearFilters: () =>
       patchState(store, { searchQuery: '', selectedCategory: null, showLowStockOnly: false, showExpiringOnly: false }),
     };
+  }),
+
+  withHooks({
+    onInit(store, auth = inject(AuthService)) {
+      // Y1: oturum (uid/tenantId) değişince önceki işletmenin ürünleri (alış fiyatlarıyla) bellekte kalmasın.
+      // Abonelik açıktıysa yeni işletme için hemen yeniden başlat (açık ekranlar boş kalmasın).
+      auth.onSessionChange(() => {
+        const wasActive = store.loaded() || store.loading();
+        store.reset();
+        if (wasActive) store.ensureLoaded();
+      });
+    },
   })
 );

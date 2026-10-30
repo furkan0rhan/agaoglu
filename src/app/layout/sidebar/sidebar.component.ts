@@ -12,7 +12,7 @@ import { KbdComponent } from '../../shared/ui/kbd.component';
 import { LogoMarkComponent } from '../../shared/ui/logo-mark.component';
 import { ShellStatusService } from '../shell-status.service';
 import {
-  NavItem, bestMatch, buildNavItems, filterByRole, formatDisplayName, groupNavItems, injectCurrentUrl, roleLabel,
+  NavItem, bestMatch, buildNavItems, filterByRole, formatDisplayName, groupNavItems, injectCurrentUrl, roleLabel, tourKey,
 } from '../nav-items';
 
 const COLLAPSE_KEY = 'sidebarCollapsed';
@@ -29,7 +29,7 @@ const COLLAPSE_KEY = 'sidebarCollapsed';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block h-full shrink-0' },
   template: `
-    <aside
+    <aside data-tour="sidebar"
       class="flex h-full flex-col gap-1 overflow-hidden border-r border-side-line bg-side bg-side-pattern pb-3 pt-3.5 text-side-text transition-[width] duration-200 ease-out"
       [class]="collapsed() ? 'w-[4.5rem] px-2.5' : 'w-[14.75rem] px-3'"
       [attr.aria-label]="t().nav.mainMenu">
@@ -47,7 +47,7 @@ const COLLAPSE_KEY = 'sidebarCollapsed';
 
       <!-- Hızlı Satış -->
       @if (canSell()) {
-        <a routerLink="/pos" aria-keyshortcuts="F2"
+        <a routerLink="/pos" aria-keyshortcuts="F2" data-tour="nav-pos"
           [attr.aria-label]="collapsed() ? t().shell.quickSale + ' (F2)' : null"
           [attr.aria-current]="onPos() ? 'page' : null"
           [pTooltip]="collapsed() ? t().shell.quickSale + ' · F2' : ''" tooltipPosition="right"
@@ -79,13 +79,13 @@ const COLLAPSE_KEY = 'sidebarCollapsed';
           @for (item of g.items; track item.path) {
             @let active = activePath() === item.path;
             @let count = countFor(item);
-            <a [routerLink]="item.path"
+            <a [routerLink]="item.path" [attr.data-tour]="tourKey(item.path)"
                [attr.aria-current]="active ? 'page' : null"
                [attr.aria-label]="collapsed() ? item.title + (count ? ' (' + count + ')' : '') : null"
                [pTooltip]="collapsed() ? item.title : ''" tooltipPosition="right"
                class="relative flex h-10 shrink-0 items-center gap-3 rounded-token-md text-14.5 no-underline transition-colors duration-150"
                [class]="linkClass(active)">
-              <i class="pi text-16" [class]="item.icon + (active ? ' text-side-hi' : ' text-side-muted')" aria-hidden="true"></i>
+              <i class="pi text-16" [class]="item.icon + (active ? ' text-side-active-text' : ' text-side-muted')" aria-hidden="true"></i>
               @if (!collapsed()) {
                 <span class="min-w-0 flex-1 truncate">{{ item.title }}</span>
               }
@@ -106,7 +106,7 @@ const COLLAPSE_KEY = 'sidebarCollapsed';
       <div class="flex shrink-0 flex-col gap-1.5 border-t border-side-line pt-2.5">
         @if (!collapsed()) {
           <div role="status" class="flex items-center gap-2 rounded-token-md border border-side-line px-2.5 py-1.5 text-xs text-side-muted">
-            <span class="h-2 w-2 shrink-0 rounded-full" [class]="network.isOnline() ? 'bg-side-hi shadow-[0_0_0_3px_rgba(52,211,153,0.18)]' : 'bg-warning shadow-[0_0_0_3px_rgba(251,191,36,0.2)]'" aria-hidden="true"></span>
+            <span class="h-2 w-2 shrink-0 rounded-full" [class]="network.isOnline() ? 'bg-side-hi shadow-[0_0_0_3px_color-mix(in_srgb,var(--side-hi)_25%,transparent)]' : 'bg-warning shadow-[0_0_0_3px_color-mix(in_srgb,var(--warning)_35%,transparent)]'" aria-hidden="true"></span>
             <span class="truncate">{{ network.isOnline() ? t().shell.syncOnline : t().shell.syncOffline }}</span>
           </div>
         }
@@ -124,7 +124,7 @@ const COLLAPSE_KEY = 'sidebarCollapsed';
           </a>
           <button type="button" (click)="logout()" [attr.aria-label]="t().nav.logout"
             [pTooltip]="t().nav.logout" tooltipPosition="right"
-            class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-token-md border-0 bg-transparent text-side-muted transition-colors hover:bg-side-line hover:text-white">
+            class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-token-md border-0 bg-transparent text-side-muted transition-colors hover:bg-side-line hover:text-side-text">
             <i class="pi pi-sign-out text-15" aria-hidden="true"></i>
           </button>
         </div>
@@ -172,6 +172,8 @@ export class SidebarComponent {
     if (item.path === '/credit') return this.status.overdueCustomers() ?? 0;
     return 0;
   }
+
+  readonly tourKey = tourKey;
 
   toggle(): void {
     this.collapsed.update(v => !v);

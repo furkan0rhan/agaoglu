@@ -1,6 +1,8 @@
 // =============================================================================
-// Tasarım tokenları — v2 "Saha / Komuta Merkezi" (docs/design/c-saha-komuta).
-// Açık tema :root (kâğıt), koyu tema html.dark (kömür). Sidebar her iki temada koyu.
+// Tasarım tokenları — v2 "Saha / Komuta Merkezi" yerleşimi, renk v3 "Adaçayı & Krem"
+// (docs/design/renk-secenekleri/index.html?v=v2). Açık tema :root (krem kâğıt), koyu tema
+// html.dark (sıcak zeytin-kömür). Koyu blok yok: sidebar, mobil çubuklar ve ciro kartı da açık.
+// Dolu pastel zeminlerde (brand, accent, durum) metin KOYU mürekkep: --*-contrast / --text-inverse.
 // Bileşenlerde hex renk YAZMAYIN; bu değişkenleri ya da Tailwind karşılıklarını
 // (tailwind.config.js) kullanın. Liste ve kullanım: src/app/shared/ui/README.md
 //
@@ -11,70 +13,74 @@
 :root {
   color-scheme: light;
 
-  // ---- Marka (zümrüt) -------------------------------------------------------
-  --brand:            #047857;  // dolu buton, aktif öğe (beyaz metinle 5.5:1)
-  --brand-hover:      #065f46;
-  --brand-contrast:   #ffffff;  // --brand üstündeki metin
-  --brand-soft:       #e2f2e9;  // yumuşak zemin (rozet, ikon karesi, seçili satır)
-  --brand-soft-hover: #cfe8da;
-  --brand-line:       #a8d5bd;
-  --brand-text:       #03644a;  // yumuşak zemin üstündeki marka metni (AA)
-  --brand-gradient:   linear-gradient(135deg, #10b981 0%, #047857 100%); // yalnız logo karesi
+  // ---- Marka (adaçayı) -------------------------------------------------------
+  --brand:            #9ec6a2;  // dolu buton, aktif öğe (koyu --brand-contrast ile 6.8:1)
+  --brand-hover:      #8cba91;
+  --brand-contrast:   #1b3822;  // --brand üstündeki metin
+  --brand-soft:       #e7f0e2;  // yumuşak zemin (rozet, ikon karesi, seçili satır)
+  --brand-soft-hover: #d8e7d1;
+  --brand-line:       #b8d3b5;
+  --brand-text:       #3a6140;  // yumuşak zemin üstündeki marka metni (AA)
+  // Devre dışı dolu buton (14.12): opaklık yerine pastel zemin + soluk metin (≥3:1, krem zeminde de okunur)
+  --disabled-bg:      #e7f0e2;
+  --disabled-text:    #65735f;
+  --disabled-line:    #cfdcc9;
+  --brand-gradient:   linear-gradient(135deg, #b8d3b5 0%, #8cba91 100%); // yalnız logo karesi
 
-  // ---- Vurgu (yanık turuncu: satış, sepet, Hızlı Satış) --------------------
-  --accent:           #c2410c;
-  --accent-hover:     #9a3412;
-  --accent-contrast:  #ffffff;
-  --accent-soft:      #fbeadc;
-  --accent-line:      #efc3a3;
-  --accent-text:      #9f350a;
+  // ---- Vurgu (şeftali-kiremit: satış, sepet, Hızlı Satış) --------------------
+  --accent:           #eab691;
+  --accent-hover:     #e3a67b;
+  --accent-contrast:  #47230e;
+  --accent-soft:      #f9ece0;
+  --accent-line:      #ebcbb1;
+  --accent-text:      #8a4520;
   --accent-gradient:  linear-gradient(var(--accent), var(--accent)); // v2: düz renk
 
   // ---- Durum renkleri (dolu / yumuşak zemin / kenarlık / yumuşak üstü metin) -
-  --success:          #047857;
-  --success-soft:     #e2f2e9;
-  --success-line:     #a8d5bd;
-  --success-text:     #03644a;
-  --warning:          #b45309;
-  --warning-soft:     #faeed6;
-  --warning-line:     #ebcf98;
-  --warning-text:     #8a3f0a;
-  --danger:           #dc2626;
-  --danger-soft:      #fbe6e2;
-  --danger-line:      #f1bdb4;
-  --danger-text:      #b42318;
-  --info:             #1d4ed8;
-  --info-soft:        #e5ebfa;
-  --info-line:        #c0cff3;
-  --info-text:        #1d4ed8;
-  --neutral:          #454a41;
-  --neutral-soft:     #e8e4d9;
-  --neutral-line:     #c9c2b2;
-  --neutral-text:     #454a41;
+  --success:          #9ec6a2;
+  --success-soft:     #e7f0e2;
+  --success-line:     #b8d3b5;
+  --success-text:     #3a6140;
+  --warning:          #ebca80;
+  --warning-soft:     #f9f0d8;
+  --warning-line:     #e7d3a0;
+  --warning-text:     #714d12;
+  --danger:           #e8a69b;
+  --danger-soft:      #f9e6e1;
+  --danger-line:      #ebc2ba;
+  --danger-text:      #96392d;
+  --info:             #a8c2db;
+  --info-soft:        #e8eff6;
+  --info-line:        #c3d4e6;
+  --info-text:        #36597c;
+  --neutral:          #bab4a3;
+  --neutral-soft:     #ece8dd;
+  --neutral-line:     #d3ccbc;
+  --neutral-text:     #4d5044;
 
   // ---- Yüzeyler (kâğıt) -----------------------------------------------------
-  --bg-page:          #f6f4ee;  // uygulama zemini
-  --surface:          #fffefb;  // kart / tablo / topbar
-  --surface-raised:   #fffefb;  // menü, popover, dialog
-  --surface-muted:    #f1eee6;  // başlık şeridi, tablo başlığı, ikincil zemin
-  --surface-hover:    #f1eee6;  // satır / öğe hover
-  --surface-strong:   #e8e4d9;  // nötr rozet, ilerleme izi
-  --surface-overlay:  #fffefb;  // dialog / select paneli (opak)
-  --field-bg:         #fffefb;
-  --table-head-bg:    #f1eee6;
+  --bg-page:          #f7f4ec;  // uygulama zemini
+  --surface:          #fffdf8;  // kart / tablo / topbar
+  --surface-raised:   #fffdf8;  // menü, popover, dialog
+  --surface-muted:    #f2eee3;  // başlık şeridi, tablo başlığı, ikincil zemin
+  --surface-hover:    #efeadf;  // satır / öğe hover
+  --surface-strong:   #e6e0d2;  // nötr rozet, ilerleme izi
+  --surface-overlay:  #fffdf8;  // dialog / select paneli (opak)
+  --field-bg:         #fffdf8;
+  --table-head-bg:    #f2eee3;
   // v1 cam isimleri → opak
   --surface-glass:        var(--surface);
   --surface-glass-strong: var(--surface);
 
   // ---- Metin ---------------------------------------------------------------
-  --text-primary:   #1b1e19;
-  --text-secondary: #454a41;
-  --text-muted:     #62685c;
-  --text-inverse:   #ffffff;
+  --text-primary:     #2a2c25;
+  --text-secondary:   #4d5044;
+  --text-muted:       #5f6254;
+  --text-inverse:     #1f241c;
 
   // ---- Kenarlık ------------------------------------------------------------
-  --border-subtle: #e2ddd1;
-  --border-strong: #c9c2b2;
+  --border-subtle:    #e6e0d3;
+  --border-strong:    #cdc4b1;
   --border-glass:  var(--border-subtle);
   --border-glass-outer: transparent;
 
@@ -83,30 +89,31 @@
   --seg-on-ring: var(--border-strong);
   --seg-on-text: var(--text-primary);
 
-  // ---- Kalıcı koyu sidebar / mobil üst-alt çubuk (her iki temada koyu) ------
-  --side-bg:     #16211c;
-  --side-2:      #1f2c26;  // hover, kullanıcı kutusu
-  --side-line:   #2b3b33;
-  --side-text:   #e7ede9;
-  --side-muted:  #a3b2a9;
-  --side-hi:     #34d399;  // aktif öğe çizgisi / ikonu
-  --side-active: rgba(52, 211, 153, 0.13);
-  --side-active-text: #c4f7df;
-  --side-avatar: #2c4a3c;     // kullanıcı avatarı (solid)
-  --side-avatar-text: #c4f7df;
-  --side-em:     #5fe0ae;     // koyu panel vurgu metni (giriş başlığı)
-  --side-soft:   #b3c1b9;     // koyu panel ikincil metin
-  --side-danger: #fca5a5;     // koyu panel üstünde negatif değer
-  --side-danger-soft: rgba(239, 68, 68, 0.2);
-  --side-count:  #b91c1c;     // sidebar sayaç rozeti (kritik)
-  --side-count-alt: #c2410c; // sidebar sayaç rozeti (veresiye)
-  --sale:        #c2410c;  // sidebar/alt nav "Hızlı Satış" butonu
-  --sale-text:   #ffffff;
+  // ---- Sidebar / mobil üst-alt çubuk / ciro kartı (v3: açık adaçayı panel) ---
+  --side-bg:          #edf0e4;
+  --side-2:           #e2e8d8;  // hover, kullanıcı kutusu
+  --side-line:        #d4dcc9;
+  --side-text:        #2a2c25;
+  --side-muted:       #525b4c;
+  --side-hi:          #6f9c76;  // aktif öğe çizgisi / ikonu
+  --side-active:      #d3e5cc;
+  --side-active-text: #2d5234;
+  --side-avatar:      #cfe0c8;  // kullanıcı avatarı (solid)
+  --side-avatar-text: #2d5234;
+  --side-em:          #3a6140;  // panel vurgu metni (giriş başlığı, ciro trendi)
+  --side-soft:        #4d5044;  // panel ikincil metin
+  --side-danger:      #96392d;  // panel üstünde negatif değer
+  --side-danger-soft: #f6dcd5;
+  --side-count:       #b2453a;  // sidebar sayaç rozeti (kritik)
+  --admin-page:       #f8efe9;  // superadmin kabuğu sayfa zemini (çok hafif kırmızı ton, 14.12)
+  --side-count-alt:   #a2542a; // sidebar sayaç rozeti (veresiye)
+  --sale:             #eab691;  // sidebar/alt nav "Hızlı Satış" butonu
+  --sale-text:        #47230e;
 
   // ---- Tarla çizgisi deseni (başlık şeridi) ---------------------------------
-  --furrow:         rgba(4, 120, 87, 0.07);
+  --furrow:           rgba(111, 156, 118, 0.09);
   --furrow-pattern: repeating-linear-gradient(-14deg, transparent 0 9px, var(--furrow) 9px 10px);
-  --side-pattern:   repeating-linear-gradient(168deg, transparent 0 11px, rgba(255, 255, 255, 0.018) 11px 12px);
+  --side-pattern:   repeating-linear-gradient(168deg, transparent 0 11px, var(--furrow) 11px 12px);
 
   // v1 blob'ları kaldırıldı (geriye uyum: şeffaf)
   --blob-1: transparent;
@@ -115,13 +122,13 @@
   --blob-4: transparent;
 
   // ---- Grafik paleti (raporlar okuyor: report-calc.readChartColors) --------
-  --chart-1: #047857;
-  --chart-2: #1d4ed8;
-  --chart-3: #dc2626;
-  --chart-4: #c2410c;
-  --chart-5: #7c3aed;
-  --chart-6: #0f766e;
-  --chart-grid: #e4dfd3;
+  --chart-1:          #7fae86;
+  --chart-2:          #86a6c9;
+  --chart-3:          #e09486;
+  --chart-4:          #e3a979;
+  --chart-5:          #b4a0cf;
+  --chart-6:          #c9b46a;
+  --chart-grid:       #e9e4d8;
 
   // ---- Yarıçap (C: düz, keskin) --------------------------------------------
   --radius-xs:   5px;   // kbd
@@ -133,13 +140,13 @@
   --radius-pill: 9999px;
 
   // ---- Gölge (C düzdür; gölge yalnız açılır katmanlarda) --------------------
-  --shadow-xs:       0 1px 2px rgba(27, 30, 25, 0.06);
+  --shadow-xs:       0 1px 2px rgba(42, 44, 37, 0.06);
   --shadow-glass:    none;
-  --shadow-overlay:  0 12px 32px -8px rgba(27, 30, 25, 0.24), 0 2px 6px rgba(27, 30, 25, 0.08);
+  --shadow-overlay:  0 12px 32px -8px rgba(42, 44, 37, 0.18), 0 2px 6px rgba(42, 44, 37, 0.06);
   --shadow-glass-lg: var(--shadow-overlay);
-  --shadow-brand:    inset 0 -2px 0 rgba(0, 0, 0, 0.18);
-  --shadow-accent:   inset 0 -2px 0 rgba(0, 0, 0, 0.2);
-  --focus-ring:      0 0 0 3px rgba(4, 120, 87, 0.32);
+  --shadow-brand:    inset 0 -2px 0 rgba(27, 56, 34, 0.12);
+  --shadow-accent:   inset 0 -2px 0 rgba(71, 35, 14, 0.12);
+  --focus-ring:      0 0 0 3px rgba(111, 156, 118, 0.4);
 
   // ---- Blur (v2'de yok; eski sınıflar etkisiz kalsın) ------------------------
   --blur-sm: 0px;
@@ -151,7 +158,7 @@
   --space-page-x-lg: 1.5rem;   // ≥1024px
   --tap-min:         44px;
   --topbar-h:        64px;
-  --mtop-h:          56px;     // mobil koyu üst çubuk
+  --mtop-h:          56px;     // mobil üst çubuk
   --bottom-nav-h:    64px;
   --sidebar-w:       14.75rem; // 236px, yazı boyutuyla büyür
   --sidebar-w-collapsed: 4.5rem; // 72px
@@ -185,84 +192,101 @@
 html.dark {
   color-scheme: dark;
 
-  --brand:            #34d399;
-  --brand-hover:      #6ee7b7;
-  --brand-contrast:   #04281d;
-  --brand-soft:       rgba(52, 211, 153, 0.12);
-  --brand-soft-hover: rgba(52, 211, 153, 0.2);
-  --brand-line:       rgba(52, 211, 153, 0.32);
-  --brand-text:       #5fe0ae;
+  --brand:            #a8cfac;
+  --brand-hover:      #bddbc0;
+  --brand-contrast:   #1b3822;
+  --brand-soft:       #34442f;
+  --brand-soft-hover: #3d5137;
+  --brand-line:       #55704f;
+  --brand-text:       #bcdcbd;
+  --disabled-bg:      #34442f;
+  --disabled-text:    #9aa592;
+  --disabled-line:    #45573f;
 
-  --accent:           #fb923c;
-  --accent-hover:     #fdba74;
-  --accent-contrast:  #2b1204;
-  --accent-soft:      rgba(251, 146, 60, 0.13);
-  --accent-line:      rgba(251, 146, 60, 0.34);
-  --accent-text:      #fdac70;
+  --accent:           #ebbd9c;
+  --accent-hover:     #f0ccb1;
+  --accent-contrast:  #47230e;
+  --accent-soft:      #4a3a2d;
+  --accent-line:      #6f5440;
+  --accent-text:      #f0c6a7;
 
-  --success:      #34d399;
-  --success-soft: rgba(52, 211, 153, 0.12);
-  --success-line: rgba(52, 211, 153, 0.32);
-  --success-text: #5fe0ae;
-  --warning:      #fbbf24;
-  --warning-soft: rgba(245, 158, 11, 0.14);
-  --warning-line: rgba(245, 158, 11, 0.34);
-  --warning-text: #fcc94d;
-  --danger:       #f87171;
-  --danger-soft:  rgba(239, 68, 68, 0.15);
-  --danger-line:  rgba(239, 68, 68, 0.36);
-  --danger-text:  #fb8f8f;
-  --info:         #93b4fb;
-  --info-soft:    rgba(96, 140, 250, 0.15);
-  --info-line:    rgba(96, 140, 250, 0.36);
-  --info-text:    #a5c0fc;
-  --neutral:      #c3c4b9;
-  --neutral-soft: #2a2f2a;
-  --neutral-line: #454b44;
-  --neutral-text: #c3c4b9;
+  --success:          #a8cfac;
+  --success-soft:     #34442f;
+  --success-line:     #55704f;
+  --success-text:     #bcdcbd;
+  --warning:          #eccf8f;
+  --warning-soft:     #47402a;
+  --warning-line:     #6b5f3a;
+  --warning-text:     #f0d69c;
+  --danger:           #eaa99f;
+  --danger-soft:      #4c3330;
+  --danger-line:      #744b45;
+  --danger-text:      #f2b8ae;
+  --info:             #b0c8e0;
+  --info-soft:        #323c48;
+  --info-line:        #4c5c70;
+  --info-text:        #c0d4e9;
+  --neutral:          #b8b3a2;
+  --neutral-soft:     #383a31;
+  --neutral-line:     #535649;
+  --neutral-text:     #c9c6b8;
 
-  --bg-page:          #121412;
-  --surface:          #1a1d1a;
-  --surface-raised:   #212521;
-  --surface-muted:    #212521;
-  --surface-hover:    #262b26;
-  --surface-strong:   #2a2f2a;
-  --surface-overlay:  #212521;
-  --field-bg:         #161916;
-  --table-head-bg:    #212521;
+  --bg-page:          #22231e;
+  --surface:          #2a2b25;
+  --surface-raised:   #31332c;
+  --surface-muted:    #31332c;
+  --surface-hover:    #373930;
+  --surface-strong:   #3e4036;
+  --surface-overlay:  #31332c;
+  --field-bg:         #25261f;
+  --table-head-bg:    #31332c;
 
-  --text-primary:   #ecebe4;
-  --text-secondary: #c3c4b9;
-  --text-muted:     #9fa296;
-  --text-inverse:   #121412;
+  --text-primary:     #eeebe0;
+  --text-secondary:   #c9c6b8;
+  --text-muted:       #a8a597;
+  --text-inverse:     #1d2119;
 
-  --border-subtle: #2f342f;
-  --border-strong: #454b44;
+  --border-subtle:    #3b3d34;
+  --border-strong:    #535649;
 
-  // Seçili segment: koyuda kart (#1a1d1a) ile şerit (#212521) neredeyse aynı → belirgin açık zemin + halka
-  --seg-on-bg:   #3a423c;
-  --seg-on-ring: #66736a;
-  --seg-on-text: #ffffff;
+  // Seçili segment: koyuda kart ile şerit yakın → belirgin açık zemin + halka
+  --seg-on-bg:        #46493e;
+  --seg-on-ring:      #6e7262;
+  --seg-on-text:      #fbf9f2;
 
-  --side-bg:     #0b0e0c;
-  --side-2:      #161b18;
-  --side-line:   #222a25;
-  --side-text:   #e7ede9;
-  --side-muted:  #9aa89f;
-  --sale:        #ea6a22;
-  --sale-text:   #1d0b02;
+  --side-bg:          #2a2d25;
+  --side-2:           #33372d;
+  --side-line:        #3e4337;
+  --side-text:        #eeebe0;
+  --side-muted:       #b1b2a2;
+  --sale:             #ebbd9c;
+  --sale-text:        #47230e;
 
-  --furrow: rgba(52, 211, 153, 0.045);
+  --furrow:           rgba(168, 207, 172, 0.05);
 
-  --chart-1: #34d399;
-  --chart-2: #93b4fb;
-  --chart-3: #f87171;
-  --chart-4: #fb923c;
-  --chart-5: #c4b5fd;
-  --chart-6: #5eead4;
-  --chart-grid: #2c312c;
+  --chart-1:          #9fcba6;
+  --chart-2:          #a3bedc;
+  --chart-3:          #eba395;
+  --chart-4:          #edb88d;
+  --chart-5:          #c5b2de;
+  --chart-6:          #d8c47c;
+  --chart-grid:       #393b33;
 
-  --shadow-xs:       0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-overlay:  0 16px 40px -10px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.03);
-  --focus-ring:      0 0 0 3px rgba(52, 211, 153, 0.35);
+  --shadow-xs:       0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-overlay:  0 16px 40px -10px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(238, 235, 224, 0.05);
+  --focus-ring:      0 0 0 3px rgba(168, 207, 172, 0.4);
+
+  // ---- Sidebar / ciro kartı (koyu temada ayrıca)
+  --side-hi:          #a8cfac;
+  --side-active:      #3d5137;
+  --side-active-text: #cbe5cb;
+  --side-avatar:      #415a3c;
+  --side-avatar-text: #cbe5cb;
+  --side-em:          #bcdcbd;
+  --side-soft:        #c9c6b8;
+  --side-danger:      #f2b8ae;
+  --side-danger-soft: #4c3330;
+  --side-count:       #b2453a;
+  --side-count-alt:   #a2542a;
+  --admin-page:       #2a2220;
 }

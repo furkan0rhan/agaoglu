@@ -15,7 +15,6 @@ export interface HomeTexts {
   overdueTitle: string;
   overdueCustomers: (n: number) => string;
   overdueNone: string;
-  goCredit: string;
   attentionTitle: string;
   alertsUnit: string;
   criticalStock: (n: number) => string;
@@ -63,7 +62,6 @@ export const HOME_TR: HomeTexts = {
   overdueTitle: 'Gecikmiş alacak',
   overdueCustomers: n => `${n} müşteri gecikmede`,
   overdueNone: 'Vadesi geçen borç yok',
-  goCredit: 'Veresiyeye git',
   attentionTitle: 'Dikkat gerekenler',
   alertsUnit: 'uyarı',
   criticalStock: n => `${n} kritik stok`,
@@ -111,7 +109,6 @@ export const HOME_EN: HomeTexts = {
   overdueTitle: 'Overdue receivables',
   overdueCustomers: n => `${n} customer(s) overdue`,
   overdueNone: 'No overdue debt',
-  goCredit: 'Go to credit',
   attentionTitle: 'Needs attention',
   alertsUnit: 'alerts',
   criticalStock: n => `${n} critical stock`,

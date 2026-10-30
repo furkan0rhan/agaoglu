@@ -32,6 +32,14 @@ describe('users: kendi profili', () => {
     await assertFails(updateDoc(doc(as(env, 'CASH'), 'users', 'CASH'), { displayName: 'X', role: 'admin' }));
   });
 
+  it('kullanıcı kendi ürün turu durumunu (onboarding) yazabilir; başkasınınkini ve harita olmayan değeri yazamaz', async () => {
+    const onboarding = { version: 1, completedTours: ['pos@1'], dismissed: false };
+    await assertSucceeds(updateDoc(doc(as(env, 'CASH'), 'users', 'CASH'), { onboarding }));
+    await assertFails(updateDoc(doc(as(env, 'CASH'), 'users', 'CASH'), { onboarding: 'x' }));
+    await assertFails(updateDoc(doc(as(env, 'CASH'), 'users', 'CASH'), { onboarding, role: 'admin' }));
+    await assertFails(updateDoc(doc(as(env, 'CASH'), 'users', 'STAFF'), { onboarding }));
+  });
+
   it('kendi dokümanını okuyabilir, iş arkadaşınınkini (admin değilse) okuyamaz', async () => {
     await assertSucceeds(getDoc(doc(as(env, 'CASH'), 'users', 'CASH')));
     await assertFails(getDoc(doc(as(env, 'CASH'), 'users', 'STAFF')));

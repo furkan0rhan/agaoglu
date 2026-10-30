@@ -1,4 +1,6 @@
 import { Directive, EventEmitter, HostListener, Input, OnDestroy, Output } from '@angular/core';
+import { GS } from '../scanner/gs1';
+import { isGsKey } from '../scanner/gs1-keys.directive';
 
 @Directive({
   selector: '[appBarcodeInput]',
@@ -14,8 +16,10 @@ export class BarcodeInputDirective implements OnDestroy {
 
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
+    // Karekod ayırıcısı (FNC1/GS): okuyucu Ctrl+] olarak gönderir; arabelleğe GS olarak yaz
+    const gsKey = isGsKey(event);
     // Kısayol tuşları (Ctrl/Cmd/Alt) okuyucu girişi değildir
-    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (!gsKey && (event.ctrlKey || event.metaKey || event.altKey)) return;
 
     const active = document.activeElement as HTMLElement | null;
     const activeTag = active?.tagName;
@@ -27,8 +31,8 @@ export class BarcodeInputDirective implements OnDestroy {
       return;
     }
 
-    // Açık bir dialog varken dinleme (dialog içi Enter'ı çalmasın)
-    if (document.querySelector('.p-dialog-mask')) {
+    // Açık bir dialog (veya kamera tarayıcı) varken dinleme (dialog içi Enter'ı çalmasın)
+    if (document.querySelector('.p-dialog-mask, .ui-scanner-mask')) {
       this.reset();
       return;
     }
@@ -47,7 +51,8 @@ export class BarcodeInputDirective implements OnDestroy {
       return;
     }
 
-    if (event.key.length === 1) this.buffer += event.key;
+    if (gsKey) this.buffer += GS;
+    else if (event.key.length === 1) this.buffer += event.key;
 
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => (this.buffer = ''), 500);

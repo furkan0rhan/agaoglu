@@ -162,13 +162,16 @@ export class CreditTimelineComponent {
     const amount = Math.abs(tx.amount);
 
     if (tx.type === 'payment') {
-      const isDefaultDesc = !tx.description || tx.description === cr.cashPayDesc || tx.description === cr.cardPayDesc;
+      const ac = this.t().acc;
+      const isDefaultDesc = !tx.description || tx.description === cr.cashPayDesc || tx.description === cr.cardPayDesc
+        || tx.description === ac.transferPayDesc;
+      const method = tx.paymentMethod === 'card' ? cr.card : tx.paymentMethod === 'transfer' ? ac.transfer : cr.cash;
       return {
         tx, kind: 'payment', date, due: null, amount, increases: false,
-        title: `${cr.collection} · ${tx.paymentMethod === 'card' ? cr.card : cr.cash}`,
+        title: `${cr.collection} · ${method}`,
         detail: isDefaultDesc ? '' : tx.description,
         ref: '',
-        icon: tx.paymentMethod === 'card' ? 'pi-credit-card' : 'pi-wallet',
+        icon: tx.paymentMethod === 'card' ? 'pi-credit-card' : tx.paymentMethod === 'transfer' ? 'pi-send' : 'pi-wallet',
         iconClass: TONE_SOFT.success,
       };
     }

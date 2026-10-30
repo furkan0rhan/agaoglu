@@ -8,16 +8,21 @@ import { DEALER_FARMER_REPOSITORY, DealerProductOption } from '../data/repositor
 import { fromInputDate } from '../layout/farmer-ui';
 import { MAX_RECOMMENDATION_ITEMS, recommendationNeedsPrescription, validateRecommendation } from '../utils/consent.util';
 
-interface ItemDraft { key: number; productId: string | null; productName: string; dose: string; phiDays: number | null; requiresPrescription: boolean; rxLocked: boolean }
+interface ItemDraft {
+  key: number; productId: string | null; productName: string; dose: string; phiDays: number | null; requiresPrescription: boolean; rxLocked: boolean;
+  /** Ürün kartından: çiftçi defterinde kayıt türü / birim buradan seçilir (serbest metin üründe null) */
+  productType: string | null; unit: string | null;
+}
 
 /**
  * Öneri / reçete kaydı (yalnızca `canPrescribe` + yetki belge no). Kayıt DEĞİŞTİRİLEMEZ (rules); sadece geri çekilir.
  * Reçeteli ürün varsa e-reçete no zorunlu (istemci + rules). Ürün kartındaki reçete bayrağı kilitli gelir.
  */
+import { DateFieldComponent } from '../../../shared/ui/date-field.component';
 @Component({
   selector: 'app-recommendation-dialog',
   standalone: true,
-  imports: [FormsModule, ButtonModule, DialogModule],
+  imports: [FormsModule, ButtonModule, DialogModule, DateFieldComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p-dialog [header]="t().farmer.dealer.recTitle" [(visible)]="visible" [modal]="true" [style]="{ width: 'min(640px, 96vw)' }" [draggable]="false" (onShow)="open()">
@@ -72,14 +77,8 @@ interface ItemDraft { key: number; productId: string | null; productName: string
           </div>
         }
         <div class="grid grid-cols-2 gap-2">
-          <div class="flex flex-col gap-1.5">
-            <label for="rec-ws" class="text-sm font-semibold text-fg-secondary">{{ t().farmer.dealer.recWindowStart }}</label>
-            <input id="rec-ws" class="p-inputtext w-full" type="date" name="ws" [(ngModel)]="windowStart" />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <label for="rec-we" class="text-sm font-semibold text-fg-secondary">{{ t().farmer.dealer.recWindowEnd }}</label>
-            <input id="rec-we" class="p-inputtext w-full" type="date" name="we" [(ngModel)]="windowEnd" />
-          </div>
+          <ui-date-field inputId="rec-ws" name="ws" valueType="iso" [label]="t().farmer.dealer.recWindowStart" [(ngModel)]="windowStart" />
+          <ui-date-field inputId="rec-we" name="we" valueType="iso" [label]="t().farmer.dealer.recWindowEnd" [(ngModel)]="windowEnd" />
         </div>
         <div class="flex flex-col gap-1.5">
           <label for="rec-notes" class="text-sm font-semibold text-fg-secondary">{{ t().farmer.dealer.recNotes }}</label>
@@ -133,7 +132,7 @@ export class RecommendationDialogComponent {
   }
 
   private emptyItem(): ItemDraft {
-    return { key: ++this.keySeq, productId: null, productName: '', dose: '', phiDays: null, requiresPrescription: false, rxLocked: false };
+    return { key: ++this.keySeq, productId: null, productName: '', dose: '', phiDays: null, requiresPrescription: false, rxLocked: false, productType: null, unit: null };
   }
 
   private keySeq = 0;
@@ -154,8 +153,9 @@ export class RecommendationDialogComponent {
   setProduct(i: number, name: string): void {
     const p = this.products().find(x => x.name === name);
     this.items.update(xs => xs.map((it, k) => (k !== i ? it : p
-      ? { ...it, productId: p.id, productName: p.name, phiDays: p.phiDays, requiresPrescription: p.requiresPrescription, rxLocked: p.requiresPrescription }
-      : { ...it, productId: null, productName: name, rxLocked: false })));
+      ? { ...it, productId: p.id, productName: p.name, phiDays: p.phiDays, requiresPrescription: p.requiresPrescription, rxLocked: p.requiresPrescription,
+          productType: p.productType, unit: p.unit }
+      : { ...it, productId: null, productName: name, rxLocked: false, productType: null, unit: null })));
   }
 
   async save(): Promise<void> {
@@ -164,6 +164,7 @@ export class RecommendationDialogComponent {
       productId: i.productId, productName: i.productName, dose: i.dose,
       phiDays: i.phiDays == null || (i.phiDays as unknown) === '' ? null : Math.round(Number(i.phiDays)),
       requiresPrescription: !!i.requiresPrescription,
+      productType: i.productType, unit: i.unit,
     }));
     const errs = validateRecommendation({
       canPrescribe: !!pr?.canPrescribe, licenseNo: pr?.prescriberLicenseNo, linkActive: this.link().status === 'active',

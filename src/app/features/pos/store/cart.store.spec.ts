@@ -1,5 +1,8 @@
 import { TestBed } from '@angular/core/testing';
-import { CART_STORAGE_KEY, CartStore } from './cart.store';
+import { CART_OWNER_KEY, CART_STORAGE_KEY, CartStore } from './cart.store';
+import { HELD_CARTS_KEY } from './held-carts';
+import { AuthService } from '../../../core/auth/services/auth.service';
+import { FakeSessionAuth } from '../../../core/auth/services/fake-session-auth.testing';
 import { CartItem } from '../../../shared/models/sale.model';
 
 const item = (id: string, unitPrice: number, extra: Partial<CartItem> = {}): Omit<CartItem, '_tempId'> => ({
@@ -8,12 +11,37 @@ const item = (id: string, unitPrice: number, extra: Partial<CartItem> = {}): Omi
 });
 
 describe('CartStore', () => {
+  let auth: FakeSessionAuth;
+  const configure = () => TestBed.configureTestingModule({ providers: [{ provide: AuthService, useValue: auth }] });
   beforeEach(() => {
     localStorage.clear();
     TestBed.resetTestingModule();
+    auth = new FakeSessionAuth();
+    configure();
   });
 
   const create = () => TestBed.inject(CartStore);
+
+  it('Y1: oturum değişince sepet bellekte ve depoda temizlenir', () => {
+    const cart = create();
+    cart.addItem(item('A', 10));
+    cart.setCustomer('c1', 'Ali');
+    TestBed.tick();
+    auth.switchTo('');
+    expect(cart.items().length).toBe(0);
+    expect(cart.customerId()).toBeNull();
+    expect(localStorage.getItem(CART_STORAGE_KEY)).toBeNull();
+  });
+
+  it('Y1: başka oturumun kayıtlı sepeti ve bekleyen sepetleri geri yüklenmez', () => {
+    localStorage.setItem(CART_OWNER_KEY, 'u9|t9');
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({ items: [{ ...item('X', 5), _tempId: 'x' }] }));
+    localStorage.setItem(HELD_CARTS_KEY, '[]');
+    const cart = create();
+    expect(cart.items().length).toBe(0);
+    expect(localStorage.getItem(HELD_CARTS_KEY)).toBeNull();
+    expect(localStorage.getItem(CART_OWNER_KEY)).toBe('u1|t1');
+  });
 
   it('toplamlar kuruşa yuvarlanır ve totalPrice indirimi içerir', () => {
     const cart = create();
@@ -67,6 +95,7 @@ describe('CartStore', () => {
     TestBed.tick();
     expect(localStorage.getItem(CART_STORAGE_KEY)).toContain('"productId":"A"');
     TestBed.resetTestingModule();
+    configure();
     expect(TestBed.inject(CartStore).items().length).toBe(1);
   });
 

@@ -55,11 +55,11 @@
     border-radius: 7px;
   }
 
-  /* Koyu tarla zemini (giriş tanıtım paneli, plan kartı) */
+  /* Tarla zemini — v3: açık adaçayı panel (giriş tanıtım paneli, ciro kartı, plan kartı). Ad geriye uyum için. */
   .field-dark {
     background-color: var(--side-bg);
     color: var(--side-text);
-    background-image: repeating-linear-gradient(-14deg, transparent 0 9px, rgba(52, 211, 153, 0.06) 9px 10px);
+    background-image: var(--furrow-pattern);
   }
 
   /* Liste satırı: opak hover */

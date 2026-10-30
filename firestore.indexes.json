@@ -351,6 +351,48 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "recommendations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "tenantId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "applicationLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "sharedTenantIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "applicationLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "sharedTenantIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "earliestHarvestDate",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

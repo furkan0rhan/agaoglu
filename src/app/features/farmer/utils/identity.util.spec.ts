@@ -1,7 +1,7 @@
 import { FARMER_EMAIL_DOMAIN, FarmerInvite, isFarmerEmail } from '../../../shared/models/farmer.model';
 import {
   buildInviteUrl, farmerSyntheticEmail, formatTrPhone, generateInviteCode, inviteState, isInviteCodeFormat, isValidPin,
-  normalizeTrPhone, phoneFromSyntheticEmail, phoneMatchesInvite, whatsappUrl,
+  normalizeTrPhone, parseInviteInput, phoneFromSyntheticEmail, phoneMatchesInvite, scanPhoneSlots, whatsappUrl,
 } from './identity.util';
 
 const invite = (over: Partial<FarmerInvite> = {}): FarmerInvite => ({
@@ -71,5 +71,45 @@ describe('identity.util (telefon + PIN, davet)', () => {
     const wa = whatsappUrl('0555 123 45 67', 'Merhaba https://x/y');
     expect(wa.startsWith('https://wa.me/905551234567?text=')).toBe(true);
     expect(decodeURIComponent(wa.split('text=')[1])).toBe('Merhaba https://x/y');
+  });
+});
+
+describe('parseInviteInput', () => {
+  it('tam linkten, yalnız koddan ve küçük harf / boşluklu yazımdan kodu çıkarır', () => {
+    expect(parseInviteInput('https://demo.web.app/ciftci/davet/ABCDEFGHJK')).toBe('ABCDEFGHJK');
+    expect(parseInviteInput('Merhaba, linkiniz: http://127.0.0.1:4443/ciftci/davet/ABCDEFGHJK?x=1 iyi günler')).toBe('ABCDEFGHJK');
+    expect(parseInviteInput('  abcde fghjk ')).toBe('ABCDEFGHJK');
+    expect(parseInviteInput('ABCDE-FGHJK')).toBe('ABCDEFGHJK');
+  });
+  it('geçersiz metin → null (0/O, 1/I içeren veya kısa kod)', () => {
+    expect(parseInviteInput('')).toBeNull();
+    expect(parseInviteInput('ABC')).toBeNull();
+    expect(parseInviteInput('ABCDEFGH10')).toBeNull();
+    expect(parseInviteInput('https://x/ciftci/giris')).toBeNull();
+  });
+});
+
+describe('scanPhoneSlots (çiftçi girişi yuva taraması)', () => {
+  const run = async (start: number | null, results: Record<number, string>) => {
+    const tried: number[] = [];
+    const slot = await scanPhoneSlots(start, async s => { tried.push(s); return (results[s] ?? 'missing') as never; });
+    return { slot, tried };
+  };
+
+  it('tek yanlış PIN: 1 yanlış şifre + 1 "hesap yok" = 2 deneme (eskiden 5)', async () => {
+    expect(await run(null, { 0: 'bad-password' })).toEqual({ slot: null, tried: [0, 1] });
+  });
+  it('PIN sıfırlanmış hesap: eski yuva yanlış şifre, yeni yuvada giriş', async () => {
+    expect(await run(null, { 0: 'bad-password', 1: 'ok' })).toEqual({ slot: 1, tried: [0, 1] });
+  });
+  it('hatırlanan yuvadan başlar; alttaki eski hesapları denemez', async () => {
+    expect(await run(2, { 0: 'bad-password', 1: 'not-owner', 2: 'ok' })).toEqual({ slot: 2, tried: [2] });
+    expect(await run(2, { 2: 'bad-password' })).toEqual({ slot: null, tried: [2, 3] });
+  });
+  it('hatırlanan yuva yoksa baştan taranır', async () => {
+    expect(await run(3, { 0: 'ok' })).toEqual({ slot: 0, tried: [3, 0] });
+  });
+  it('ayırt edilemeyen hata (e-posta koruması) üst yuvaya geçer', async () => {
+    expect((await run(null, { 0: 'unknown', 1: 'unknown', 2: 'ok' })).slot).toBe(2);
   });
 });

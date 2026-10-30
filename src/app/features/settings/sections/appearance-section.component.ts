@@ -14,13 +14,13 @@ import { injectSettingsTexts } from '../settings.i18n';
   styles: `
     /* Tema küçük önizlemeleri: temadan bağımsız sabit renkler (açık / koyu örneği) */
     .mini { display: flex; height: 64px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-subtle); }
-    .mini .side { width: 18px; background: #16211c; }
+    .mini .side { width: 18px; background: #edf0e4; border-right: 1px solid #d4dcc9; }
     .mini .body { flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 5px; }
     .mini .body i { display: block; height: 6px; border-radius: 3px; }
-    .mini.light .body { background: #f6f4ee; } .mini.light .body i { background: #e2ddd1; } .mini.light .body i.b { background: #047857; width: 50%; }
-    .mini.dark .side { background: #0b0e0c; }
-    .mini.dark .body { background: #121412; } .mini.dark .body i { background: #2f342f; } .mini.dark .body i.b { background: #34d399; width: 50%; }
-    .mini.system .body { background: linear-gradient(90deg, #f6f4ee 50%, #121412 50%); } .mini.system .body i { background: #9a9a8e; } .mini.system .body i.b { background: #10b981; width: 50%; }
+    .mini.light .body { background: #f7f4ec; } .mini.light .body i { background: #e6e0d3; } .mini.light .body i.b { background: #9ec6a2; width: 50%; }
+    .mini.dark .side { background: #2a2d25; border-right-color: #3e4337; }
+    .mini.dark .body { background: #22231e; } .mini.dark .body i { background: #3b3d34; } .mini.dark .body i.b { background: #a8cfac; width: 50%; }
+    .mini.system .body { background: linear-gradient(90deg, #f7f4ec 50%, #22231e 50%); } .mini.system .body i { background: #9c9789; } .mini.system .body i.b { background: #9ec6a2; width: 50%; }
     .mini .body i.s { width: 70%; }
   `,
   template: `

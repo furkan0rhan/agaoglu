@@ -14,7 +14,7 @@ import {
 import {
   Supplier, SupplierPaymentMethod, SupplierTransaction, SupplierTransactionType,
 } from '../../../shared/models/supplier.model';
-import { roundQty } from '../../../shared/utils/batch.utils';
+import { normalizeLotNo, roundQty } from '../../../shared/utils/batch.utils';
 import {
   PurchaseError, PurchaseSummary, applyPurchaseItem, calcLine, calcTotals, cleanGts, nextSupplierBalance,
   revertPurchaseItem, roundKurus, summarize, validateLine,
@@ -36,6 +36,8 @@ export interface PurchaseLineInput {
   vatRate: number;
   expiryDate: Date | null;
   gtsNumbers: string[];
+  /** Parti / şarj no (ops.) */
+  lotNo?: string | null;
 }
 
 export interface PurchaseInput {
@@ -192,7 +194,7 @@ export class PurchaseService {
       for (const line of lines) {
         const product = products.get(line.productId)!;
         const expiryTs = line.expiryDate ? Timestamp.fromDate(line.expiryDate) : null;
-        const res = applyPurchaseItem(product, { quantity: line.quantity, expiryDate: expiryTs, gtsNumbers: line.gtsNumbers }, supplier.id, addedAt);
+        const res = applyPurchaseItem(product, { quantity: line.quantity, expiryDate: expiryTs, gtsNumbers: line.gtsNumbers, lotNo: line.lotNo ?? null }, supplier.id, addedAt);
         const calc = calcLine(line);
         this.addMovement(tx, {
           productId: product.id, productName: product.name, type: 'in', quantity: res.quantity,
@@ -205,6 +207,7 @@ export class PurchaseService {
           quantity: res.quantity, unitCost: roundKurus(line.unitCost), vatRate: Number(line.vatRate) || 0,
           expiryDate: expiryTs, gtsNumbers: line.gtsNumbers, lineSubtotal: calc.lineSubtotal, lineVat: calc.lineVat,
           batchIds: res.batchIds,
+          ...(normalizeLotNo(line.lotNo) ? { lotNo: normalizeLotNo(line.lotNo) } : {}),
         });
       }
 

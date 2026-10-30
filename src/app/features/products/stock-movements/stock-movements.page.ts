@@ -81,7 +81,7 @@ const MOVEMENT_LIMIT = 200;
                       </span>
                       <span class="font-semibold text-fg">{{ m.reason || '—' }}</span>
                       @if (refOf(m); as r) {
-                        <a [routerLink]="r.link" class="num text-xs font-semibold text-brand no-underline hover:underline">{{ refLabel(r) }}</a>
+                        <a [routerLink]="r.link" class="num text-xs font-semibold text-brand-text no-underline hover:underline">{{ refLabel(r) }}</a>
                       }
                     </span>
                   </td>
@@ -112,7 +112,7 @@ const MOVEMENT_LIMIT = 200;
                     <span class="text-fg-secondary">{{ fmt(m.previousStock) }} → {{ withUnit(m.newStock) }}</span>
                     @if (refOf(m); as r) {
                       <span aria-hidden="true">·</span>
-                      <a [routerLink]="r.link" class="font-semibold text-brand no-underline hover:underline">{{ refLabel(r) }}</a>
+                      <a [routerLink]="r.link" class="font-semibold text-brand-text no-underline hover:underline">{{ refLabel(r) }}</a>
                     }
                   </p>
                 </div>

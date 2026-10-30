@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
@@ -24,6 +25,22 @@ android {
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
+    // Release imzası (docs/APK.md): src-tauri/gen/android/keystore.properties (gitignore'da).
+    // CI bunu GitHub secret'larından üretir. Dosya yoksa (yerel/debug) release imzasız kalır, derleme kırılmaz.
+    val keystorePropertiesFile = rootProject.file("keystore.properties")
+    val hasReleaseKeystore = keystorePropertiesFile.exists()
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                val keystoreProperties = Properties()
+                FileInputStream(keystorePropertiesFile).use { keystoreProperties.load(it) }
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["password"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["password"] as String
+            }
+        }
+    }
     buildTypes {
         getByName("debug") {
             manifestPlaceholders["usesCleartextTraffic"] = "true"
@@ -37,6 +54,9 @@ android {
             }
         }
         getByName("release") {
+            if (hasReleaseKeystore) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = true
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }

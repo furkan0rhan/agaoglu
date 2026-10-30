@@ -16,9 +16,12 @@ import { LogoMarkComponent } from '../../shared/ui/logo-mark.component';
 import { PageTitleService } from '../../shared/ui/page-title.service';
 import { SupportBannerComponent } from '../../features/admin/components/support-banner.component';
 import { ShellStatusService } from '../shell-status.service';
+import { FarmerLinkWatcher } from '../../features/farmers/farmer-link-watcher.service';
 import {
-  NavItem, bestMatch, buildNavItems, filterByRole, formatDisplayName, injectCurrentUrl, isPathActive, roleLabel,
+  NavItem, bestMatch, buildNavItems, filterByRole, formatDisplayName, injectCurrentUrl, isPathActive, roleLabel, tourKey,
 } from '../nav-items';
+import { TourService } from '../../core/onboarding/tour.service';
+import { injectOnboardingTexts } from '../../core/onboarding/onboarding.i18n';
 
 /** Alt navigasyonda sabit duran rotalar (rolü uygun olanlar). Kalanlar "Diğer" sheet'inde. */
 const BOTTOM_PATHS = ['/dashboard', '/products', '/pos', '/credit'];
@@ -59,7 +62,7 @@ const BOTTOM_PATHS = ['/dashboard', '/products', '/pos', '/credit'];
           }
           <div class="min-w-0 flex-1 leading-tight">
             <p class="m-0 truncate font-display text-17 font-extrabold">{{ mobileTitle() }}</p>
-            <p class="m-0 truncate text-11.5" [class]="network.isOnline() ? 'text-side-muted' : 'text-warning'">{{ mobileSub() }}</p>
+            <p class="m-0 truncate text-11.5" [class]="network.isOnline() ? 'text-side-muted' : 'text-warning-text'">{{ mobileSub() }}</p>
           </div>
           <a routerLink="/products" [attr.aria-label]="t().common.search"
             class="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[9px] text-side-text no-underline hover:bg-side-2">
@@ -87,13 +90,13 @@ const BOTTOM_PATHS = ['/dashboard', '/products', '/pos', '/credit'];
 
       @if (isMobile()) {
         <!-- Alt navigasyon (koyu) -->
-        <nav [attr.aria-label]="t().nav.mainMenu"
+        <nav [attr.aria-label]="t().nav.mainMenu" data-tour="bottom-nav"
           class="relative z-nav flex shrink-0 items-stretch gap-0.5 border-t border-side-line bg-side px-1 pb-[calc(8px+var(--safe-bottom))] pt-1.5">
           @for (item of bottomItems(); track item.path) {
             @let active = activePath() === item.path && !showMore();
             @let count = countFor(item);
             @if (item.path === '/pos') {
-              <a routerLink="/pos" (click)="closeMore()" [attr.aria-current]="active ? 'page' : null"
+              <a routerLink="/pos" (click)="closeMore()" [attr.aria-current]="active ? 'page' : null" data-tour="nav-pos"
                 class="relative mx-1 flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-[3px] rounded-[10px] bg-sale text-11.5 font-semibold text-sale-text no-underline shadow-accent active:brightness-95"
                 [class.ring-2]="active" [class.ring-side-hi]="active">
                 <i class="pi pi-shopping-cart text-[1.3125rem]" aria-hidden="true"></i>
@@ -103,7 +106,7 @@ const BOTTOM_PATHS = ['/dashboard', '/products', '/pos', '/credit'];
                 }
               </a>
             } @else {
-              <a [routerLink]="item.path" (click)="closeMore()" [attr.aria-current]="active ? 'page' : null"
+              <a [routerLink]="item.path" (click)="closeMore()" [attr.aria-current]="active ? 'page' : null" [attr.data-tour]="tourKey(item.path)"
                 class="relative flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-[3px] rounded-[10px] text-11.5 font-semibold no-underline"
                 [class]="active ? 'text-side-active-text' : 'text-side-muted'">
                 @if (active) {
@@ -117,7 +120,7 @@ const BOTTOM_PATHS = ['/dashboard', '/products', '/pos', '/credit'];
               </a>
             }
           }
-          <button type="button" (click)="toggleMore()" [attr.aria-expanded]="showMore()" aria-haspopup="dialog"
+          <button type="button" (click)="toggleMore()" [attr.aria-expanded]="showMore()" aria-haspopup="dialog" data-tour="nav-more"
             class="relative flex min-h-[52px] min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-[3px] rounded-[10px] border-0 bg-transparent text-11.5 font-semibold"
             [class]="showMore() || moreActive() ? 'text-side-active-text' : 'text-side-muted'">
             @if (moreActive() && !showMore()) {
@@ -133,7 +136,7 @@ const BOTTOM_PATHS = ['/dashboard', '/products', '/pos', '/credit'];
     @if (isMobile() && showMore()) {
       <!-- "Diğer" sheet -->
       <button type="button" tabindex="-1" (click)="closeMore()" [attr.aria-label]="t().common.close"
-        class="fixed inset-0 z-sheet-backdrop animate-fade-in cursor-default border-0 bg-black/45"></button>
+        class="fixed inset-0 z-sheet-backdrop animate-fade-in cursor-default border-0 bg-black/35"></button>
 
       <div role="dialog" aria-modal="true" [attr.aria-label]="t().nav.other"
         class="fixed inset-x-2 bottom-[calc(72px+var(--safe-bottom))] z-sheet max-h-[72vh] animate-sheet-up overflow-y-auto rounded-token-2xl border border-line bg-surface shadow-overlay">
@@ -166,6 +169,19 @@ const BOTTOM_PATHS = ['/dashboard', '/products', '/pos', '/credit'];
             </div>
             <div class="my-3 h-px bg-line"></div>
           }
+          <!-- Ürün turu -->
+          <div class="mb-2 grid gap-2" [class]="pageTour() ? 'grid-cols-2' : 'grid-cols-1'">
+            <button type="button" (click)="startTour()"
+              class="flex min-h-[48px] cursor-pointer items-center justify-center gap-2 rounded-token-lg border border-brand-line bg-brand-soft px-2 text-13 font-semibold text-brand-text">
+              <i class="pi pi-compass text-base" aria-hidden="true"></i><span class="line-clamp-1">{{ ob().startTour }}</span>
+            </button>
+            @if (pageTour()) {
+              <button type="button" (click)="startPageTour()"
+                class="flex min-h-[48px] cursor-pointer items-center justify-center gap-2 rounded-token-lg border border-line bg-surface px-2 text-13 font-semibold text-fg-secondary">
+                <i class="pi pi-question-circle text-base" aria-hidden="true"></i><span class="line-clamp-1">{{ ob().pageTour }}</span>
+              </button>
+            }
+          </div>
           <div class="grid grid-cols-3 gap-2">
             <button type="button" (click)="themeSvc.toggle()" [attr.aria-pressed]="themeSvc.isDark()"
               class="flex min-h-[64px] cursor-pointer flex-col items-center justify-center gap-1 rounded-token-lg border border-line bg-surface px-1 text-xs font-semibold text-fg-secondary">
@@ -203,6 +219,12 @@ export class MainLayoutComponent implements OnInit {
   private readonly pageTitle = inject(PageTitleService);
   private readonly url = injectCurrentUrl();
 
+  private readonly tour = inject(TourService);
+  readonly ob = injectOnboardingTexts();
+  readonly tourKey = tourKey;
+  /** Bu sayfaya özgü tur var mı ("Bu sayfayı tanı"). */
+  readonly pageTour = computed(() => { this.auth.currentUser(); return this.tour.hasPageTour(this.url()); });
+
   readonly isMobile = signal(false);
   readonly showMore = signal(false);
   readonly page = this.pageTitle.current;
@@ -236,6 +258,8 @@ export class MainLayoutComponent implements OnInit {
     this.checkMobile();
     const detach = this.pageTitle.attachHost();
     inject(DestroyRef).onDestroy(detach);
+    // Çiftçi bağlantıları: yeni bağlanan çiftçiye ilk senkron + bakiye değişince güncelleme (rapor #1, Y6)
+    inject(DestroyRef).onDestroy(inject(FarmerLinkWatcher).attachToSession());
     // Sayfa değişince sheet'i kapat
     effect(() => { this.url(); this.showMore.set(false); });
   }
@@ -269,6 +293,9 @@ export class MainLayoutComponent implements OnInit {
     if (item.path === '/credit') return this.status.overdueCustomers() ?? 0;
     return 0;
   }
+
+  startTour(): void { this.showMore.set(false); this.tour.restartWelcome(); }
+  startPageTour(): void { this.showMore.set(false); this.tour.startPageTour(); }
 
   toggleMore(): void { this.showMore.update(v => !v); }
   closeMore(): void { this.showMore.set(false); }

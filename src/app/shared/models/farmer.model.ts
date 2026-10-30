@@ -94,7 +94,27 @@ export interface FarmerLink {
   /** Bayinin müşteri kaydındaki veresiye bakiyesi (bayi tarafı senkronlar). */
   balance: number | null;
   balanceUpdatedAt: Date | null;
+  /** Sıradaki (gecikmemiş) ödenmemiş taksit — bayi senkronlar. Eski bağlantılarda yok (null). */
+  nextDue: { date: Date; amount: number } | null;
+  /** Vadesi geçmiş, ödenmemiş toplam (bayi senkronlar). */
+  overdueAmount: number | null;
+  /** Taksit takvimi (ödenmemişler + son ödenenler, vadeye göre). Bayi senkronlar; eski bağlantılarda boş. */
+  schedule: FarmerInstallment[];
   createdAt: Date | null;
+}
+
+/** Çiftçiye gösterilen taksit (bayinin veresiye kayıtlarından hesaplanır; tahsilatlar en eski vadeden düşülür). */
+export interface FarmerInstallment {
+  /** Vadesiz eski borçta null */
+  dueDate: Date | null;
+  amount: number;
+  /** Ödenmemiş kalan */
+  remaining: number;
+  /** Taksit no / borçtaki taksit sayısı */
+  no: number;
+  count: number;
+  /** Bağlı satışın fiş numarası (biliniyorsa) */
+  saleNumber: string | null;
 }
 
 export function farmerLinkId(tenantId: string, farmerId: string): string {
@@ -229,6 +249,12 @@ export interface RecommendationItem {
   dose: string;
   phiDays: number | null;
   requiresPrescription: boolean;
+  /**
+   * Ürün kartındaki tür ('bitki_koruma' | 'gubre' | 'tohum' | 'fide' | 'diger') ve satış birimi — çiftçi defterinde
+   * kayıt türü / birim buradan seçilir. Eski önerilerde yoktur (null → çiftçi seçer).
+   */
+  productType?: string | null;
+  unit?: string | null;
 }
 
 /** recommendations/{recId} — bayideki yetkili kişinin (canPrescribe) yazdığı, sonradan DEĞİŞTİRİLEMEZ öneri. */

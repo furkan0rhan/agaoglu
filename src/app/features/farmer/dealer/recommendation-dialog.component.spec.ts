@@ -4,7 +4,8 @@ import { DEALER_FARMER_REPOSITORY, DealerProductOption } from '../data/repositor
 import { FarmerLink } from '../../../shared/models/farmer.model';
 
 const PRODUCTS: DealerProductOption[] = [
-  { id: 'P1', name: 'Mantar İlacı', productType: 'bitki_koruma', requiresPrescription: true, phiDays: 14, activeIngredient: null },
+  { id: 'P1', name: 'Mantar İlacı', productType: 'bitki_koruma', unit: 'lt', requiresPrescription: true, phiDays: 14, activeIngredient: null },
+  { id: 'P2', name: '20.20.0', productType: 'gubre', unit: 'kg', requiresPrescription: false, phiDays: null, activeIngredient: null },
 ];
 
 const flush = () => new Promise(r => setTimeout(r, 0));
@@ -72,5 +73,14 @@ describe('RecommendationDialogComponent', () => {
     fixture.detectChanges();
     expect(c.items().map(i => i.dose)).toEqual(['B doz']);
     expect(doses()[0].value).toBe('B doz');
+  });
+
+  it('ürün seçilince ürün tipi ve birimi kaleme yazılır; serbest metinde boşalır (14.12)', async () => {
+    const fixture = await setup();
+    const q = () => document.querySelectorAll<HTMLInputElement>('fieldset input')[0];
+    await type(q(), '20.20.0', fixture);
+    expect(fixture.componentInstance.items()[0]).toMatchObject({ productId: 'P2', productType: 'gubre', unit: 'kg' });
+    await type(q(), 'Bilinmeyen gübre', fixture);
+    expect(fixture.componentInstance.items()[0]).toMatchObject({ productId: null, productType: null, unit: null });
   });
 });

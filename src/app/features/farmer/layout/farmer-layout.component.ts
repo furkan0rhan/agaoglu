@@ -7,6 +7,7 @@ import { LogoMarkComponent } from '../../../shared/ui/logo-mark.component';
 import { FarmerSession } from '../auth/farmer-session.service';
 import { FarmerSyncTracker } from '../data/sync-tracker';
 import { FarmerStore } from '../services/farmer-store.service';
+import { fmt } from '../i18n/farmer.i18n';
 
 type NavKey = 'home' | 'fields' | 'logbook' | 'dealer' | 'account';
 
@@ -65,11 +66,15 @@ interface NavItem { key: NavKey; link: string; icon: string; match: readonly str
       <div class="mx-auto grid max-w-xl grid-cols-5 gap-0.5 px-1 pb-1.5 pt-1.5">
         @for (item of nav; track item.key) {
           @let active = isActive(item);
-          <a [routerLink]="item.link" [attr.aria-current]="active ? 'page' : null"
+          <a [routerLink]="item.link" [attr.aria-current]="active ? 'page' : null" [attr.data-tour]="'farmer-nav-' + item.key"
              class="relative flex min-h-[60px] min-w-0 flex-col items-center justify-center gap-1 rounded-token-lg text-13 font-semibold no-underline transition-colors"
              [class]="active ? 'bg-side-active text-side-active-text' : 'text-side-muted hover:bg-side-2 hover:text-side-text'">
             @if (active) { <span class="absolute -top-1.5 left-[28%] right-[28%] h-[3px] rounded-b-[3px] bg-side-hi" aria-hidden="true"></span> }
-            <i class="pi text-22" [class]="item.icon + (active ? ' text-side-hi' : '')" aria-hidden="true"></i>
+            <i class="pi text-22" [class]="item.icon + (active ? ' text-side-active-text' : '')" aria-hidden="true"></i>
+            @if (item.key === 'dealer' && store.unseenRecCount(); as n) {
+              <span class="num absolute right-[18%] top-1 grid h-5 min-w-[20px] place-items-center rounded-full bg-danger px-1 text-12 font-bold text-fg-inverse">{{ n }}</span>
+              <span class="sr-only">{{ newRecs(n) }}</span>
+            }
             <span class="max-w-full truncate px-0.5">{{ t().farmer.nav[item.key] }}</span>
           </a>
         }
@@ -81,7 +86,7 @@ export class FarmerLayoutComponent implements OnInit {
   readonly t = inject(LangService).t;
   readonly sync = inject(FarmerSyncTracker);
   private readonly session = inject(FarmerSession);
-  private readonly store = inject(FarmerStore);
+  readonly store = inject(FarmerStore);
   private readonly doc = inject(DOCUMENT);
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
@@ -106,20 +111,40 @@ export class FarmerLayoutComponent implements OnInit {
     return item.match.some(m => (item.exact ? path === m || path === m + '/' : path === m || path.startsWith(m + '/')));
   }
 
+  newRecs(n: number): string { return fmt(this.t().farmer.home.newRecs, { n }); }
+
+  /**
+   * Kaydırma kabı `app-root` (bkz. styles/_base.scss); Angular'ın kaydırma geri yüklemesi yalnız `window`'u sıfırlar.
+   * Sayfa değişince en üstten açılsın (rapor #11).
+   */
+  private scrollTop(): void {
+    this.doc.querySelector('app-root')?.scrollTo?.({ top: 0 });
+    this.doc.defaultView?.scrollTo?.({ top: 0 });
+  }
+
   ngOnInit(): void {
     void this.store.load();
-    const up = () => this.online.set(true);
+    this.scrollTop();
+    const nav = this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe(() => this.scrollTop());
+    const up = () => { this.online.set(true); this.store.refreshIfStale(); };
     const down = () => this.online.set(false);
+    // Uygulama öne gelince bayinin yeni yazdıkları (satış, borç, öneri) kendiliğinden gelir (rapor #4)
+    const wake = () => { if (this.doc.visibilityState === 'visible') this.store.refreshIfStale(); };
     window.addEventListener('online', up);
     window.addEventListener('offline', down);
+    window.addEventListener('focus', wake);
+    this.doc.addEventListener('visibilitychange', wake);
     // PWA: çiftçi alanına özel manifest (start_url /ciftci). Service worker MVP'de yok (bkz. rapor).
     const link = this.doc.createElement('link');
     link.rel = 'manifest';
     link.href = '/ciftci.webmanifest';
     this.doc.head.appendChild(link);
     this.destroyRef.onDestroy(() => {
+      nav.unsubscribe();
       window.removeEventListener('online', up);
       window.removeEventListener('offline', down);
+      window.removeEventListener('focus', wake);
+      this.doc.removeEventListener('visibilitychange', wake);
       link.remove();
     });
   }

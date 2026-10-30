@@ -176,3 +176,41 @@ describe('reminderMessage', () => {
       .toBe('Sayın Ali Yılmaz, borcunuz 1.500,00 TL. Vade 15.11.2026. Ağaoğlu Tarım 0555 111 22 33');
   });
 });
+
+describe('Y7: vadesiz borçlara varsayılan vade', () => {
+  // Satış 1.10.2026 (debt() createdAt), vade kaydı yok
+  it('varsayılan vade verilmezse vadesiz kalır (eski davranış)', () => {
+    const st = creditStatus(buildSchedule([debt('A', 500, null)], 500), d(2026, 12, 30));
+    expect(st.overdueAmount).toBe(0);
+  });
+
+  it('satış + varsayılan vade (30 gün) geçince gecikmiş sayılır', () => {
+    const items = buildSchedule([debt('A', 500, null)], 500, { defaultDueDays: 30 });
+    expect(items[0].dueDate).toEqual(d(2026, 10, 31));
+    expect(items[0].dueDerived).toBe('default');
+    expect(creditStatus(items, d(2026, 10, 30)).overdueAmount).toBe(0);
+    const late = creditStatus(items, d(2026, 11, 30));
+    expect(late.overdueAmount).toBe(500);
+    expect(late.maxDaysOverdue).toBe(30);
+  });
+
+  it('taksit planı kaydedilmemiş eski taksitli satış: taksit sayısından aylık plan türetilir', () => {
+    const items = buildSchedule([debt('A', 300, null, { installmentCount: 3 })], 300, { defaultDueDays: 30 });
+    expect(items.map(i => i.dueDate)).toEqual([d(2026, 11, 1), d(2026, 12, 1), d(2027, 1, 1)]);
+    expect(items.map(i => i.amount)).toEqual([100, 100, 100]);
+    expect(items.every(i => i.dueDerived === 'installments')).toBe(true);
+    expect(creditStatus(items, d(2026, 11, 15)).overdueAmount).toBe(100);
+  });
+
+  it('kayıtlı vade / taksit planı varsa varsayılan uygulanmaz', () => {
+    const explicit = buildSchedule([debt('A', 100, null, { dueDate: ts(d(2027, 3, 1)) })], 100, { defaultDueDays: 30 });
+    expect(explicit[0].dueDate).toEqual(d(2027, 3, 1));
+    expect(explicit[0].dueDerived).toBeUndefined();
+  });
+
+  it('taksit tutarları kuruşu kaybetmez', () => {
+    const items = debtInstallments([debt('A', 100, null, { installmentCount: 3 })], {});
+    expect(items.reduce((s, i) => s + i.amount, 0)).toBeCloseTo(100, 2);
+    expect(items[2].amount).toBe(33.34);
+  });
+});

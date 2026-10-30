@@ -14,6 +14,8 @@ import { IconButtonComponent } from '../../shared/ui/icon-button.component';
 import { KbdComponent } from '../../shared/ui/kbd.component';
 import { PageTitleService } from '../../shared/ui/page-title.service';
 import { NotificationBellComponent } from './notification-bell.component';
+import { TourService } from '../../core/onboarding/tour.service';
+import { injectOnboardingTexts } from '../../core/onboarding/onboarding.i18n';
 import { bestMatch, buildNavItems, formatDisplayName, injectCurrentUrl, roleLabel } from '../nav-items';
 
 /**
@@ -63,6 +65,10 @@ import { bestMatch, buildNavItems, formatDisplayName, injectCurrentUrl, roleLabe
         </a>
       }
 
+      @if (pageTour()) {
+        <ui-icon-button variant="outline" icon="pi-question-circle" [ariaLabel]="ob().pageTour" [pTooltip]="ob().pageTour"
+          tooltipPosition="bottom" (click)="tour.startPageTour()" />
+      }
       <app-notification-bell />
 
       <ui-icon-button variant="outline" [icon]="theme.isDark() ? 'pi-sun' : 'pi-moon'" [pressed]="theme.isDark()"
@@ -74,7 +80,7 @@ import { bestMatch, buildNavItems, formatDisplayName, injectCurrentUrl, roleLabe
         <i class="pi pi-globe text-sm" aria-hidden="true"></i>{{ lang.lang() === 'tr' ? 'EN' : 'TR' }}
       </button>
 
-      <button type="button" (click)="menu.toggle($event)"
+      <button type="button" (click)="menu.toggle($event)" data-tour="user-menu"
         aria-haspopup="menu" [attr.aria-label]="t().nav.userMenu"
         class="flex h-11 shrink-0 cursor-pointer items-center gap-2 rounded-token-md border border-line bg-surface pl-1 pr-2.5 transition-colors hover:bg-surface-muted">
         <ui-avatar [name]="userName()" variant="solid" size="sm" />
@@ -94,6 +100,8 @@ export class TopbarComponent {
   readonly network = inject(NetworkService);
   readonly cart = inject(CartStore);
   readonly t = this.lang.t;
+  readonly tour = inject(TourService);
+  readonly ob = injectOnboardingTexts();
 
   private readonly url = injectCurrentUrl();
   private readonly searchEl = viewChild<ElementRef<HTMLInputElement>>('search');
@@ -101,6 +109,7 @@ export class TopbarComponent {
   readonly page = this.pageTitle.current;
   readonly onPos = computed(() => this.url().startsWith('/pos'));
 
+  readonly pageTour = computed(() => this.tour.hasPageTour(this.url()));
   readonly title = computed(() => this.page()?.title || this.navTitle());
   readonly crumb = computed(() => this.page()?.subtitle || this.today());
 
@@ -124,6 +133,8 @@ export class TopbarComponent {
   readonly menuItems = computed<MenuItem[]>(() => {
     const t = this.t();
     const isAdmin = (this.auth.currentUser()?.role ?? 'admin') === 'admin';
+    const ob = this.ob();
+    const hasPageTour = this.tour.hasPageTour(this.url());
     const items: MenuItem[] = [
       { label: [this.userName() || t.nav.account, this.role()].filter(Boolean).join(' · '), items: [
         isAdmin
@@ -131,6 +142,9 @@ export class TopbarComponent {
           : { label: t.nav.account, icon: 'pi pi-user', routerLink: '/account' },
         ...(isAdmin ? [{ label: t.nav.team, icon: 'pi pi-id-card', routerLink: '/settings/team' }] : []),
         { label: this.lang.lang() === 'tr' ? t.nav.switchToEn : t.nav.switchToTr, icon: 'pi pi-globe', command: () => this.lang.toggle() },
+        { separator: true },
+        { label: ob.startTour, icon: 'pi pi-compass', command: () => this.tour.restartWelcome() },
+        ...(hasPageTour ? [{ label: ob.pageTour, icon: 'pi pi-question-circle', command: () => this.tour.startPageTour() }] : []),
         { separator: true },
         { label: t.nav.logout, icon: 'pi pi-sign-out', styleClass: 'menu-danger', command: () => void this.auth.logout() },
       ] },

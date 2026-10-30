@@ -23,6 +23,11 @@ import {
 import { SumStripComponent, SumStripItem } from '../products/components/sum-strip.component';
 import { chipClass, chipCountClass, productIcon } from '../products/inventory-ui';
 import { qtyFractionDigits, qtyWithUnit } from '../products/product-unit';
+import { userErrorMessage } from '../../core/error/user-error';
+import { findByCode } from '../pos/services/cart-item.utils';
+import {
+  gtinMatches, Gs1KeysDirective, injectScannerTexts, ScanButtonComponent, ScanFeedback, ScanResult, scanResultFromText,
+} from '../../shared/scanner';
 
 interface CountRow {
   product: Product;
@@ -48,7 +53,8 @@ interface ApplyError {
   imports: [
     RouterLink, DatePipe, FormsModule, ButtonModule, InputNumberModule, IconFieldModule, InputIconModule, InputTextModule,
     AutoCompleteModule, DialogModule, ToastModule,
-    PageHeaderComponent, GlassCardComponent, EmptyStateComponent, StatusBadgeComponent, SumStripComponent,
+    PageHeaderComponent, GlassCardComponent, EmptyStateComponent, StatusBadgeComponent, SumStripComponent, ScanButtonComponent,
+    Gs1KeysDirective,
   ],
   providers: [MessageService],
   host: { class: 'block' },
@@ -106,9 +112,13 @@ interface ApplyError {
           <div class="flex flex-col gap-2.5 border-b border-line p-3 sm:px-4 md:flex-row md:items-center">
             <p-iconfield class="block w-full md:w-80">
               <p-inputicon styleClass="pi pi-search" />
-              <input pInputText type="search" [value]="q()" (input)="q.set($any($event.target).value)"
+              <input #scSearch pInputText appGs1Keys type="search" [value]="q()" (input)="q.set(scSearch.value)"
+                     (keydown.enter)="onSearchEnter($event, scSearch)"
                      [placeholder]="t().stockCount.searchPlaceholder" [attr.aria-label]="t().common.search" class="w-full" />
             </p-iconfield>
+            @if (!completed()) {
+              <ui-scan-button continuous [handler]="onCountScan" [label]="sx().scan + ' (+1)'" [title]="sx().titleContinuous" />
+            }
             <div class="-mx-3 flex gap-2 overflow-x-auto px-3 [scrollbar-width:none] md:mx-0 md:px-0" role="toolbar" [attr.aria-label]="t().common.filters">
               @for (f of viewFilters(); track f.key) {
                 <button type="button" [class]="chip(view() === f.key, f.key === 'diff')" [attr.aria-pressed]="view() === f.key" (click)="view.set(f.key)">
@@ -228,7 +238,11 @@ export class StockCountPage implements OnInit {
   private readonly store = inject(ProductStore);
   private readonly svc = inject(ProductService);
   private readonly toast = inject(MessageService);
-  readonly t = inject(LangService).t;
+  private readonly lang = inject(LangService);
+  readonly t = this.lang.t;
+  readonly sx = injectScannerTexts();
+  /** Kamerayla sayılmış birim karekodları (çift sayımı önler) */
+  private readonly scannedUnits = new Set<string>();
 
   private readonly STORAGE_KEY_SHORTAGE = 'sc-reasons-shortage';
   private readonly STORAGE_KEY_SURPLUS  = 'sc-reasons-surplus';
@@ -288,6 +302,7 @@ export class StockCountPage implements OnInit {
     if (!search) return rows;
     return rows.filter(r =>
       (r.product.name ?? '').toLowerCase().includes(search) ||
+      (r.product.barcode ?? '').toLowerCase().includes(search) ||
       (r.product.category ?? '').toLowerCase().includes(search)
     );
   });
@@ -330,6 +345,44 @@ export class StockCountPage implements OnInit {
   ngOnInit(): void {
     this.store.ensureLoaded();
   }
+
+  /**
+   * Arama kutusuna USB okuyucuyla barkod / karekod okutulup Enter gelirse: kamera okutmasıyla aynı (+1 sayım).
+   * Ürün adı yazılıp Enter'a basıldıysa (kod değilse) yalnız filtre kalır.
+   */
+  onSearchEnter(event: Event, input: HTMLInputElement): void {
+    const raw = this.q().trim();
+    if (!raw || this.completed()) return;
+    const r = scanResultFromText(raw);
+    if (!r.gs1 && !findByCode(this.store.products(), r.code)) return;
+    event.preventDefault();
+    const fb = this.onCountScan(r);
+    this.q.set('');
+    input.value = '';
+    this.toast.add({ severity: fb.tone === 'success' ? 'success' : fb.tone === 'warn' ? 'warn' : 'error', summary: '', detail: fb.message, life: 2500 });
+  }
+
+  /** Kamerayla sürekli sayım: her okutma ilgili ürünün sayımını +1 yapar (GTS bir kez sayılır). */
+  readonly onCountScan = (r: ScanResult): ScanFeedback => {
+    const sx = this.sx();
+    const products = this.store.products();
+    let hit = findByCode(products, r.code);
+    const gtin = r.gs1?.gtin;
+    if (!hit && gtin) {
+      const p = products.find(x => x.isActive !== false && gtinMatches(x.barcode, gtin));
+      if (p) hit = { product: p, gtsNo: null };
+    }
+    if (!hit) return { tone: 'error', message: sx.notFound(r.code) };
+    // Aynı birim karekodu (GTS ya da GTIN+seri) iki kez sayılmasın
+    const unitKey = hit.gtsNo ?? (r.gs1?.serial ? r.code : null);
+    if (unitKey) {
+      if (this.scannedUnits.has(unitKey)) return { tone: 'warn', message: `${hit.product.name}: ${sx.alreadyAdded}` };
+      this.scannedUnits.add(unitKey);
+    }
+    const next = (this.counted().get(hit.product.id) ?? 0) + 1;
+    this.setCount(hit.product, next);
+    return { tone: 'success', message: sx.counted(hit.product.name, this.qtyText(next, hit.product)) };
+  };
 
   /** Sayılan değer: adet birimde tam sayı, kg / lt / metre'de en fazla 3 ondalık. `null` → sayım silinir. */
   setCount(product: Pick<Product, 'id' | 'unit'> | string, value: number | null | undefined): void {
@@ -416,7 +469,7 @@ export class StockCountPage implements OnInit {
         ok++;
         this.setCount(latest.id, null);
       } catch (e: unknown) {
-        const message = (e as { message?: string } | null)?.message ?? sc.failed;
+        const message = userErrorMessage(e, sc.failed, this.lang.lang());
         this.applyErrors.update(list => [...list, { productId: latest.id, name: latest.name, message }]);
       }
       this.progress.update(p => (p ? { ...p, done: p.done + 1 } : p));
@@ -446,6 +499,7 @@ export class StockCountPage implements OnInit {
     this.view.set('all');
     this.confirmItems.set([]);
     this.counted.set(new Map());
+    this.scannedUnits.clear();
     this.progress.set(null);
     this.applyErrors.set([]);
   }

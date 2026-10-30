@@ -1,6 +1,6 @@
 import { Timestamp } from '@angular/fire/firestore';
 import {
-  ApplicationLog, APPLICATION_TYPES, ApplicationType, FarmerConsent, FarmerInvite, FarmerLink, FarmerProfile, FarmerPurchase,
+  ApplicationLog, APPLICATION_TYPES, ApplicationType, FarmerConsent, FarmerInstallment, FarmerInvite, FarmerLink, FarmerProfile, FarmerPurchase,
   FarmerPurchaseItem, FarmField, FARMER_CONSENT_TEXT_VERSION, PhiSource, Recommendation, RecommendationItem, Season,
 } from '../../../shared/models/farmer.model';
 
@@ -61,7 +61,23 @@ export function toLink(id: string, d: Data): FarmerLink {
     id, tenantId: str(d['tenantId']) ?? '', farmerId: str(d['farmerId']) ?? '', customerId: str(d['customerId']) ?? '',
     inviteCode: str(d['inviteCode']) ?? '', status: d['status'] === 'active' ? 'active' : 'revoked', consent: toConsent(d['consent']),
     tenantName: str(d['tenantName']) ?? '', farmerName: str(d['farmerName']) ?? '', balance: num(d['balance']),
-    balanceUpdatedAt: toDate(d['balanceUpdatedAt']), createdAt: toDate(d['createdAt']),
+    balanceUpdatedAt: toDate(d['balanceUpdatedAt']), nextDue: toDue(d['nextDue']), overdueAmount: num(d['overdueAmount']),
+    schedule: Array.isArray(d['schedule']) ? d['schedule'].map(toInstallment) : [], createdAt: toDate(d['createdAt']),
+  };
+}
+
+function toDue(v: unknown): FarmerLink['nextDue'] {
+  const o = obj(v);
+  const date = toDate(o['date']), amount = num(o['amount']);
+  return date && amount != null ? { date, amount } : null;
+}
+
+function toInstallment(v: unknown): FarmerInstallment {
+  const i = obj(v);
+  const amount = num(i['amount']) ?? 0;
+  return {
+    dueDate: toDate(i['dueDate']), amount, remaining: num(i['remaining']) ?? amount,
+    no: num(i['no']) ?? 1, count: num(i['count']) ?? 1, saleNumber: str(i['saleNumber']),
   };
 }
 
@@ -135,6 +151,7 @@ function toRecItem(v: unknown): RecommendationItem {
   return {
     productId: str(i['productId']), productName: str(i['productName']) ?? '', dose: str(i['dose']) ?? '',
     phiDays: num(i['phiDays']), requiresPrescription: i['requiresPrescription'] === true,
+    productType: str(i['productType']), unit: str(i['unit']),
   };
 }
 

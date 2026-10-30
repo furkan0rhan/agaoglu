@@ -2,10 +2,10 @@
  * Çiftçi modülü kuralları (docs/CIFTCI-MODULU.md §5.3, TASKS 8.2 kabul kriterleri).
  * Çalıştırma: npm run test:rules
  */
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { assertFails, assertSucceeds, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import {
-  collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, Timestamp, updateDoc, where, writeBatch, type Firestore,
+  collection, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, Timestamp, updateDoc, where, writeBatch, type Firestore,
 } from 'firebase/firestore';
 import { anon, as, BASE_USERS, createEnv, seed } from './helpers';
 
@@ -218,6 +218,22 @@ describe('izolasyon ve izinler', () => {
     await assertSucceeds(updateDoc(doc(o, 'farmerLinks', 'OWNER_farmerA'), { balance: 1250, balanceUpdatedAt: serverTimestamp(), tenantName: 'Ağaoğlu' }));
     await assertFails(updateDoc(doc(o, 'farmerLinks', 'OWNER_farmerA'), { consent: consent(true, true) }));
   });
+
+  it('bayi vade özetini (sıradaki ödeme, gecikme, taksit takvimi) yazar; çiftçi yazamaz', async () => {
+    const summary = {
+      nextDue: { date: future(), amount: 2143.33 }, overdueAmount: 0,
+      schedule: [{ dueDate: future(), amount: 2143.33, remaining: 2143.33, no: 1, count: 3, saleNumber: 'S-1' }],
+    };
+    await assertSucceeds(updateDoc(doc(as(env, 'CASH'), 'farmerLinks', 'OWNER_farmerA'), { balance: 6430, balanceUpdatedAt: serverTimestamp(), ...summary }));
+    await assertFails(updateDoc(doc(as(env, 'FA', farmerToken()), 'farmerLinks', 'OWNER_farmerA'), { overdueAmount: 999, nextDue: null }));
+    await assertFails(updateDoc(doc(as(env, 'OTHER'), 'farmerLinks', 'OWNER_farmerA'), summary));
+  });
+
+  it('bayi müşteri kartına bağlı çiftçiyi işaretler (customers.farmerId); çiftçi işaretleyemez', async () => {
+    await assertSucceeds(updateDoc(doc(as(env, 'CASH'), 'customers', 'C1'), { farmerId: 'farmerA' }));
+    await assertSucceeds(updateDoc(doc(as(env, 'CASH'), 'customers', 'C1'), { farmerId: null }));
+    await assertFails(updateDoc(doc(as(env, 'FA', farmerToken()), 'customers', 'C1'), { farmerId: 'farmerA' }));
+  });
 });
 
 describe('ambar (farmerPurchases)', () => {
@@ -265,6 +281,16 @@ describe('öneri / reçete (recommendations)', () => {
     await assertSucceeds(setDoc(doc(as(env, 'OWNER'), 'recommendations', 'r1'), rec({ items: [rxItem], prescriptionNo: 'ER-2026-0001' })));
   });
 
+  it('öneri kaleminde ürün türü ve birim (14.12) yazılır, çiftçi okur', async () => {
+    const items = [{ productId: 'P2', productName: '20.20.0', dose: '20 kg/da', phiDays: null, requiresPrescription: false,
+      productType: 'gubre', unit: 'kg' }];
+    await assertSucceeds(setDoc(doc(as(env, 'OWNER'), 'recommendations', 'r1'), rec({ items })));
+    const snap = await assertSucceeds(getDoc(doc(as(env, 'FA', farmerToken()), 'recommendations', 'r1')));
+    expect(snap.data()?.['items'][0]).toMatchObject({ productType: 'gubre', unit: 'kg' });
+    // eski biçim (alan yok) de geçerli kalır
+    await assertSucceeds(setDoc(doc(as(env, 'OWNER'), 'recommendations', 'r2'), rec()));
+  });
+
   it('öneri içeriği değiştirilemez, yalnız geri çekilir, silinemez; çiftçi okur', async () => {
     await assertSucceeds(setDoc(doc(as(env, 'OWNER'), 'recommendations', 'r1'), rec()));
     const o = as(env, 'OWNER');
@@ -278,5 +304,56 @@ describe('öneri / reçete (recommendations)', () => {
     await assertSucceeds(updateDoc(doc(as(env, 'OWNER'), 'users', 'CASH'), { canPrescribe: true, prescriberLicenseNo: 'LIC-9' }));
     await assertFails(updateDoc(doc(as(env, 'CASH'), 'users', 'CASH'), { canPrescribe: true, prescriberLicenseNo: 'SELF-777' }));
     await assertFails(updateDoc(doc(as(env, 'OTHER'), 'users', 'STAFF'), { canPrescribe: true, prescriberLicenseNo: 'LIC-9' }));
+  });
+});
+
+describe('bayi "Çiftçiler" sayfası (işletme geneli sorgular, TASKS 14.9)', () => {
+  it('admin/kasiyer kendi işletmesinin bağlantılarını listeler; personel ve başka işletme listeleyemez', async () => {
+    const q = (uid: string) => getDocs(query(collection(as(env, uid), 'farmerLinks'), where('tenantId', '==', 'OWNER')));
+    await assertSucceeds(q('OWNER'));
+    await assertSucceeds(q('CASH'));
+    await assertFails(q('STAFF'));
+    await assertFails(q('OTHER'));
+    await assertFails(getDocs(query(collection(as(env, 'FB', farmerToken()), 'farmerLinks'), where('tenantId', '==', 'OWNER'))));
+  });
+
+  it('bekleyen davetler listelenir ve iptal edilir (kasiyer); başka işletme göremez', async () => {
+    await seed(env, { [`farmerInvites/${CODE}`]: inviteDoc() });
+    const q = (uid: string) => getDocs(query(collection(as(env, uid), 'farmerInvites'), where('tenantId', '==', 'OWNER'), where('used', '==', false)));
+    await assertSucceeds(q('CASH'));
+    await assertFails(q('STAFF'));
+    await assertFails(q('OTHER'));
+    await assertFails(updateDoc(doc(as(env, 'OTHER'), 'farmerInvites', CODE), { revoked: true }));
+    await assertSucceeds(updateDoc(doc(as(env, 'CASH'), 'farmerInvites', CODE), { revoked: true }));
+  });
+
+  it('öneri geçmişi işletme geneli (tarihe göre) listelenir', async () => {
+    const q = (uid: string) => getDocs(query(collection(as(env, uid), 'recommendations'), where('tenantId', '==', 'OWNER'), orderBy('createdAt', 'desc'), limit(50)));
+    await assertSucceeds(q('CASH'));
+    await assertFails(q('STAFF'));
+    await assertFails(q('OTHER'));
+  });
+
+  it('paylaşılan tarla/sezon/defter işletme geneli okunur (array-contains); paylaşmayan çiftçinin verisi sızmaz', async () => {
+    await seed(env, {
+      'seasons/sA': { farmerId: 'farmerA', fieldId: 'fA', crop: 'wheat', status: 'active', sharedTenantIds: ['OWNER'] },
+      'applicationLogs/lA2': {
+        farmerId: 'farmerA', fieldId: 'fA', type: 'pesticide', date: Timestamp.now(), sharedTenantIds: ['OWNER'],
+        earliestHarvestDate: Timestamp.fromMillis(Date.now() + 3 * day),
+      },
+    });
+    const c = as(env, 'CASH');
+    const fields = await assertSucceeds(getDocs(query(collection(c, 'fields'), where('sharedTenantIds', 'array-contains', 'OWNER'))));
+    if (fields.docs.some(d => d.id !== 'fA')) throw new Error('paylaşılmayan tarla döndü');
+    await assertSucceeds(getDocs(query(collection(c, 'seasons'), where('sharedTenantIds', 'array-contains', 'OWNER'))));
+    await assertSucceeds(getDocs(query(
+      collection(c, 'applicationLogs'), where('sharedTenantIds', 'array-contains', 'OWNER'),
+      where('earliestHarvestDate', '>=', Timestamp.fromMillis(Date.now() - day)),
+    )));
+    await assertSucceeds(getDocs(query(collection(c, 'applicationLogs'), where('sharedTenantIds', 'array-contains', 'OWNER'), orderBy('date', 'desc'), limit(200))));
+    // personel ve başka işletme; filtresiz liste
+    await assertFails(getDocs(query(collection(as(env, 'STAFF'), 'fields'), where('sharedTenantIds', 'array-contains', 'OWNER'))));
+    await assertFails(getDocs(query(collection(as(env, 'OTHER'), 'fields'), where('sharedTenantIds', 'array-contains', 'OWNER'))));
+    await assertFails(getDocs(collection(c, 'fields')));
   });
 });

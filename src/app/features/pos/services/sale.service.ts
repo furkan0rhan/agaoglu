@@ -16,6 +16,7 @@ import { allocateFEFO, generateSaleNumber, resolveProduct, restoreBatches, round
 import { TenantSettingsService } from '../../../core/settings/tenant-settings.service';
 import { creditDebtFields, SaleCreditPlan } from './credit-plan';
 import { FarmerSyncService } from './farmer-sync.service';
+import { CancelDenial, cancelDenial, isValidCancelReason } from '../../sales/services/cancel-policy';
 import {
   checkPrescription, isPlantProtection, normalizePrescriptionNo, PrescriptionGap, productRequiresPrescription,
 } from '../../../shared/utils/regulatory.utils';
@@ -122,6 +123,14 @@ export class SaleAlreadyCancelledError extends Error {
   constructor() {
     super('Sale already cancelled');
     this.name = 'SaleAlreadyCancelledError';
+  }
+}
+
+/** Y4: iptal yetkisi yok (kasiyer: başkasının / geçmiş günün satışı) ya da neden girilmedi. */
+export class SaleCancelDeniedError extends Error {
+  constructor(readonly reason: CancelDenial | 'reason-required') {
+    super(`Sale cancel denied: ${reason}`);
+    this.name = 'SaleCancelDeniedError';
   }
 }
 
@@ -358,14 +367,19 @@ export class SaleService {
    * Satışı iptal eder / iade alır: stok ve partiler geri yüklenir, 'return' hareketi yazılır,
    * veresiye ise müşteri borcu ve cari hesap ters kayıtla düzeltilir. Hepsi tek writeBatch.
    */
-  async cancelSale(saleId: string, reason: string | null = null): Promise<void> {
+  async cancelSale(saleId: string, reasonInput: string): Promise<void> {
     const tenantId = this.auth.currentTenantId();
     const userId = this.auth.currentUserId();
+    const reason = (reasonInput ?? '').trim();
+    if (!isValidCancelReason(reason)) throw new SaleCancelDeniedError('reason-required');
     const saleRef = doc(this.firestore, 'sales', saleId);
     const saleSnap = await getDoc(saleRef);
     if (!saleSnap.exists()) throw new Error('Sale not found');
     const sale = { id: saleSnap.id, ...saleSnap.data() } as Sale;
     if (sale.status !== 'completed') throw new SaleAlreadyCancelledError();
+    const user = this.auth.currentUser();
+    const denial = cancelDenial(sale, user ? { id: userId, role: user.role } : null);
+    if (denial) throw new SaleCancelDeniedError(denial);
 
     const batch = new WriteOps();
     const now = Timestamp.now();
@@ -375,7 +389,22 @@ export class SaleService {
       status: 'cancelled',
       cancelledAt: serverTimestamp(),
       cancelledBy: userId,
-      cancelReason: reason || null,
+      cancelReason: reason,
+    });
+    // Y4: değiştirilemez denetim kaydı (kurallar iptali bu kayıt olmadan reddeder)
+    batch.set(doc(this.firestore, 'auditLogs', `sale_cancel_${sale.id}`), {
+      tenantId,
+      actorUid: userId,
+      actorEmail: user?.email ?? '',
+      actorName: user?.displayName ?? '',
+      action: 'sale_cancel',
+      saleId: sale.id,
+      saleNumber: sale.saleNumber ?? '',
+      amount: round2(sale.totalAmount ?? 0),
+      paymentMethod: sale.paymentMethod ?? null,
+      saleCreatedBy: sale.createdBy ?? null,
+      detail: `${sale.saleNumber ?? sale.id} · ${round2(sale.totalAmount ?? 0)} ₺ · ${reason}`.slice(0, 500),
+      createdAt: serverTimestamp(),
     });
 
     // Aynı ürün birden fazla kalemde olabilir — ürün başına birikimli güncelle
@@ -431,7 +460,7 @@ export class SaleService {
         type: 'debt',
         amount: -debt,
         originalAmount: null,
-        description: reason ? `${cancelRef} · ${reason}` : cancelRef,
+        description: `${cancelRef} · ${reason}`,
         paymentMethod: null,
         balance: -debt, // commit sırasında işlem sonrası müşteri bakiyesiyle değiştirilir
         interestRate: null,

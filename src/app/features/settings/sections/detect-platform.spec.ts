@@ -1,4 +1,4 @@
-import { detectPlatform } from './profile.page';
+import { detectPlatform } from './about-section.component';
 
 const fakeWin = (ua: string, tauri = false) =>
   ({ navigator: { userAgent: ua }, ...(tauri ? { __TAURI_INTERNALS__: {} } : {}) }) as unknown as Window;

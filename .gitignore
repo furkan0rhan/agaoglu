@@ -69,3 +69,8 @@ pubsub-debug.log
 
 # Eski kural uyumluluk testi (geçici ortam)
 src/environments/environment.legacy-test.ts
+
+# Android imza anahtarı (release keystore + şifreler) — ASLA commit etme (docs/APK.md)
+.keys/
+*.jks
+*.keystore

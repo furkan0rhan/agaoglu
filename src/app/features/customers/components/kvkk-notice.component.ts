@@ -22,7 +22,7 @@ import { LEGAL_TEXT_URL, fillLegalTemplate, renderLegalMarkdown } from '../servi
     @if (html(); as h) {
       <div class="legal text-fg-secondary" [innerHTML]="h"></div>
     } @else if (failed()) {
-      <p class="m-0 text-sm text-danger">{{ t().customers.kvkkLoadFailed }}</p>
+      <p class="m-0 text-sm text-danger-text">{{ t().customers.kvkkLoadFailed }}</p>
     } @else {
       <div class="flex flex-col gap-2" aria-hidden="true">
         @for (i of [1, 2, 3, 4, 5]; track i) { <div class="h-4 animate-pulse rounded bg-surface-muted"></div> }

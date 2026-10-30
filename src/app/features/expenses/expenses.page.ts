@@ -8,7 +8,6 @@ import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { AutoComplete, AutoCompleteModule } from 'primeng/autocomplete';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
-import { DatePickerModule } from 'primeng/datepicker';
 import { ToastModule } from 'primeng/toast';
 import { MessageService, ConfirmationService, ConfirmEventType } from 'primeng/api';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
@@ -18,7 +17,7 @@ import { getPeriodRange, isInRange } from '../../shared/utils/date-range.util';
 import { CurrencyTrPipe } from '../../shared/pipes/currency-tr.pipe';
 import { LangService } from '../../core/i18n/lang.service';
 import {
-  EmptyStateComponent, GlassCardComponent, IconButtonComponent, MoneyComponent, PageHeaderComponent, SegmentedComponent,
+  DateFieldComponent, EmptyStateComponent, GlassCardComponent, IconButtonComponent, MoneyComponent, PageHeaderComponent, SegmentedComponent,
   StatCardComponent, StatusBadgeComponent, TONE_SOFT, UiSegmentOption, UiTone,
 } from '../../shared/ui';
 
@@ -45,7 +44,7 @@ const DEFAULT_CATEGORY_STYLE: { icon: string; tone: UiTone } = { icon: 'pi-money
   imports: [
     FormsModule, DatePipe, CurrencyTrPipe,
     ButtonModule, DialogModule, InputTextModule, InputNumberModule,
-    AutoCompleteModule, DatePickerModule, ToastModule, ConfirmDialogModule, ToggleSwitchModule,
+    AutoCompleteModule, DateFieldComponent, ToastModule, ConfirmDialogModule, ToggleSwitchModule,
     PageHeaderComponent, StatCardComponent, EmptyStateComponent, StatusBadgeComponent, IconButtonComponent, MoneyComponent,
     GlassCardComponent, SegmentedComponent,
   ],
@@ -233,11 +232,7 @@ const DEFAULT_CATEGORY_STYLE: { icon: string; tone: UiTone } = { icon: 'pi-money
               <p class="m-0 text-xs font-medium text-danger-text">{{ t().expenses.amountRequired }}</p>
             }
           </div>
-          <div class="flex min-w-0 flex-col gap-1.5">
-            <label for="ex-date" class="text-sm font-semibold text-fg-secondary">{{ t().expenses.date }}</label>
-            <p-datepicker inputId="ex-date" name="date" [(ngModel)]="form.date" dateFormat="dd.mm.yy" [showIcon]="true"
-              appendTo="body" styleClass="w-full" inputStyleClass="num w-full" />
-          </div>
+          <ui-date-field inputId="ex-date" name="date" [label]="t().expenses.date" [(ngModel)]="form.date" [clearable]="false" />
         </div>
 
         <div class="flex flex-col gap-1.5">

@@ -1,9 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LangService } from '../../../core/i18n/lang.service';
 import { Recommendation } from '../../../shared/models/farmer.model';
 import { fmt } from '../i18n/farmer.i18n';
-import { F, FarmerHeaderComponent, fmtDate, TILE_TONE } from '../layout/farmer-ui';
+import { F, FarmerHeaderComponent, FarmerRefreshButtonComponent, fmtDate, PRODUCT_TYPE_ICON, TILE_TONE } from '../layout/farmer-ui';
 import { FarmerStore } from '../services/farmer-store.service';
 
 /**
@@ -13,10 +13,10 @@ import { FarmerStore } from '../services/farmer-store.service';
 @Component({
   selector: 'app-farmer-recommendations',
   standalone: true,
-  imports: [RouterLink, FarmerHeaderComponent],
+  imports: [RouterLink, FarmerHeaderComponent, FarmerRefreshButtonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-farmer-header [title]="t().farmer.recs.title" back="/ciftci/borc" />
+    <app-farmer-header [title]="t().farmer.recs.title" back="/ciftci/borc"><app-farmer-refresh [compact]="true" /></app-farmer-header>
     <p [class]="F.legal + ' mb-3 flex items-start gap-2'"><i class="pi pi-info-circle mt-0.5 shrink-0" aria-hidden="true"></i><span>{{ t().farmer.recs.info }}</span></p>
     <div class="flex flex-col gap-3">
       @for (r of store.recommendations(); track r.id) {
@@ -34,7 +34,7 @@ import { FarmerStore } from '../services/farmer-store.service';
           <ul class="m-0 mt-2 list-none p-0">
             @for (it of r.items; track $index) {
               <li class="flex gap-3 border-t border-line py-2.5">
-                <span [class]="F.tile + ' h-10 w-10 text-20 ' + tone.danger" aria-hidden="true">💧</span>
+                <span [class]="F.tile + ' h-10 w-10 text-20 ' + itemTone(it.productType)" aria-hidden="true">{{ itemIcon(it.productType) }}</span>
                 <span class="min-w-0 flex-1">
                   <b class="block">{{ it.productName }}</b>
                   <span class="block text-fg-secondary">{{ t().farmer.recs.dose }}: {{ it.dose }}</span>
@@ -62,9 +62,16 @@ export class FarmerRecommendationsPage {
   private readonly lang = inject(LangService).lang;
   readonly F = F;
   readonly tone = TILE_TONE;
+  /** Öneri kalemi ikonu ürün türünden (eski önerilerde tür yok → ilaç ikonu) */
+  itemIcon(pt: string | null | undefined): string { return (pt && PRODUCT_TYPE_ICON[pt]) || '💧'; }
+  itemTone(pt: string | null | undefined): string { return pt && pt !== 'bitki_koruma' ? this.tone.success : this.tone.danger; }
   readonly store = inject(FarmerStore);
 
-  constructor() { void this.store.load(); }
+  constructor() {
+    void this.store.load();
+    // Ekrandaki öneriler görüldü sayılır (alt menü rozeti söner); yenilemeyle gelen yeni öneri de burada görülür
+    effect(() => { this.store.recommendations(); untracked(() => this.store.markRecsSeen()); });
+  }
 
   date(d: Date | null): string { return fmtDate(d, this.lang()); }
   by(r: Recommendation): string { return fmt(this.t().farmer.recs.by, { name: r.authorName }); }

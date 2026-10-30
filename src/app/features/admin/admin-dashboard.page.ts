@@ -66,7 +66,7 @@ export function auditIcon(a: AuditAction | string): string {
         </div>
       }
 
-      <section [attr.aria-label]="x().overview" class="grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4 xl:grid-cols-6">
+      <section data-tour="sa-stats" [attr.aria-label]="x().overview" class="grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4 xl:grid-cols-6">
         <ui-stat-card [label]="x().totalTenants" [value]="stats().total" icon="pi-building" tone="brand" [loading]="loading()" />
         <ui-stat-card [label]="x().active" [value]="stats().activePaid" icon="pi-check-circle" tone="success" [loading]="loading()" />
         <ui-stat-card [label]="x().trial" [value]="stats().trial" icon="pi-hourglass" tone="info" [loading]="loading()" />
@@ -75,7 +75,7 @@ export function auditIcon(a: AuditAction | string): string {
         <ui-stat-card [label]="x().activeLast7" [value]="stats().activeLast7" icon="pi-bolt" tone="accent" [loading]="loading()" />
       </section>
 
-      <ui-glass-card [title]="x().tenants" icon="pi-building" padding="none" clip>
+      <ui-glass-card data-tour="sa-tenants" [title]="x().tenants" icon="pi-building" padding="none" clip>
         <span card-actions class="num text-13 text-fg-muted">{{ filtered().length }} / {{ rows().length }}</span>
 
         <div class="flex flex-col gap-2.5 border-b border-line p-3 sm:px-4">
@@ -88,11 +88,11 @@ export function auditIcon(a: AuditAction | string): string {
             <p-select [options]="planOptions()" optionLabel="label" optionValue="value" [ngModel]="plan()"
               (ngModelChange)="plan.set($event)" styleClass="w-full" appendTo="body" [ariaLabel]="x().plan" />
           </div>
-          <div class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5" role="group" [attr.aria-label]="x().status">
+          <div data-tour="sa-filters" class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5" role="group" [attr.aria-label]="x().status">
             @for (o of stateOptions(); track o.value) {
               <button type="button" (click)="state.set(o.value)" [attr.aria-pressed]="state() === o.value"
                 class="flex h-10 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-token-md border px-3 text-13.5 font-semibold transition-colors"
-                [class]="state() === o.value ? 'border-fg bg-fg text-surface' : 'border-line-strong bg-surface text-fg-secondary hover:bg-surface-muted'">
+                [class]="state() === o.value ? 'border-brand-line bg-brand-soft text-brand-text' : 'border-line-strong bg-surface text-fg-secondary hover:bg-surface-muted'">
                 {{ o.label }}<span class="num text-xs opacity-75">{{ o.count }}</span>
               </button>
             }
@@ -185,7 +185,7 @@ export function auditIcon(a: AuditAction | string): string {
         }
       </ui-glass-card>
 
-      <ui-glass-card [title]="x().recentAudit" icon="pi-history" tone="info" padding="none">
+      <ui-glass-card data-tour="sa-audit" [title]="x().recentAudit" icon="pi-history" tone="info" padding="none">
         @if (audit().length === 0) {
           <ui-empty-state [title]="x().noAudit" icon="pi-history" compact />
         } @else {

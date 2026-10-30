@@ -6,6 +6,8 @@ import { SUPPORT_CONTACT } from '../../../core/license/license.config';
 import { environment } from '../../../../environments/environment';
 import { GlassCardComponent, LogoMarkComponent, SettingsRowComponent, StatusBadgeComponent } from '../../../shared/ui';
 import { injectSettingsTexts } from '../settings.i18n';
+import { TourService } from '../../../core/onboarding/tour.service';
+import { injectOnboardingTexts } from '../../../core/onboarding/onboarding.i18n';
 
 export type AppPlatform = 'android' | 'desktop' | 'web';
 
@@ -24,10 +26,11 @@ const OPEN_SOURCE: { name: string; license: string }[] = [
   { name: 'Firebase JS SDK, AngularFire', license: 'Apache-2.0 / MIT' },
   { name: 'Tauri', license: 'MIT / Apache-2.0' },
   { name: 'Chart.js', license: 'MIT' },
-  { name: 'Dexie.js', license: 'Apache-2.0' },
+  { name: 'ZXing (barkod)', license: 'Apache-2.0' },
   { name: 'SheetJS (xlsx)', license: 'Apache-2.0' },
   { name: 'jsPDF, jspdf-autotable', license: 'MIT' },
   { name: 'fflate', license: 'MIT' },
+  { name: 'driver.js (ürün turu)', license: 'MIT' },
   { name: 'RxJS, NgRx Signals', license: 'Apache-2.0 / MIT' },
   { name: 'Tailwind CSS', license: 'MIT' },
   { name: 'Inter, Manrope (Fontsource)', license: 'OFL-1.1' },
@@ -56,6 +59,11 @@ const OPEN_SOURCE: { name: string; license: string }[] = [
         <a class="tap inline-flex items-center gap-2 rounded-token-md border border-line-strong bg-surface px-3 text-sm font-semibold text-fg no-underline hover:bg-surface-hover"
           [href]="'mailto:' + contact.email"><i class="pi pi-envelope" aria-hidden="true"></i>{{ contact.email }}</a>
       </ui-settings-row>
+      <ui-settings-row [title]="ob().replayTitle" [description]="ob().replayDesc">
+        <button type="button" (click)="tour.restartWelcome()"
+          class="tap inline-flex cursor-pointer items-center gap-2 rounded-token-md border border-brand-line bg-brand-soft px-3 text-sm font-semibold text-brand-text hover:bg-brand-soft-hover">
+          <i class="pi pi-compass" aria-hidden="true"></i>{{ ob().replayBtn }}</button>
+      </ui-settings-row>
       @if (canSeeKvkk()) {
         <ui-settings-row [title]="s().legal">
           <a routerLink="/customers/kvkk" class="tap inline-flex items-center gap-1.5 text-13.5 font-semibold text-brand-text no-underline hover:underline">
@@ -77,6 +85,8 @@ const OPEN_SOURCE: { name: string; license: string }[] = [
   `,
 })
 export class AboutSectionComponent {
+  readonly tour = inject(TourService);
+  readonly ob = injectOnboardingTexts();
   private readonly auth = inject(AuthService);
   readonly t = inject(LangService).t;
   readonly s = injectSettingsTexts();

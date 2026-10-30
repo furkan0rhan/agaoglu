@@ -4,6 +4,9 @@ import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, 
 import { anon, as, BASE_USERS, createEnv, seed } from './helpers';
 
 const DATA_COLLECTIONS = ['products', 'customers', 'sales', 'expenses', 'suppliers', 'stockMovements', 'creditTransactions'];
+/** Y5: maliyet / kâr içeren koleksiyonlar yalnız yöneticide */
+const ADMIN_ONLY = ['expenses', 'suppliers'];
+const MEMBER_READABLE = DATA_COLLECTIONS.filter(c => !ADMIN_ONLY.includes(c));
 
 let env: RulesTestEnvironment;
 
@@ -18,8 +21,13 @@ beforeEach(async () => {
 });
 
 describe('tenant izolasyonu', () => {
-  it.each(DATA_COLLECTIONS)('%s: aynı işletmenin kasiyeri okuyabilir', async c => {
+  it.each(MEMBER_READABLE)('%s: aynı işletmenin kasiyeri okuyabilir', async c => {
     await assertSucceeds(getDoc(doc(as(env, 'CASH'), c, 'A1')));
+  });
+
+  it.each(ADMIN_ONLY)('%s: yalnız yönetici okur, kasiyer okuyamaz (Y5)', async c => {
+    await assertSucceeds(getDoc(doc(as(env, 'OWNER'), c, 'A1')));
+    await assertFails(getDoc(doc(as(env, 'CASH'), c, 'A1')));
   });
 
   it.each(DATA_COLLECTIONS)('%s: başka işletmenin admini okuyamaz', async c => {
@@ -56,7 +64,8 @@ describe('tenant izolasyonu', () => {
 
   it('kaydın tenantId alanı değiştirilemez', async () => {
     await assertFails(updateDoc(doc(as(env, 'CASH'), 'products', 'A1'), { tenantId: 'OTHER' }));
-    await assertSucceeds(updateDoc(doc(as(env, 'CASH'), 'products', 'A1'), { name: 'Yeni ad' }));
+    await assertFails(updateDoc(doc(as(env, 'OWNER'), 'products', 'A1'), { tenantId: 'OTHER' }));
+    await assertSucceeds(updateDoc(doc(as(env, 'OWNER'), 'products', 'A1'), { name: 'Yeni ad' }));
   });
 
   it('başka işletmenin kaydı güncellenemez / silinemez', async () => {

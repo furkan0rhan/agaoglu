@@ -60,7 +60,8 @@ export interface PlatformAdmin {
   note?: string;
 }
 
-export type AuditAction = 'support_start' | 'support_end' | 'license_change' | 'user_change';
+/** sale_cancel: satış iptali (her tenant üyesi yazar, kimliği auditLogs/sale_cancel_{saleId}). */
+export type AuditAction = 'support_start' | 'support_end' | 'license_change' | 'user_change' | 'sale_cancel';
 
 /** auditLogs/{autoId} — değiştirilemez denetim kaydı. */
 export interface AuditLog {

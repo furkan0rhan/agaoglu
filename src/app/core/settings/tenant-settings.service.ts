@@ -39,6 +39,25 @@ export class TenantSettingsService {
   readonly receipt = computed(() => this._settings().receipt);
   readonly credit = computed(() => this._settings().credit);
 
+  constructor() {
+    // Y1: oturum / işletme değişince önceki işletmenin ayarları (fiş başlığı vb.) kalmasın.
+    // Abonelik açıktıysa yeni işletmeye hemen yeniden abone ol.
+    this.auth.onSessionChange(() => {
+      const wasSubscribed = this.subscribedTenant !== null || this._loaded();
+      this.reset();
+      if (wasSubscribed) this.ensureLoaded();
+    });
+  }
+
+  /** Aboneliği kapatır, varsayılanlara döner. */
+  reset(): void {
+    this.unsub?.();
+    this.unsub = null;
+    this.subscribedTenant = null;
+    this._settings.set(DEFAULT_TENANT_SETTINGS);
+    this._loaded.set(false);
+  }
+
   /** Geçerli işletmenin ayarlarına (bir kez) abone olur; işletme değiştiyse yeniden abone olur. */
   ensureLoaded(): void {
     const tenantId = this.auth.currentTenantId();
@@ -54,6 +73,8 @@ export class TenantSettingsService {
         this._loaded.set(true);
       },
       err => {
+        // Başka oturuma geçildiyse (eski dinleyicinin geç gelen hatası) yok say
+        if (this.subscribedTenant !== tenantId) return;
         this.logger.warn('Tenant settings could not be read, using defaults', err);
         this._settings.set(DEFAULT_TENANT_SETTINGS);
         this._loaded.set(true);

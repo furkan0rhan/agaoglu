@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, input, model, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
-import { DatePickerModule } from 'primeng/datepicker';
 import { DialogModule } from 'primeng/dialog';
 import { MessageService } from 'primeng/api';
 import { LangService } from '../../../core/i18n/lang.service';
@@ -10,28 +9,21 @@ import { Customer } from '../../../shared/models/customer.model';
 import { CreditTransaction } from '../../../shared/models/credit.model';
 import { TenantInfoService } from '../../settings/business/tenant-info.service';
 import { buildStatement } from '../services/credit.utils';
+import { DateFieldComponent } from '../../../shared/ui';
 
 /** Tarih aralığı seçip müşteri hesap ekstresini PDF olarak indirir. Toast'u üst bileşenin MessageService'i gösterir. */
 @Component({
   selector: 'app-statement-dialog',
   standalone: true,
-  imports: [FormsModule, ButtonModule, DatePickerModule, DialogModule],
+  imports: [FormsModule, ButtonModule, DialogModule, DateFieldComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p-dialog [header]="t().credit.statement" [visible]="visible()" (visibleChange)="visible.set($event)"
       [modal]="true" [draggable]="false" [focusOnShow]="false" appendTo="body" styleClass="w-[420px] max-w-[95vw]">
       <!-- focusOnShow kapalı: dialog ilk odaklanabilir öğeye (tarih alanı) odaklanınca takvim kendiliğinden açılıyordu -->
       <div class="grid grid-cols-1 gap-4 py-1 sm:grid-cols-2">
-        <div class="flex min-w-0 flex-col gap-1.5">
-          <label for="st-from" class="text-sm font-semibold text-fg-secondary">{{ t().credit.statementFrom }}</label>
-          <p-datepicker inputId="st-from" [(ngModel)]="from" dateFormat="dd.mm.yy" [showIcon]="true" appendTo="body"
-            styleClass="w-full" inputStyleClass="num w-full" />
-        </div>
-        <div class="flex min-w-0 flex-col gap-1.5">
-          <label for="st-to" class="text-sm font-semibold text-fg-secondary">{{ t().credit.statementTo }}</label>
-          <p-datepicker inputId="st-to" [(ngModel)]="to" dateFormat="dd.mm.yy" [showIcon]="true" appendTo="body"
-            styleClass="w-full" inputStyleClass="num w-full" />
-        </div>
+        <ui-date-field inputId="st-from" [label]="t().credit.statementFrom" [(ngModel)]="from" [clearable]="false" />
+        <ui-date-field inputId="st-to" [label]="t().credit.statementTo" [(ngModel)]="to" [clearable]="false" />
       </div>
       <ng-template #footer>
         <p-button [label]="t().common.cancel" severity="secondary" [outlined]="true" (onClick)="visible.set(false)" />

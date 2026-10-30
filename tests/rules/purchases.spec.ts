@@ -22,10 +22,17 @@ const purchase = (extra: Record<string, unknown> = {}) => ({
 });
 
 describe('purchases', () => {
-  it.each(['OWNER', 'CASH'])('tenant üyesi okur ve oluşturur (%s)', async uid => {
-    const db = as(env, uid);
+  it('işletme yöneticisi okur ve oluşturur', async () => {
+    const db = as(env, 'OWNER');
     await assertSucceeds(getDoc(doc(db, 'purchases', 'PU1')));
     await assertSucceeds(addDoc(collection(db, 'purchases'), purchase()));
+  });
+
+  it.each(['CASH', 'STAFF'])('Y5: %s alış belgesini (birim maliyet) okuyamaz / oluşturamaz', async uid => {
+    const db = as(env, uid);
+    await assertFails(getDoc(doc(db, 'purchases', 'PU1')));
+    await assertFails(addDoc(collection(db, 'purchases'), purchase()));
+    await assertFails(getDoc(doc(db, 'supplierTransactions', 'ST1')));
   });
 
   it('başka işletme okuyamaz / oluşturamaz', async () => {

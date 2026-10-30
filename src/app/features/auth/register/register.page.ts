@@ -31,7 +31,7 @@ const passwordMatchValidator: ValidatorFn = (group: AbstractControl): Validation
             <input pInputText id="reg-name" type="text" formControlName="displayName" [placeholder]="t().auth.displayNamePlaceholder" class="w-full" autocomplete="name" />
           </p-iconfield>
           @if (form.get('displayName')?.invalid && form.get('displayName')?.touched) {
-            <p class="m-0 text-xs font-medium text-danger">{{ t().auth.displayNameRequired }}</p>
+            <p class="m-0 text-xs font-medium text-danger-text">{{ t().auth.displayNameRequired }}</p>
           }
         </div>
 
@@ -42,7 +42,7 @@ const passwordMatchValidator: ValidatorFn = (group: AbstractControl): Validation
             <input pInputText id="reg-email" type="email" formControlName="email" [placeholder]="t().auth.emailPlaceholder" class="w-full" autocomplete="email" />
           </p-iconfield>
           @if (form.get('email')?.invalid && form.get('email')?.touched) {
-            <p class="m-0 text-xs font-medium text-danger">{{ t().auth.emailInvalid }}</p>
+            <p class="m-0 text-xs font-medium text-danger-text">{{ t().auth.emailInvalid }}</p>
           }
         </div>
 
@@ -59,7 +59,7 @@ const passwordMatchValidator: ValidatorFn = (group: AbstractControl): Validation
             autocomplete="new-password"
           ></p-password>
           @if (form.get('password')?.invalid && form.get('password')?.touched) {
-            <p class="m-0 text-xs font-medium text-danger">{{ t().auth.passwordTooShort }}</p>
+            <p class="m-0 text-xs font-medium text-danger-text">{{ t().auth.passwordTooShort }}</p>
           }
         </div>
 
@@ -76,12 +76,12 @@ const passwordMatchValidator: ValidatorFn = (group: AbstractControl): Validation
             autocomplete="new-password"
           ></p-password>
           @if (form.get('confirmPassword')?.touched && form.hasError('passwordMismatch')) {
-            <p class="m-0 text-xs font-medium text-danger">{{ t().auth.passwordMismatch }}</p>
+            <p class="m-0 text-xs font-medium text-danger-text">{{ t().auth.passwordMismatch }}</p>
           }
         </div>
 
       @if (error()) {
-        <div role="alert" class="mb-4 flex items-start gap-2.5 rounded-token-lg border border-danger-line bg-danger-soft px-3.5 py-3 text-sm text-danger">
+        <div role="alert" class="mb-4 flex items-start gap-2.5 rounded-token-lg border border-danger-line bg-danger-soft px-3.5 py-3 text-sm text-danger-text">
           <i class="pi pi-exclamation-circle mt-0.5 text-sm" aria-hidden="true"></i>
           <span>{{ error() }}</span>
         </div>
@@ -99,7 +99,7 @@ const passwordMatchValidator: ValidatorFn = (group: AbstractControl): Validation
 
       <div auth-footer class="flex flex-wrap justify-center gap-1.5">
         <span>{{ t().auth.hasAccount }}</span>
-        <a [routerLink]="['/auth/login']" class="font-semibold text-brand no-underline hover:underline">{{ t().auth.goLogin }}</a>
+        <a [routerLink]="['/auth/login']" class="font-semibold text-brand-text no-underline hover:underline">{{ t().auth.goLogin }}</a>
       </div>
     </ui-auth-shell>
   `,

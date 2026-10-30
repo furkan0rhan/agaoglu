@@ -1,4 +1,4 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import {
   Auth,
   signInWithEmailAndPassword,
@@ -130,6 +130,18 @@ export class AuthService {
   /** Oturum zorla kapatıldığında giriş sayfasında gösterilecek uyarı. */
   readonly authNotice = signal<AuthNotice>(null);
 
+  /**
+   * Oturum kapsamı: `uid|tenantId` (oturum yoksa ''). Çıkış, başka kullanıcıyla giriş ya da destek modunda
+   * işletme değişince değişir. İşletme verisi tutan root store/servisler `onSessionChange` ile kaydolur ve
+   * bu değer değiştiği anda (senkron) sıfırlanır: önceki işletmenin verisi yeni oturumda görünmez (Y1).
+   */
+  readonly sessionKey = computed(() => {
+    const u = this.currentUser();
+    return u ? `${u.id}|${u.tenantId}` : '';
+  });
+  private readonly sessionListeners = new Set<(key: string) => void>();
+  private lastSessionKey = '';
+
   /** Aynı uid için profil yüklemesini tekilleştirir (login + onAuthStateChanged çift getDoc yapmasın). */
   private profileLoad: { uid: string; promise: Promise<AppUser | null> } | null = null;
   /** Kayıt sürerken onAuthStateChanged profil oluşturmasın diye. */
@@ -139,6 +151,8 @@ export class AuthService {
   protected profileFetchOptions: ProfileFetchOptions = {};
 
   constructor() {
+    // Güvenlik ağı: profil / destek oturumu hangi yoldan değişirse değişsin sıfırlayıcılar çalışsın
+    effect(() => { this.sessionKey(); untracked(() => this.syncSession()); });
     // Bağlantı geri gelince geçici hatayla yüklenemeyen profili kendiliğinden yeniden dene
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => {
@@ -151,16 +165,40 @@ export class AuthService {
           ? await this.registering.catch(() => null)
           : await this.ensureProfile(firebaseUser);
         // Bu arada başka kullanıcıya geçildiyse yok say
-        if (this.auth.currentUser?.uid === firebaseUser.uid) this.profile.set(appUser);
+        if (this.auth.currentUser?.uid === firebaseUser.uid) this.setProfile(appUser);
       } else {
         this.stopProfileWatch();
         this.profileLoad = null;
         this.pendingInvite.set(false);
         this.isSuperAdmin.set(false);
-        this.profile.set(null);
+        this.setProfile(null);
       }
       this.isLoading.set(false);
     });
+  }
+
+  /**
+   * Oturum kapsamı değişince (çıkış, kullanıcı/işletme değişimi) çağrılır; yeni anahtarı alır ('' = oturum yok).
+   * Dönen fonksiyon kaydı siler. Dinleyici senkron çalışır: eski dinleyicileri kapatıp state'i sıfırlamalı.
+   */
+  onSessionChange(listener: (key: string) => void): () => void {
+    this.sessionListeners.add(listener);
+    return () => this.sessionListeners.delete(listener);
+  }
+
+  /** Oturum anahtarı değiştiyse kayıtlı sıfırlayıcıları çalıştırır (idempotent). */
+  private syncSession(): void {
+    const key = untracked(() => this.sessionKey());
+    if (key === this.lastSessionKey) return;
+    this.lastSessionKey = key;
+    for (const fn of [...this.sessionListeners]) {
+      try { fn(key); } catch (err) { this.logger.warn('Oturum sıfırlayıcısı hata verdi', err); }
+    }
+  }
+
+  private setProfile(user: AppUser | null): void {
+    this.profile.set(user);
+    this.syncSession();
   }
 
   currentUserId(): string {
@@ -218,7 +256,7 @@ export class AuthService {
 
   /** Profil yüklendikten sonra: son giriş/aktivite (best-effort) ve yönlendirme. */
   private async afterSignIn(user: AppUser, fbUser: FirebaseUser): Promise<void> {
-    this.profile.set(user);
+    this.setProfile(user);
     if (user.tenantId) {
       updateDoc(doc(this.firestore, 'users', fbUser.uid), { lastLogin: serverTimestamp() })
         .catch(err => this.logger.warn('lastLogin yazılamadı', err));
@@ -265,7 +303,7 @@ export class AuthService {
         try { await cred.user.delete(); } catch { await signOut(this.auth).catch(() => undefined); }
         throw err;
       }
-      this.profile.set(appUser);
+      this.setProfile(appUser);
       resolveReg(appUser);
       if (appUser.tenantId) this.startProfileWatch(cred.user.uid);
       try { await sendEmailVerification(cred.user); } catch { /* verify-email sayfasından tekrar gönderilebilir */ }
@@ -312,7 +350,7 @@ export class AuthService {
     if (this.pendingInvite()) {
       this.profileLoad = null;
       const appUser = await this.ensureProfile(user);
-      this.profile.set(appUser);
+      this.setProfile(appUser);
       if (!appUser || !appUser.tenantId) throw new AppAuthError(APP_AUTH_ERRORS.profileUnavailable);
     }
   }
@@ -344,8 +382,11 @@ export class AuthService {
     this.stopProfileWatch();
     const uid = this.auth.currentUser?.uid;
     if (uid) this.clearCachedProfile(uid);
+    // Önce oturum kapsamını kapat: store'lar dinleyicilerini signOut'tan ÖNCE bıraksın
+    // (yoksa eski işletmenin dinleyicileri yetki hatası verir ve veri bellekte kalır).
+    this.profileLoad = null;
+    this.setProfile(null);
     await signOut(this.auth);
-    this.profile.set(null);
     await this.router.navigate(['/auth/login']);
   }
 
@@ -368,6 +409,7 @@ export class AuthService {
     const session: SupportSession = { tenantId, tenantName, startedAt: Date.now() };
     try { sessionStorage.setItem(SUPPORT_SESSION_KEY, JSON.stringify(session)); } catch { /* yok say */ }
     this.supportSession.set(session);
+    this.syncSession();
     this.hardNavigate('/dashboard');
   }
 
@@ -386,6 +428,7 @@ export class AuthService {
   private clearSupportSession(): void {
     try { sessionStorage.removeItem(SUPPORT_SESSION_KEY); } catch { /* yok say */ }
     this.supportSession.set(null);
+    this.syncSession();
   }
 
   /** Tam sayfa geçişi: işletme değişince bellekteki tüm store'lar sıfırlansın. */
@@ -422,14 +465,21 @@ export class AuthService {
     this.isSuperAdmin.set(superAdmin);
     if (!superAdmin) this.clearSupportSession();
 
-    const res = await fetchProfileWithRetry(
+    let res = await fetchProfileWithRetry(
       () => this.readUserDocFromServer(uid),
       () => this.readUserDocFromCache(uid),
       {
         ...this.profileFetchOptions,
+        // Superadmin'in users dokümanı olmak zorunda değil: geçici hatada 15 sn bekletme (Y20), tek deneme yeter
+        ...(superAdmin ? { delays: [] } : {}),
         onRetry: (n, err) => this.logger.warn(`Profil okunamadı, yeniden deneniyor (${n})`, err),
       },
     );
+    // Superadmin: profil okunamazsa sentetik (işletmesiz) profille devam et; destek oturumu sessionStorage'dan gelir
+    if (superAdmin && res.status === 'unavailable') {
+      this.logger.warn('Superadmin profili okunamadı, varsayılan profille devam ediliyor', res.error);
+      res = { status: 'ok', snap: { exists: () => false, data: () => undefined }, fromCache: true };
+    }
 
     if (res.status !== 'ok') {
       this.logger.error('Kullanıcı profili okunamadı', res.error);
@@ -447,7 +497,8 @@ export class AuthService {
       if (snap.exists()) {
         const data = snap.data() ?? {};
         appUser = this.toAppUser(uid, data);
-        if (!res.fromCache) this.backfillLegacyFields(uid, data);
+        // Çiftçi hesabında işletme (tenant) yoktur: eski profil tamamlama / tenants kontrolü bayi içindir (rapor #27)
+        if (!res.fromCache && appUser.accountType !== 'farmer') this.backfillLegacyFields(uid, data);
         if (firebaseUser.email && firebaseUser.email !== appUser.email) {
           updateDoc(doc(this.firestore, 'users', uid), { email: firebaseUser.email })
             .catch(err => this.logger.warn('E-posta senkronize edilemedi', err));
@@ -599,7 +650,7 @@ export class AuthService {
         this.writeCachedProfile(fresh);
         const cur = this.profile();
         if (cur && (cur.role !== fresh.role || cur.displayName !== fresh.displayName || cur.tenantId !== fresh.tenantId)) {
-          this.profile.set({ ...cur, role: fresh.role, displayName: fresh.displayName, tenantId: fresh.tenantId });
+          this.setProfile({ ...cur, role: fresh.role, displayName: fresh.displayName, tenantId: fresh.tenantId });
         }
       },
       err => this.logger.warn('Profil dinleyicisi hatası', err),
@@ -616,7 +667,8 @@ export class AuthService {
     const uid = this.auth.currentUser?.uid;
     if (uid) this.clearCachedProfile(uid);
     this.authNotice.set(notice);
-    this.profile.set(null);
+    this.profileLoad = null;
+    this.setProfile(null);
     await signOut(this.auth).catch(() => undefined);
     if (navigate) await this.router.navigate(['/auth/login']);
     return null;
@@ -625,6 +677,15 @@ export class AuthService {
   private toAppUser(uid: string, data: Record<string, unknown>): AppUser {
     const created = data['createdAt'];
     const lastLogin = data['lastLogin'];
+    if (data['accountType'] === 'farmer') {
+      // Çiftçi: tenantId null yazılır; "eski sahip" (tenantId = uid, admin) sayılmamalı → bayi yükleyicileri çalışmaz
+      return {
+        id: uid, tenantId: '', email: (data['email'] as string) ?? '', displayName: (data['displayName'] as string) ?? '',
+        role: 'staff', isActive: data['isActive'] !== false,
+        createdAt: created instanceof Timestamp ? created.toDate() : created instanceof Date ? created : new Date(),
+        accountType: 'farmer',
+      };
+    }
     // Eski kayıt kodu sahibe tenantId = uid yazıyordu; alan hiç yoksa eski sahip kabul et
     const legacyOwner = typeof data['tenantId'] !== 'string' || !data['tenantId'];
     return {

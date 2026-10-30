@@ -17,6 +17,9 @@
  * - `settings.credit.defaultDueDays`       number (veresiye satışta önerilen vade, gün; varsayılan 30)
  * - `settings.credit.defaultCreditLimit`   number | null (yeni müşteri kredi limiti; null = limitsiz)
  * - `settings.credit.reminderTemplate`     string (boş = yerleşik metin; değişkenler: reminder-template.ts)
+ * - `settings.credit.harvestMonth`         1-12 (Y8: "Hasatta öde" önerilen ay; varsayılan 7 = Temmuz)
+ * - `settings.credit.harvestDay`           1-28 (Y8: hasat günü; varsayılan 15)
+ * - `settings.credit.defaultInterestRate`  0-100 (Y30: POS veresiye penceresine gelen vade farkı %, varsayılan 0)
  */
 
 /**
@@ -43,6 +46,11 @@ export interface CreditSettings {
   defaultDueDays: number;
   defaultCreditLimit: number | null;
   reminderTemplate: string;
+  /** Y8: hasat ayı (1-12) ve günü (1-28) — "Hasatta öde" bir sonraki hasadı önerir. */
+  harvestMonth: number;
+  harvestDay: number;
+  /** Y30: varsayılan vade farkı (%). */
+  defaultInterestRate: number;
 }
 
 export interface TenantSettings {
@@ -66,7 +74,23 @@ export const DEFAULT_CREDIT_SETTINGS: CreditSettings = {
   defaultDueDays: 30,
   defaultCreditLimit: null,
   reminderTemplate: '',
+  harvestMonth: 7,
+  harvestDay: 15,
+  defaultInterestRate: 0,
 };
+
+/**
+ * Y8: bir sonraki hasat tarihi. Bu yılın hasadına 30 günden az kaldıysa (ya da geçtiyse) gelecek yılınki.
+ * Ör. 30.10.2026, hasat 15 Temmuz → 15.07.2027.
+ */
+export function nextHarvestDate(today: Date, month: number, day: number, minLeadDays = 30): Date {
+  const m = Math.min(12, Math.max(1, Math.round(month) || 7));
+  const dd = Math.min(28, Math.max(1, Math.round(day) || 15));
+  const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const thisYear = new Date(t0.getFullYear(), m - 1, dd);
+  const lead = (thisYear.getTime() - t0.getTime()) / 86_400_000;
+  return lead >= minLeadDays ? thisYear : new Date(t0.getFullYear() + 1, m - 1, dd);
+}
 
 export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
   prescriptionMode: 'required',
@@ -80,6 +104,7 @@ export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
 export const SETTINGS_LIMITS = {
   expiryDays: { min: 1, max: 365 },
   dueDays: { min: 1, max: 365 },
+  interestRate: { min: 0, max: 100 },
   creditLimit: { min: 0, max: 100_000_000 },
   headerNote: 60,
   reminderTemplate: 500,
@@ -125,6 +150,11 @@ export function parseCreditSettings(raw: unknown): CreditSettings {
     defaultDueDays: intIn(o['defaultDueDays'], L.dueDays.min, L.dueDays.max, DEFAULT_CREDIT_SETTINGS.defaultDueDays),
     defaultCreditLimit: typeof limit === 'number' && Number.isFinite(limit) && limit > 0 && limit <= L.creditLimit.max ? limit : null,
     reminderTemplate: str(o['reminderTemplate'], L.reminderTemplate),
+    harvestMonth: intIn(o['harvestMonth'], 1, 12, DEFAULT_CREDIT_SETTINGS.harvestMonth),
+    harvestDay: intIn(o['harvestDay'], 1, 28, DEFAULT_CREDIT_SETTINGS.harvestDay),
+    defaultInterestRate: typeof o['defaultInterestRate'] === 'number' && Number.isFinite(o['defaultInterestRate'])
+      && (o['defaultInterestRate'] as number) >= L.interestRate.min && (o['defaultInterestRate'] as number) <= L.interestRate.max
+      ? Math.round((o['defaultInterestRate'] as number) * 100) / 100 : DEFAULT_CREDIT_SETTINGS.defaultInterestRate,
   };
 }
 

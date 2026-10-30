@@ -60,6 +60,7 @@ export const routes: Routes = [
         data: { roles: ['admin', 'cashier'] },
         loadChildren: () => import('./features/customers/customers.routes').then(m => m.customerRoutes),
       },
+      { path: 'farmers', canActivate: [roleGuard], data: { roles: ['admin', 'cashier'] }, loadComponent: () => import('./features/farmers/farmers.page').then(m => m.FarmersPage) },
       {
         path: 'credit',
         canActivate: [roleGuard],
@@ -110,7 +111,7 @@ export const routes: Routes = [
       {
         // Tüm roller: kendi profil/şifre (5.2)
         path: 'account',
-        loadComponent: () => import('./features/settings/profile/profile.page').then(m => m.ProfilePage),
+        loadComponent: () => import('./features/settings/settings-center.page').then(m => m.SettingsCenterPage),
       },
     ],
   },

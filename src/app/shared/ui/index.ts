@@ -18,3 +18,4 @@ export * from './settings-row.component';
 export * from './progress-ring.component';
 export * from './quick-cash.component';
 export * from './logo-mark.component';
+export * from './date-field.component';

@@ -11,6 +11,18 @@ export function statusLabel(t: Translations, s: SaleStatus): string {
     : t.sales.statusRefunded;
 }
 
+/** Y4: iptal reddi / hata metni (yetki, neden, zaten iptal). */
+export function cancelErrorText(t: Translations, reason: string | null | undefined): string {
+  switch (reason) {
+    case 'not-own': return t.sales.cancelDeniedOwn;
+    case 'not-today': return t.sales.cancelDeniedToday;
+    case 'role': return t.sales.cancelDeniedRole;
+    case 'reason-required': return t.sales.cancelReasonRequired;
+    case 'not-completed': return t.sales.alreadyCancelled;
+    default: return t.sales.cancelFailed;
+  }
+}
+
 export function statusSeverity(s: SaleStatus): TagSeverity {
   return s === 'completed' ? 'success' : s === 'cancelled' ? 'danger' : 'warn';
 }

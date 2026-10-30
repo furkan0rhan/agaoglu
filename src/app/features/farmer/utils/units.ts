@@ -18,6 +18,23 @@ const UNIT_INFO: Record<FarmUnit, { dim: Dimension; toBase: number }> = {
   metre: { dim: 'length', toBase: 1 },
 };
 
+/** Görünen birim adı (kod değeri `cuval` kalır; ekranda "çuval"). */
+const UNIT_LABELS: Record<FarmUnit, { tr: string; en: string }> = {
+  ml: { tr: 'ml', en: 'ml' }, lt: { tr: 'lt', en: 'L' }, g: { tr: 'g', en: 'g' }, kg: { tr: 'kg', en: 'kg' },
+  cuval: { tr: 'çuval', en: 'sack' }, adet: { tr: 'adet', en: 'pcs' }, paket: { tr: 'paket', en: 'pack' }, metre: { tr: 'metre', en: 'm' },
+};
+
+/** Birimin ekrandaki adı; bilinmeyen birim olduğu gibi döner. */
+export function unitLabel(u: string | null | undefined, lang = 'tr'): string {
+  if (!u) return '';
+  return isFarmUnit(u) ? UNIT_LABELS[u][lang === 'tr' ? 'tr' : 'en'] : u;
+}
+
+/** Sayılan birim mi (çuval, adet, paket)? Bunlarda "dekara 0,067 çuval" anlamsızdır. */
+export function isCountUnit(u: FarmUnit): boolean {
+  return UNIT_INFO[u].dim === 'count';
+}
+
 export function isFarmUnit(u: unknown): u is FarmUnit {
   return typeof u === 'string' && u in UNIT_INFO;
 }

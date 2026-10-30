@@ -6,7 +6,7 @@ export interface BackupTexts {
   title: string; subtitle: string;
   downloadTitle: string; downloadDesc: string; downloadZip: string; downloadExcel: string;
   preparing: string; downloaded: string; downloadFailed: string;
-  lastBackup: string; never: string; overdue: string; overdueShort: string; upToDate: string; adminOnlyNote: string;
+  lastBackup: string; never: string; overdue: string; neverTaken: string; overdueShort: string; upToDate: string; adminOnlyNote: string;
   restoreTitle: string; restoreDesc: string; chooseFile: string; preview: string; records: string; total: string;
   exportedAt: string; sourceBusiness: string; restoreBtn: string; restoreConfirm: string; restoreConfirmTitle: string;
   restoring: string; restored: string; restoreFailed: string; restorePartial: string;
@@ -25,6 +25,7 @@ export const BACKUP_TR: BackupTexts = {
   preparing: 'Veriler okunuyor...', downloaded: 'Yedek indirildi', downloadFailed: 'Yedek alınamadı',
   lastBackup: 'Son yedek', never: 'Hiç alınmadı', overdueShort: 'Yedek gecikti', upToDate: 'Güncel',
   overdue: 'Son yedeğin üzerinden 7 günden fazla geçti. Verilerinizi indirmeniz önerilir.',
+  neverTaken: 'Henüz yedek almadınız. Verilerinizi düzenli olarak indirmeniz önerilir.',
   adminOnlyNote: 'Son yedek tarihi yalnızca yönetici hesabıyla kaydedilir.',
   restoreTitle: 'Yedekten geri yükle',
   restoreDesc: 'Yalnızca hiç verisi olmayan (yeni açılmış) bir işletmeye yüklenebilir; mevcut veri asla ezilmez.',
@@ -52,6 +53,7 @@ export const BACKUP_EN: BackupTexts = {
   preparing: 'Reading data...', downloaded: 'Backup downloaded', downloadFailed: 'Backup failed',
   lastBackup: 'Last backup', never: 'Never', overdueShort: 'Backup overdue', upToDate: 'Up to date',
   overdue: 'Your last backup is more than 7 days old. Downloading your data is recommended.',
+  neverTaken: 'You have not taken a backup yet. Downloading your data regularly is recommended.',
   adminOnlyNote: 'The last backup date is only recorded for administrator accounts.',
   restoreTitle: 'Restore from backup',
   restoreDesc: 'Can only be restored into a business with no data (newly created); existing data is never overwritten.',

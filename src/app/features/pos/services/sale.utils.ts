@@ -1,4 +1,5 @@
 import { Batch, Product } from '../../../shared/models/product.model';
+import { productNetCost } from '../../../shared/utils/pricing';
 import { isBatchExpired, roundQty, sortFEFO } from '../../../shared/utils/batch.utils';
 import {
   CartItem, DECIMAL_UNITS, DiscountType, SALE_UNITS, SaleItem, SaleItemBatch, SaleUnit,
@@ -141,7 +142,11 @@ export function allocateFEFO(
   const taken: SaleItemBatch[] = [];
   for (const b of sortFEFO(batches)) {
     const q = takenQty.get(b.id);
-    if (q && q > 0) taken.push({ batchId: b.id, quantity: q, gtsNo: b.gtsNo ?? null, expiryDate: b.expiryDate ?? null });
+    if (q && q > 0) {
+      const t: SaleItemBatch = { batchId: b.id, quantity: q, gtsNo: b.gtsNo ?? null, expiryDate: b.expiryDate ?? null };
+      if (b.lotNo) t.lotNo = b.lotNo;
+      taken.push(t);
+    }
   }
   return {
     remaining: sortFEFO(work.filter(b => b.quantity > 0)),
@@ -157,6 +162,11 @@ export function allocateFEFO(
 /** Satılan partilerin GTS numaraları (tekrarsız, okutma/FEFO sırasıyla). */
 export function takenGtsNos(taken: readonly SaleItemBatch[]): string[] {
   return [...new Set(taken.map(t => t.gtsNo).filter((g): g is string => !!g))];
+}
+
+/** Satılan partilerin parti / şarj no'ları (tekrarsız; parti no'su olmayanlar atlanır). */
+export function takenLotNos(taken: readonly SaleItemBatch[]): string[] {
+  return [...new Set(taken.map(t => t.lotNo?.trim()).filter((l): l is string => !!l))];
 }
 
 /**
@@ -178,7 +188,9 @@ export function restoreBatches(
     if (existing) {
       existing.quantity = roundQty(existing.quantity + s.quantity);
     } else {
-      result.push({ id: s.batchId, quantity: s.quantity, expiryDate: s.expiryDate ?? null, gtsNo: s.gtsNo ?? null, addedAt: now, supplierId: null });
+      const restored: Batch = { id: s.batchId, quantity: s.quantity, expiryDate: s.expiryDate ?? null, gtsNo: s.gtsNo ?? null, addedAt: now, supplierId: null };
+      if (s.lotNo) restored.lotNo = s.lotNo;
+      result.push(restored);
     }
   }
   const rest = roundQty(item.quantity - accounted);
@@ -205,10 +217,14 @@ export function toSaleItem(
     discount: item.discount ?? 0,
     discountType: item.discountType ?? 'percent',
     totalPrice: total,
-    costPrice: product?.purchasePrice ?? null,
+    // Satış anı snapshot'ları: net (KDV hariç) maliyet ve KDV oranı (raporda net ciro/brüt kâr için)
+    costPrice: product ? productNetCost(product) : null,
+    vatRate: product?.vatRate ?? null,
     batches: taken,
   };
   if (gtsNos.length) out.gtsNos = gtsNos;
+  const lotNos = takenLotNos(taken);
+  if (lotNos.length) out.lotNos = lotNos;
   if (rx.requiresPrescription) {
     out.requiresPrescription = true;
     out.prescriptionNo = rx.prescriptionNo;

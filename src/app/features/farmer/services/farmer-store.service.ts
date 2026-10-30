@@ -1,5 +1,5 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { ApplicationLog, FarmerPurchase, FarmField, Recommendation, Season } from '../../../shared/models/farmer.model';
+import { ApplicationLog, FarmerPurchase, FarmerPurchaseItem, FarmField, Recommendation, Season } from '../../../shared/models/farmer.model';
 import {
   APPLICATION_LOG_REPOSITORY, FARMER_PURCHASE_REPOSITORY, FIELD_REPOSITORY, NewApplicationLog, NewField, NewSeason,
   RECOMMENDATION_REPOSITORY, SEASON_REPOSITORY,
@@ -7,9 +7,49 @@ import {
 import { FarmerSession } from '../auth/farmer-session.service';
 import { activePhiWarnings, PhiWarning } from '../utils/phi.util';
 
+/** Ambar satırı: tamamlanmış satıştaki bir kalem. Biten kalem de listede kalır (GTS / SKT / e-reçete kaydı için). */
+export interface BarnRow {
+  key: string;
+  purchaseId: string;
+  index: number;
+  item: FarmerPurchaseItem;
+  remaining: number;
+  tenantName: string;
+  date: Date;
+  usedUp: boolean;
+}
+
+/** Tamamlanmış satışlardan ambar satırları (ana sayfa sayacı ve Ambarım aynı kuralı kullanır). */
+export function barnRowsOf(purchases: readonly FarmerPurchase[]): BarnRow[] {
+  const rows: BarnRow[] = [];
+  for (const p of purchases) {
+    if (p.status !== 'completed') continue;
+    p.items.forEach((item, i) => {
+      const remaining = p.remaining[String(i)] ?? item.quantity;
+      rows.push({ key: `${p.id}:${i}`, purchaseId: p.id, index: i, item, remaining, tenantName: p.tenantName, date: p.purchasedAt, usedUp: !(remaining > 0) });
+    });
+  }
+  return rows;
+}
+
+const SEEN_KEY = 'tm.farmer.seenRecs.';
+
+function readSeen(fid: string): ReadonlySet<string> {
+  try {
+    const v = JSON.parse(localStorage.getItem(SEEN_KEY + fid) ?? '[]');
+    return new Set(Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/** Bu süreden eski veri, uygulama öne gelince (görünür / odak) kendiliğinden yenilenir. */
+export const FARMER_STALE_MS = 30_000;
+
 /**
- * Çiftçi verisinin oturum içi önbelleği. Her koleksiyon oturumda bir kez okunur (getDocs, Spark kotası §7.3);
- * yazmalar yerelde hemen yansıtılır, sunucuya gönderim FarmerSyncTracker ile izlenir. "Yenile" ile tekrar okunur.
+ * Çiftçi verisinin oturum içi önbelleği. Koleksiyonlar getDocs ile okunur (Spark kotası §7.3, sürekli dinleyici yok);
+ * yazmalar yerelde hemen yansıtılır, sunucuya gönderim FarmerSyncTracker ile izlenir. Bayinin yazdıkları (satış, borç,
+ * öneri) "Yenile" düğmesiyle ve uygulama tekrar öne geldiğinde (`refreshIfStale`) gelir (rapor #4).
  */
 @Injectable({ providedIn: 'root' })
 export class FarmerStore {
@@ -27,11 +67,23 @@ export class FarmerStore {
   readonly recommendations = signal<Recommendation[]>([]);
   readonly loaded = signal(false);
   readonly loadError = signal(false);
+  /** Yenileme sürüyor (düğmede dönen ikon). */
+  readonly refreshing = signal(false);
+  /** Her başarılı yenilemede artar: kendi verisini ayrı okuyan sayfalar (borç detayı) buna göre yeniden okur. */
+  readonly refreshTick = signal(0);
+  private lastLoadedAt = 0;
 
   private loadedFor: string | null = null;
   private loading: Promise<void> | null = null;
 
   readonly activeRecommendations = computed(() => this.recommendations().filter(r => r.status === 'active'));
+
+  /** Bu cihazda görülmüş öneriler (alt menüdeki "Bayim" rozeti yalnız yenileri sayar). */
+  private readonly seenRecIds = signal<ReadonlySet<string>>(new Set());
+  readonly unseenRecCount = computed(() => {
+    const seen = this.seenRecIds();
+    return this.activeRecommendations().filter(r => !seen.has(r.id)).length;
+  });
 
   readonly phiWarnings = computed<PhiWarning[]>(() => {
     const expected: Record<string, Date | null> = {};
@@ -39,9 +91,11 @@ export class FarmerStore {
     return activePhiWarnings(this.logs().filter(l => l.type === 'pesticide'), expected);
   });
 
-  /** Ambardaki (iptal edilmemiş) kalem sayısı */
-  readonly barnItemCount = computed(() =>
-    this.purchases().filter(p => p.status === 'completed').reduce((n, p) => n + p.items.length, 0));
+  readonly barnRows = computed(() => barnRowsOf(this.purchases()));
+  /** Ambarda kalanı olan kalem sayısı (Ambarım'daki ana liste) */
+  readonly barnItemCount = computed(() => this.barnRows().filter(r => !r.usedUp).length);
+  /** Biten / kullanılan kalem sayısı (Ambarım'daki "Biten" bölümü) */
+  readonly barnUsedUpCount = computed(() => this.barnRows().filter(r => r.usedUp).length);
 
   async load(force = false): Promise<void> {
     const fid = this.session.farmerId();
@@ -60,7 +114,9 @@ export class FarmerStore {
         this.logs.set(logs);
         this.purchases.set(purchases);
         this.recommendations.set(recs);
+        this.seenRecIds.set(readSeen(fid));
         this.loadedFor = fid;
+        this.lastLoadedAt = Date.now();
         this.loaded.set(true);
       } catch {
         this.loadError.set(true);
@@ -71,8 +127,37 @@ export class FarmerStore {
     return this.loading;
   }
 
+  /** Öneriler ekranı açıldı: şu anki önerileri görüldü say. */
+  markRecsSeen(): void {
+    const fid = this.session.farmerId();
+    if (!fid) return;
+    const ids = new Set(this.recommendations().map(r => r.id));
+    this.seenRecIds.set(ids);
+    try { localStorage.setItem(SEEN_KEY + fid, JSON.stringify([...ids])); } catch { /* yok say */ }
+  }
+
+  /** Bağlantılar (bakiye, vade) + tüm çiftçi verisi yeniden okunur. Eşzamanlı çağrılar birleşir. */
+  async refresh(): Promise<void> {
+    if (this.refreshing() || !this.session.farmerId()) return;
+    this.refreshing.set(true);
+    try {
+      await Promise.all([this.session.refreshLinks().catch(() => undefined), this.load(true)]);
+      this.refreshTick.update(n => n + 1);
+    } finally {
+      this.refreshing.set(false);
+    }
+  }
+
+  /** Veri `maxAgeMs`'den eskiyse yeniler (uygulama öne geldiğinde çağrılır). */
+  refreshIfStale(maxAgeMs = FARMER_STALE_MS, now = Date.now()): boolean {
+    if (!this.loaded() || now - this.lastLoadedAt < maxAgeMs) return false;
+    void this.refresh();
+    return true;
+  }
+
   clear(): void {
     this.loadedFor = null;
+    this.lastLoadedAt = 0;
     this.loaded.set(false);
     for (const s of [this.fields, this.seasons, this.logs, this.purchases, this.recommendations] as const) s.set([] as never);
   }

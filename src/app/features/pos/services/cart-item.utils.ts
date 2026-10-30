@@ -1,4 +1,5 @@
 import { Product } from '../../../shared/models/product.model';
+import { productNetCost } from '../../../shared/utils/pricing';
 import { CartItem } from '../../../shared/models/sale.model';
 import { expiryInfo } from '../../../shared/utils/batch.utils';
 import { isPlantProtection, productRequiresPrescription } from '../../../shared/utils/regulatory.utils';
@@ -48,7 +49,7 @@ export function cartItemFromProduct(product: Product, gtsNo: string | null = nul
     discount: 0,
     discountType: 'percent',
     totalPrice: product.salePrice,
-    costPrice: product.purchasePrice ?? null,
+    costPrice: product.purchasePrice != null ? productNetCost(product) : null,
     stock: sellableStock(product, now),
   };
   if (gtsNo) item.gtsNos = [gtsNo];

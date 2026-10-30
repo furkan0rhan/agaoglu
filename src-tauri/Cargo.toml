@@ -23,6 +23,11 @@ tauri-plugin-notification = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+# Kamera ile barkod/QR/DataMatrix okuma — yalnız mobil (Android/iOS).
+# ~2.4.6: tauri ^2.10 ister (2.5.x tauri 2.12 ister; @tauri-apps/api 2.11 ile uyumsuz olurdu).
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+tauri-plugin-barcode-scanner = "~2.4.6"
+
 [profile.release]
 panic = "abort"
 codegen-units = 1

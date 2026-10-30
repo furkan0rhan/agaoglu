@@ -30,6 +30,7 @@ export function buildNavItems(t: Translations): NavItem[] {
     { title: t.sales.title, short: t.sales.title, path: '/sales', icon: 'pi-receipt', roles: ['admin', 'cashier'], group: 'ops' },
     { title: n.credit, short: n.credit, path: '/credit', icon: 'pi-book', roles: ['admin', 'cashier'], group: 'ops' },
     { title: n.customers, short: n.customers, path: '/customers', icon: 'pi-users', roles: ['admin', 'cashier'], group: 'ops' },
+    { title: t.farmer.farmers.title, short: t.farmer.farmers.title, path: '/farmers', icon: 'pi-mobile', roles: ['admin', 'cashier'], group: 'ops' },
     { title: n.suppliers, short: n.suppliers, path: '/suppliers', icon: 'pi-truck', roles: ['admin'], group: 'ops' },
     { title: t.purchases.title, short: t.purchases.title, path: '/purchases', icon: 'pi-download', roles: ['admin'], group: 'ops' },
     { title: n.expenses, short: n.expenses, path: '/expenses', icon: 'pi-wallet', roles: ['admin'], group: 'ops' },
@@ -39,6 +40,11 @@ export function buildNavItems(t: Translations): NavItem[] {
     { title: n.settings, short: n.settings, path: '/settings', icon: 'pi-sliders-h', roles: ['admin'], group: 'manage' },
     { title: n.adminPanel, short: n.adminPanel, path: '/admin', icon: 'pi-shield', superAdminOnly: true, group: 'manage' },
   ];
+}
+
+/** Ürün turu hedef adı: `/settings/team` → `nav-settings-team` (`data-tour`). */
+export function tourKey(path: string): string {
+  return 'nav-' + path.replace(/^\//, '').replace(/\//g, '-');
 }
 
 /** Rol filtresi. Kullanıcı henüz yüklenmediyse tüm öğeler (eski davranış). */

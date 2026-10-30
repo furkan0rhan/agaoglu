@@ -15,6 +15,8 @@ export interface SaleItemBatch {
   batchId: string;
   quantity: number;
   gtsNo: string | null;
+  /** Partinin parti / şarj no'su (AI 10). Eski satışlarda yoktur. */
+  lotNo?: string | null;
   expiryDate: Timestamp | null;
 }
 
@@ -31,8 +33,13 @@ export interface SaleItem {
   discountType: DiscountType;
   /** Kalem indirimi düşülmüş satır toplamı (kuruşa yuvarlı). */
   totalPrice: number;
-  /** Satış anındaki alış fiyatı (ürünün purchasePrice'ı) — kâr hesabı için. */
+  /**
+   * Satış anındaki NET (KDV hariç) birim alış fiyatı — kâr hesabı için.
+   * (Alış fiyatı KDV dahil işaretli ürünlerde KDV düşülmüş hali; bkz. shared/utils/pricing.ts.)
+   */
   costPrice?: number | null;
+  /** Satış anındaki KDV oranı (%; ürünün vatRate'i, yoksa null). Eski satışlarda yoktur → raporda ürünün güncel oranı (tahmini). */
+  vatRate?: number | null;
   /** FEFO ile düşülen partiler. Eski satışlarda yoktur. */
   batches?: SaleItemBatch[];
   /**
@@ -40,6 +47,8 @@ export interface SaleItem {
    * Sepette: okutularak eklenen GTS'ler (satışta önce bunlar düşülür).
    */
   gtsNos?: string[];
+  /** Satılan partilerin parti / şarj no'ları (tekrarsız). Yalnız parti no bilinen partilerden. */
+  lotNos?: string[];
   /** Satış anında ürün e-reçeteli miydi? */
   requiresPrescription?: boolean;
   /** E-reçete numarası (reçeteli kalemlerde). */
@@ -110,7 +119,7 @@ export interface SaleReceipt {
   date: Date;
   customerName: string | null;
   items: (Pick<SaleItem, 'productName' | 'quantity' | 'unit' | 'unitPrice' | 'discount' | 'discountType' | 'totalPrice'>
-    & Partial<Pick<SaleItem, 'gtsNos' | 'licenseNo'>>)[];
+    & Partial<Pick<SaleItem, 'gtsNos' | 'lotNos' | 'licenseNo' | 'vatRate'>>)[];
   /** E-reçete numarası (reçeteli satışta). */
   prescriptionNo?: string | null;
   subtotal: number;
@@ -128,4 +137,16 @@ export interface SaleReceipt {
   downPayment?: number | null;
   /** Taksit planı (fişte listelenir). */
   installments?: { no: number; dueDate: Date; amount: number }[] | null;
+  /** Y11: 'payment' = veresiye tahsilat makbuzu (kalemsiz; `payment` alanı dolu). Varsayılan satış fişi. */
+  kind?: 'sale' | 'payment';
+  payment?: PaymentReceiptInfo | null;
+}
+
+/** Y11: tahsilat makbuzu bilgileri. */
+export interface PaymentReceiptInfo {
+  amount: number;
+  method: 'cash' | 'card' | 'transfer';
+  previousBalance: number;
+  newBalance: number;
+  note?: string | null;
 }

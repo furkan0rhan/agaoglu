@@ -3,19 +3,20 @@ import { RouterLink } from '@angular/router';
 import { LangService } from '../../../core/i18n/lang.service';
 import { FarmerSession } from '../auth/farmer-session.service';
 import { fmt } from '../i18n/farmer.i18n';
-import { F, fmtDate, fmtMoney, TILE_TONE } from '../layout/farmer-ui';
+import { F, FarmerRefreshButtonComponent, fmtDate, fmtMoney, TILE_TONE } from '../layout/farmer-ui';
 import { FarmerStore } from '../services/farmer-store.service';
 import { FarmerWeatherCardComponent } from './weather-card.component';
 
 @Component({
   selector: 'app-farmer-home',
   standalone: true,
-  imports: [RouterLink, FarmerWeatherCardComponent],
+  imports: [RouterLink, FarmerWeatherCardComponent, FarmerRefreshButtonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex flex-col gap-4">
       <div class="flex items-center gap-2">
         <h1 class="m-0 min-w-0 flex-1 truncate font-display text-26 font-extrabold leading-tight text-fg">{{ hello() }}</h1>
+        <app-farmer-refresh [compact]="true" />
         @if (canSpeak) {
           <button type="button" (click)="toggleRead()" [attr.aria-pressed]="speaking()"
             class="flex min-h-[48px] shrink-0 cursor-pointer items-center gap-2 rounded-token-lg border border-line-strong bg-surface px-3 text-16 font-bold text-fg hover:bg-surface-muted">
@@ -58,13 +59,21 @@ import { FarmerWeatherCardComponent } from './weather-card.component';
           <i [class]="F.chevron" aria-hidden="true"></i>
         </span>
         @for (l of session.activeLinks(); track l.id) {
-          <span class="flex items-baseline justify-between gap-3 border-b border-line py-2 last:border-b-0 last:pb-0">
-            <span class="min-w-0">
-              <span class="block truncate text-17 font-semibold">{{ l.tenantName }}</span>
-              <span class="block text-14 text-fg-muted">{{ l.balanceUpdatedAt ? lastUpdate(l.balanceUpdatedAt) : t().farmer.home.balanceUnknown }}</span>
+          <span class="block border-b border-line py-2 last:border-b-0 last:pb-0">
+            <span class="flex items-baseline justify-between gap-3">
+              <span class="min-w-0">
+                <span class="block truncate text-17 font-semibold">{{ l.tenantName }}</span>
+                <span class="block text-14 text-fg-muted">{{ l.balanceUpdatedAt ? lastUpdate(l.balanceUpdatedAt) : t().farmer.home.balanceUnknown }}</span>
+              </span>
+              <span class="num shrink-0 font-display text-24 font-extrabold" [class]="(l.balance ?? 0) > 0 ? 'text-danger-text' : 'text-fg'">
+                {{ l.balance === null ? '—' : money(l.balance) }}</span>
             </span>
-            <span class="num shrink-0 font-display text-24 font-extrabold" [class]="(l.balance ?? 0) > 0 ? 'text-danger-text' : 'text-fg'">
-              {{ l.balance === null ? '—' : money(l.balance) }}</span>
+            @if (l.overdueAmount) {
+              <span class="num mt-1 block rounded-token-sm bg-danger-soft px-2 py-1 text-15 font-bold text-danger-text">{{ overdue(l.overdueAmount) }}</span>
+            }
+            @if (l.nextDue; as nd) {
+              <span class="num mt-1 block text-15 font-semibold text-fg-secondary"><i class="pi pi-calendar mr-1 text-13" aria-hidden="true"></i>{{ nextDue(nd) }}</span>
+            }
           </span>
         } @empty {
           <span [class]="F.muted">{{ t().farmer.home.noDebt }}</span>
@@ -121,7 +130,11 @@ export class FarmerHomePage implements OnDestroy {
 
   readonly hello = computed(() => fmt(this.t().farmer.home.hello, { name: this.session.farmer()?.displayName.split(' ')[0] ?? '' }));
   readonly recsCount = computed(() => fmt(this.t().farmer.home.newRecs, { n: this.store.activeRecommendations().length }));
-  readonly productsCount = computed(() => fmt(this.t().farmer.home.productsCount, { n: this.store.barnItemCount() }));
+  /** Ambarım'la aynı kural: kalanı olan kalemler + biten sayısı (rapor #7) */
+  readonly productsCount = computed(() => {
+    const n = this.store.barnItemCount(), m = this.store.barnUsedUpCount();
+    return m ? fmt(this.t().farmer.home.productsUsedUp, { n, m }) : fmt(this.t().farmer.home.productsCount, { n });
+  });
   readonly recordsCount = computed(() => fmt(this.t().farmer.home.recordsCount, { n: this.store.logs().length }));
   readonly weatherField = computed(() => this.store.fields().find(f => f.location) ?? null);
 
@@ -130,6 +143,8 @@ export class FarmerHomePage implements OnDestroy {
   }
 
   money(v: number): string { return fmtMoney(v, this.lang()); }
+  nextDue(d: { date: Date; amount: number }): string { return fmt(this.t().farmer.home.nextDue, { date: fmtDate(d.date, this.lang()), amount: this.money(d.amount) }); }
+  overdue(v: number): string { return fmt(this.t().farmer.home.overdue, { amount: this.money(v) }); }
   lastUpdate(d: Date): string { return fmt(this.t().farmer.home.lastUpdate, { date: fmtDate(d, this.lang()) }); }
   phiEarliest(d: Date): string { return fmt(this.t().farmer.home.phiEarliest, { date: fmtDate(d, this.lang()) }); }
   daysLeft(n: number): string { return fmt(this.t().farmer.home.phiDaysLeft, { n }); }

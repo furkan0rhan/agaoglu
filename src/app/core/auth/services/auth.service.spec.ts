@@ -82,6 +82,23 @@ describe('AuthService — profil yükleme dayanıklılığı', () => {
     expect(user).toMatchObject({ tenantId: 'u1', role: 'admin', isActive: true });
   });
 
+  it('çiftçi hesabı eski sahip sayılmaz: tenant / eski profil tamamlama çalışmaz (çiftçi rapor #27)', async () => {
+    vi.spyOn(internals, 'readUserDocFromServer').mockResolvedValue(snap({
+      accountType: 'farmer', tenantId: null, role: null, isActive: true, farmerId: 'f1',
+      email: '905551234567@ciftci.tarimmarket.app', displayName: 'Hüseyin',
+    }));
+    const priv = svc as unknown as { backfillLegacyFields(): void; ensureTenantDoc(): void };
+    const backfill = vi.spyOn(priv, 'backfillLegacyFields');
+    const tenant = vi.spyOn(priv, 'ensureTenantDoc');
+
+    const user = await internals.loadProfile({ ...fbUser, email: '905551234567@ciftci.tarimmarket.app' });
+
+    expect(user).toMatchObject({ tenantId: '', role: 'staff', accountType: 'farmer', isActive: true });
+    expect(backfill).not.toHaveBeenCalled();
+    expect(tenant).not.toHaveBeenCalled();
+    expect(internals.startProfileWatch).not.toHaveBeenCalled();
+  });
+
   it('isActive: false → pasif, oturum kapatılır', async () => {
     vi.spyOn(internals, 'readUserDocFromServer').mockResolvedValue(
       snap({ tenantId: 'owner', role: 'staff', isActive: false, email: fbUser.email }));

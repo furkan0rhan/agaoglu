@@ -32,7 +32,7 @@ işletmesi (`tenantId`), rolü (`role`) ve aktifliği (`isActive`) her istekte
 - `stockMovements`, `creditTransactions`: yalnız read + create (değişmez defter). İptal = ters kayıt (create).
 - `sales`: create + update (iptal/iade), silme yok. `totalAmount >= 0`.
 - `expenses.amount >= 0`, `creditTransactions.amount >= 0`; tek istisna satış iptali ters kaydı (`isReversal: true`, negatif amount — POS `cancelSale`).
-- `users`: kullanıcı kendi dokümanında yalnız `displayName/email/lastLogin` değiştirebilir;
+- `users`: kullanıcı kendi dokümanında yalnız `displayName/email/lastLogin/onboarding` (ürün turu durumu, harita) değiştirebilir;
   aynı işletmenin admini başkalarının `role/isActive` alanını değiştirebilir (işletme sahibi ve kendisi hariç). Silme yok.
 - `credits` koleksiyonu ve `isTenant()` kaldırıldı.
 

@@ -6,7 +6,7 @@ import { LogoMarkComponent } from './logo-mark.component';
 
 /**
  * Giriş / kayıt / şifre / doğrulama sayfalarının ortak kabuğu (C "Saha / Komuta"):
- * solda koyu, tarla çizgili tanıtım paneli; sağda kâğıt zeminli form. Mobilde tanıtım paneli
+ * solda açık adaçayı, tarla çizgili tanıtım paneli; sağda kâğıt zeminli form. Mobilde tanıtım paneli
  * kısa bir başlık bandına iner. Sağ üstte tema + dil.
  *
  * ```html
@@ -28,7 +28,7 @@ import { LogoMarkComponent } from './logo-mark.component';
       position: absolute;
       inset: auto -10% -30% -10%;
       height: 60%;
-      background: repeating-linear-gradient(90deg, transparent 0 22px, rgba(52, 211, 153, 0.1) 22px 24px);
+      background: repeating-linear-gradient(90deg, transparent 0 22px, color-mix(in srgb, var(--side-hi) 14%, transparent) 22px 24px);
       transform: perspective(400px) rotateX(55deg);
       transform-origin: bottom;
       pointer-events: none;

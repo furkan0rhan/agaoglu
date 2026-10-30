@@ -103,6 +103,8 @@ export interface PrescriptionRecordRow {
   quantity: number;
   unit: string;
   gtsNos: string;
+  /** Parti / şarj no'ları (virgülle) */
+  lotNos: string;
   prescriptionNo: string;
   prescriberName: string;
 }
@@ -144,6 +146,7 @@ export function buildPrescriptionRows(
         quantity: i.quantity,
         unit: unitLabel(i.unit),
         gtsNos: (i.gtsNos ?? []).join(', '),
+        lotNos: (i.lotNos?.length ? i.lotNos : [...new Set((i.batches ?? []).map(b => b.lotNo).filter((l): l is string => !!l))]).join(', '),
         prescriptionNo: i.prescriptionNo ?? s.prescriptionNo ?? '',
         prescriberName: s.prescriberName ?? '',
       });

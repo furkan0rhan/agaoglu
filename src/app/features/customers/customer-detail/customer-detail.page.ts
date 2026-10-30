@@ -22,6 +22,7 @@ import { CreditService } from '../../credit/services/credit.service';
 import { buildSchedule, creditStatus } from '../../credit/services/credit.utils';
 import { CartStore } from '../../pos/store/cart.store';
 import { maskTcNo } from '../services/customer.utils';
+import { TenantSettingsService } from '../../../core/settings/tenant-settings.service';
 import { FarmerCustomerPanelComponent } from '../../farmer/dealer/farmer-customer-panel.component';
 
 interface InfoRow { icon: string; label: string; value: string; href?: string; tc?: boolean }
@@ -172,6 +173,7 @@ export class CustomerDetailPage implements OnInit {
   private readonly confirm = inject(ConfirmationService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly logger = inject(LoggerService);
+  private readonly tenantSettings = inject(TenantSettingsService);
   private readonly datePipe = new DatePipe('tr');
   readonly t = inject(LangService).t;
   readonly isAdmin = inject(AuthService).hasRole('admin');
@@ -185,10 +187,12 @@ export class CustomerDetailPage implements OnInit {
   readonly exporting = signal<'json' | 'xlsx' | null>(null);
   customerId = '';
 
-  readonly schedule = computed(() => buildSchedule(this.transactions(), this.customer()?.balance ?? 0));
+  readonly schedule = computed(() => buildSchedule(this.transactions(), this.customer()?.balance ?? 0,
+    { defaultDueDays: this.tenantSettings.credit().defaultDueDays }));
   readonly status = computed(() => creditStatus(this.schedule()));
 
   ngOnInit(): void {
+    this.tenantSettings.ensureLoaded();
     this.customerId = this.route.snapshot.paramMap.get('id') ?? '';
     this.svc.watch$(this.customerId)
       .pipe(takeUntilDestroyed(this.destroyRef))

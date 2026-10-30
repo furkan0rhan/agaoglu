@@ -1,5 +1,5 @@
 import { DEFAULT_REMINDER_TEMPLATE, renderReminderTemplate } from './reminder-template';
-import { parseTenantSettings } from './tenant-settings.model';
+import { nextHarvestDate, parseTenantSettings } from './tenant-settings.model';
 
 describe('renderReminderTemplate', () => {
   it('bilinen değişkenleri doldurur', () => {
@@ -54,5 +54,21 @@ describe('parseTenantSettings (fiş / veresiye / SKT)', () => {
     expect(s.receipt.logo).toContain('data:image/png');
     expect(s.credit.defaultCreditLimit).toBe(25000);
     expect(s.credit.reminderTemplate).toBe('Sayın {ad}');
+  });
+});
+
+describe('Y8: hasat tarihi ve varsayılan vade farkı', () => {
+  it('varsayılan: 15 Temmuz, vade farkı 0; geçersizler varsayılana döner', () => {
+    expect(parseTenantSettings(null).credit).toMatchObject({ harvestMonth: 7, harvestDay: 15, defaultInterestRate: 0 });
+    const s = parseTenantSettings({ credit: { harvestMonth: 13, harvestDay: 31, defaultInterestRate: -2 } });
+    expect(s.credit).toMatchObject({ harvestMonth: 7, harvestDay: 15, defaultInterestRate: 0 });
+    expect(parseTenantSettings({ credit: { harvestMonth: 8, harvestDay: 1, defaultInterestRate: 4.5 } }).credit)
+      .toMatchObject({ harvestMonth: 8, harvestDay: 1, defaultInterestRate: 4.5 });
+  });
+
+  it('bir sonraki hasat: geçtiyse / 30 günden az kaldıysa gelecek yıl', () => {
+    expect(nextHarvestDate(new Date(2026, 9, 30), 7, 15)).toEqual(new Date(2027, 6, 15));
+    expect(nextHarvestDate(new Date(2027, 2, 1), 7, 15)).toEqual(new Date(2027, 6, 15));
+    expect(nextHarvestDate(new Date(2027, 6, 1), 7, 15)).toEqual(new Date(2028, 6, 15));
   });
 });

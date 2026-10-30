@@ -7,7 +7,7 @@ import { FarmerConsent, FarmerInvite } from '../../../shared/models/farmer.model
 import { FARMER_ACCOUNT_REPOSITORY, FARMER_LINK_REPOSITORY } from '../data/repositories';
 import { computeShareTargets } from '../utils/consent.util';
 import {
-  farmerSyntheticEmail, inviteState, isValidPin, MAX_PHONE_SLOTS, normalizeTrPhone, phoneMatchesInvite,
+  farmerSyntheticEmail, inviteState, isValidPin, MAX_PHONE_SLOTS, normalizeTrPhone, phoneMatchesInvite, scanPhoneSlots, SlotAttempt,
 } from '../utils/identity.util';
 import { FarmerSession } from './farmer-session.service';
 
@@ -33,7 +33,30 @@ function mapError(err: unknown): FarmerAuthError {
   return new FarmerAuthError('unknown');
 }
 
-const BAD_CREDENTIAL = new Set(['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-login-credentials']);
+/** Bu cihazda telefonun son başarılı giriş yuvası (deneme sayısını azaltır; gizli bilgi değildir). */
+const SLOT_KEY = 'tm.farmer.slot.';
+
+function rememberedSlot(phone: string): number | null {
+  try {
+    const v = Number(localStorage.getItem(SLOT_KEY + phone));
+    return Number.isInteger(v) && v >= 0 && v < MAX_PHONE_SLOTS ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberSlot(phone: string, slot: number): void {
+  try { localStorage.setItem(SLOT_KEY + phone, String(slot)); } catch { /* yok say */ }
+}
+
+/** Firebase giriş hatası → yuva taraması kararı. null: tarama durur, hata kullanıcıya gösterilir (ağ, hız sınırı …). */
+export function classifySignInError(code: string): SlotAttempt | null {
+  if (code === 'auth/user-not-found') return 'missing';
+  if (code === 'auth/wrong-password') return 'bad-password';
+  // E-posta numaralandırma koruması açıkken "hesap yok" ile "yanlış şifre" ayırt edilemez
+  if (code === 'auth/invalid-credential' || code === 'auth/invalid-login-credentials') return 'unknown';
+  return null;
+}
 
 /**
  * Telefon + 6 haneli PIN girişi. Firebase e-posta/şifre üzerinde sentetik e-posta (90XXXXXXXXXX@ciftci…).
@@ -50,29 +73,34 @@ export class FarmerAuthService {
     return this.accounts.getInvite(code);
   }
 
-  /** Telefon + PIN ile giriş. PIN sıfırlama yuvaları sırayla denenir; profilin sahibi olan hesap seçilir. */
+  /**
+   * Telefon + PIN ile giriş. PIN sıfırlama yuvaları `scanPhoneSlots` kuralıyla denenir (hatırlanan yuvadan başlar,
+   * "hesap yok" görünce durur); profilin sahibi olan hesap seçilir. Hız sınırı / ağ hatasında tarama hemen kesilir
+   * (rapor #13: tek yanlış PIN eskiden 5 Auth isteği yapıyordu).
+   */
   async signIn(phoneInput: string, pin: string): Promise<void> {
     const phone = normalizeTrPhone(phoneInput);
     if (!phone) throw new FarmerAuthError('invalid-phone');
     if (!/^\d{6}$/.test(pin)) throw new FarmerAuthError('invalid-pin');
     await setPersistence(this.auth, browserLocalPersistence);
-    let signedInButNotOwner = false;
-    for (let slot = 0; slot < MAX_PHONE_SLOTS; slot++) {
+    const slot = await scanPhoneSlots(rememberedSlot(phone), async s => {
       try {
-        await signInWithEmailAndPassword(this.auth, farmerSyntheticEmail(phone, slot), pin);
+        await signInWithEmailAndPassword(this.auth, farmerSyntheticEmail(phone, s), pin);
       } catch (err) {
-        if (BAD_CREDENTIAL.has(firebaseCode(err))) continue;
+        const r = classifySignInError(firebaseCode(err));
+        if (r) return r;
         throw mapError(err);
       }
       const state = await this.session.ensureLoaded(true);
-      if (state === 'ready') return;
-      signedInButNotOwner = true;
+      if (state === 'ready') return 'ok';
       await signOut(this.auth).catch(() => undefined);
       this.session.clear();
       if (state === 'dealer') throw new FarmerAuthError('not-farmer');
       if (state === 'error') throw new FarmerAuthError('network');
-    }
-    throw new FarmerAuthError(signedInButNotOwner ? 'invalid-login' : 'invalid-login');
+      return 'not-owner';
+    });
+    if (slot === null) throw new FarmerAuthError('invalid-login');
+    rememberSlot(phone, slot);
   }
 
   /**
@@ -100,6 +128,7 @@ export class FarmerAuthService {
       }
     }
     if (!created) throw new FarmerAuthError('slots-full');
+    const createdSlot = Number(/\.(\d)@/.exec(email)?.[1] ?? 0);
 
     const name = displayName.trim() || invite.customerName;
     try {
@@ -112,6 +141,7 @@ export class FarmerAuthService {
       this.session.clear();
       throw mapError(err);
     }
+    rememberSlot(phone, createdSlot);
     await this.afterLink();
   }
 
@@ -142,6 +172,11 @@ export class FarmerAuthService {
     if (state === 'ready' && fid) {
       await this.linkRepo.applySharing(fid, computeShareTargets(this.session.links())).catch(() => undefined);
     }
+  }
+
+  /** Bu tarayıcıda açık oturumun e-postası (davet sayfası: bayi oturumunu sessizce değiştirmemek için, rapor Y17). */
+  currentEmail(): string | null {
+    return this.auth.currentUser?.email ?? null;
   }
 
   async signOut(): Promise<void> {

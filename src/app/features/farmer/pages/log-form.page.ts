@@ -7,9 +7,10 @@ import { fmt } from '../i18n/farmer.i18n';
 import { F, FarmerHeaderComponent, fmtDate, fmtNum, fromInputDate, toInputDate, TYPE_ICON, TYPE_TONE, typeTile } from '../layout/farmer-ui';
 import { FarmerStore } from '../services/farmer-store.service';
 import { cropDef } from '../utils/crops';
-import { dosePerDecare, dosePerDecareReadable, remainingAfterUse } from '../utils/dose.util';
+import { DoseDisplay, doseDisplay, dosePerDecare, remainingAfterUse } from '../utils/dose.util';
 import { earliestHarvestDate, isHarvestBeforePhi, isValidPhiDays, resolvePhi } from '../utils/phi.util';
-import { FARM_UNITS, FarmUnit, toFarmUnit } from '../utils/units';
+import { FARM_UNITS, FarmUnit, toFarmUnit, unitLabel } from '../utils/units';
+import { recItemApplication } from '../utils/rec-item.util';
 
 interface BarnOption {
   key: string; purchaseId: string; index: number; name: string; unit: FarmUnit; remaining: number;
@@ -25,10 +26,11 @@ const TYPE_FOR_PRODUCT: Partial<Record<ApplicationType, readonly string[]>> = {
  * önerisinden veya serbest metinden gelir; doz yalnızca miktar/alan aritmetiğidir. PHI yalnızca bayinin girdiği
  * etiket bilgisi / yetkili önerisi / çiftçinin etiketten girdiği değerle hesaplanır; yoksa "etiketi kontrol edin".
  */
+import { DateFieldComponent } from '../../../shared/ui/date-field.component';
 @Component({
   selector: 'app-farmer-log-form',
   standalone: true,
-  imports: [FormsModule, RouterLink, FarmerHeaderComponent],
+  imports: [FormsModule, RouterLink, FarmerHeaderComponent, DateFieldComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-farmer-header [title]="t().farmer.log.title" [back]="step() > 1 ? null : '/ciftci'">
@@ -48,6 +50,9 @@ const TYPE_FOR_PRODUCT: Partial<Record<ApplicationType, readonly string[]>> = {
       <a routerLink="/ciftci/tarlalar/yeni" [class]="F.btn + ' mt-3'"><i class="pi pi-plus" aria-hidden="true"></i>{{ t().farmer.fields.add }}</a>
     } @else if (step() === 1) {
       <h2 [class]="F.h2 + ' mb-3'">{{ t().farmer.log.step1 }}</h2>
+      @if (rec() && recTypeUnknown()) {
+        <p [class]="F.note + ' mb-3'" role="status">{{ t().farmer.log.recTypeUnknown }}</p>
+      }
       <div class="grid grid-cols-2 gap-3">
         @for (ty of types; track ty) {
           <button type="button" class="flex min-h-[104px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-token-2xl border-2 font-display text-19 font-extrabold transition-[filter] hover:brightness-95 active:brightness-90"
@@ -88,8 +93,8 @@ const TYPE_FOR_PRODUCT: Partial<Record<ApplicationType, readonly string[]>> = {
             <button type="button" [class]="F.choice + ' ' + (dateStr() === todayStr ? F.on : F.off)" [attr.aria-pressed]="dateStr() === todayStr" (click)="dateStr.set(todayStr)">{{ t().farmer.common.today }}</button>
             <button type="button" [class]="F.choice + ' ' + (dateStr() === yesterdayStr ? F.on : F.off)" [attr.aria-pressed]="dateStr() === yesterdayStr" (click)="dateStr.set(yesterdayStr)">{{ t().farmer.common.yesterday }}</button>
           </div>
-          <label for="lf-date" class="sr-only">{{ t().farmer.common.pickDate }}</label>
-          <input id="lf-date" type="date" [class]="F.input + ' mt-2'" [max]="todayStr" [ngModel]="dateStr()" (ngModelChange)="dateStr.set($event)" name="date" />
+          <ui-date-field [class]="'mt-2 ' + F.date" inputId="lf-date" valueType="iso" labelClass="sr-only" [label]="t().farmer.common.pickDate"
+            [max]="todayStr" [clearable]="false" name="date" [ngModel]="dateStr()" (ngModelChange)="dateStr.set($event)" />
         </fieldset>
         <div>
           <label for="lf-area" [class]="F.label">{{ t().farmer.log.area }}</label>
@@ -139,11 +144,12 @@ const TYPE_FOR_PRODUCT: Partial<Record<ApplicationType, readonly string[]>> = {
             <input id="lf-qty" name="qty" type="number" inputmode="decimal" min="0" step="0.01" [class]="F.input" [ngModel]="quantity()" (ngModelChange)="quantity.set($event)" /></div>
           <div><label for="lf-unit" [class]="F.label">{{ t().farmer.log.unit }}</label>
             <select id="lf-unit" name="unit" [class]="F.input" [ngModel]="unit()" (ngModelChange)="unit.set($event)">
-              @for (u of units; track u) { <option [value]="u">{{ u }}</option> }
+              @if (unit() === null) { <option [ngValue]="null" disabled>{{ t().farmer.log.unitPick }}</option> }
+              @for (u of units; track u) { <option [ngValue]="u">{{ uLabel(u) }}</option> }
             </select></div>
         </div>
         @if (dose(); as d) {
-          <p class="num m-0 rounded-token-lg bg-surface-muted px-3.5 py-2.5 font-display text-19 font-extrabold">{{ perDecare(d.value, d.unit) }}</p>
+          <p class="num m-0 rounded-token-lg bg-surface-muted px-3.5 py-2.5 font-display text-19 font-extrabold">{{ perDecare(d) }}</p>
         }
 
         @if (type() === 'pesticide') {
@@ -203,7 +209,10 @@ export class FarmerLogFormPage implements OnInit {
   readonly source = signal<string>('free');
   readonly productName = signal('');
   readonly quantity = signal<number | null>(null);
-  readonly unit = signal<FarmUnit>('lt');
+  /** null = bilinmiyor (eski öneri) → kullanıcı seçer */
+  readonly unit = signal<FarmUnit | null>('lt');
+  /** Açılan önerinin kaleminde ürün türü yok → kayıt türü kullanıcıdan */
+  readonly recTypeUnknown = signal(false);
   readonly manualPhi = signal<number | null>(null);
   readonly barnPick = signal<BarnOption | null>(null);
   readonly recItem = signal<number | null>(null);
@@ -254,7 +263,10 @@ export class FarmerLogFormPage implements OnInit {
 
   readonly earliest = computed(() => earliestHarvestDate(this.date(), this.phi()?.days));
   readonly conflict = computed(() => isHarvestBeforePhi(this.season()?.expectedHarvestDate, this.earliest()));
-  readonly dose = computed(() => dosePerDecareReadable(this.qty(), this.unit(), this.areaNum()));
+  readonly dose = computed(() => {
+    const u = this.unit();
+    return u ? doseDisplay(this.qty(), u, this.areaNum(), this.productName()) : null;
+  });
 
   async ngOnInit(): Promise<void> {
     await this.store.load();
@@ -262,9 +274,15 @@ export class FarmerLogFormPage implements OnInit {
     const r = recId ? this.store.recommendations().find(x => x.id === recId && x.status === 'active') ?? null : null;
     if (r) {
       this.rec.set(r);
-      this.type.set('pesticide');
       if (r.fieldId && this.store.field(r.fieldId)) this.pickField(r.fieldId);
       if (r.seasonId) this.seasonId.set(r.seasonId);
+      // Tür / birim öneri kalemindeki ürün kartı bilgisinden; eski önerilerde yoksa kullanıcı seçer (varsayılan yok)
+      if (!recItemApplication(r.items[0]).type) {
+        this.recTypeUnknown.set(true);
+        this.unit.set(null);
+        this.step.set(1);
+        return;
+      }
       this.pickRecItem(0);
       this.step.set(this.fieldId() ? 3 : 2);
       return;
@@ -275,6 +293,13 @@ export class FarmerLogFormPage implements OnInit {
 
   pickType(ty: ApplicationType): void {
     this.type.set(ty);
+    if (this.rec()) {
+      // Öneriden gelindi ama türü bilinmiyordu: tür seçildi, öneri kalemi korunur (birim de bilinmiyorsa seçilecek)
+      this.pickRecItem(0);
+      if (!this.fieldId() && this.store.fields().length === 1) this.pickField(this.store.fields()[0].id);
+      this.step.set(this.fieldId() ? 3 : 2);
+      return;
+    }
     this.unit.set(ty === 'fertilizer' || ty === 'sowing' ? 'kg' : 'lt');
     this.pickFree();
     if (!this.fieldId() && this.store.fields().length === 1) this.pickField(this.store.fields()[0].id);
@@ -297,9 +322,12 @@ export class FarmerLogFormPage implements OnInit {
     if (!it) return;
     this.source.set('rec:' + i); this.recItem.set(i); this.barnPick.set(null);
     this.productName.set(it.productName);
-    // Öneri ürünü ambarda varsa kalan miktar düşülsün diye eşleştir
+    const app = recItemApplication(it);
+    if (app.type) this.type.set(app.type);
+    // Öneri ürünü ambarda varsa kalan miktar düşülsün diye eşleştir (barnOptions türe göre süzülür → tür önce)
     const match = this.barnOptions().find(o => o.name === it.productName);
     if (match) { this.barnPick.set(match); this.unit.set(match.unit); }
+    else this.unit.set(app.unit);
   }
 
   pickFree(): void {
@@ -316,14 +344,16 @@ export class FarmerLogFormPage implements OnInit {
     if (!fieldId || !date) { this.step.set(2); return; }
     const q = this.qty();
     if (q != null && (!Number.isFinite(q) || q < 0)) { this.error.set(this.t().farmer.log.quantityInvalid); return; }
+    const unit = this.unit();
+    if (q != null && !unit) { this.error.set(this.t().farmer.log.unitRequired); return; }
     const phi = this.type() === 'pesticide' ? this.phi() : null;
     const b = this.barnPick();
     const r = this.rec();
-    const rem = b && q != null ? remainingAfterUse(b.remaining, q, this.unit(), b.unit) : null;
+    const rem = b && q != null && unit ? remainingAfterUse(b.remaining, q, unit, b.unit) : null;
     this.store.addLog({
       fieldId, seasonId: this.seasonId(), type: this.type(), date,
       purchaseId: b?.purchaseId ?? null, purchaseItemIndex: b?.index ?? null,
-      productName: this.productName().trim() || null, quantity: q, unit: q != null ? this.unit() : null,
+      productName: this.productName().trim() || null, quantity: q, unit: q != null ? unit : null,
       areaDecare: this.areaNum(), dosePerDecare: dosePerDecare(q, this.areaNum()),
       appliedBy: this.appliedBy.trim() || null, notes: this.notes.trim() || null,
       phiDays: phi?.days ?? null, phiSource: phi?.source ?? null, earliestHarvestDate: phi ? this.earliest() : null,
@@ -334,8 +364,14 @@ export class FarmerLogFormPage implements OnInit {
 
   num(v: number): string { return fmtNum(v, this.lang()); }
   cropLabel(code: string): string { const c = cropDef(code); return `${c.icon} ${c[this.lang()]}`; }
-  left(o: BarnOption): string { return fmt(this.t().farmer.log.left, { q: `${fmtNum(o.remaining, this.lang())} ${o.unit}` }); }
-  perDecare(v: number, u: string): string { return fmt(this.t().farmer.log.perDecare, { v: `${fmtNum(v, this.lang())} ${u}` }); }
+  uLabel(u: string): string { return unitLabel(u, this.lang()); }
+  left(o: BarnOption): string { return fmt(this.t().farmer.log.left, { q: `${fmtNum(o.remaining, this.lang())} ${this.uLabel(o.unit)}` }); }
+  perDecare(d: DoseDisplay): string {
+    const l = this.t().farmer.log;
+    return d.kind === 'decare-per-unit'
+      ? fmt(l.decarePerUnit, { u: this.uLabel(d.unit), v: fmtNum(d.value, this.lang()) })
+      : fmt(l.perDecare, { v: `${fmtNum(d.value, this.lang())} ${this.uLabel(d.unit)}` });
+  }
   phiWait(n: number): string { return fmt(this.t().farmer.log.phiWait, { n }); }
   phiEarliestText(): string { return fmt(this.t().farmer.log.phiEarliest, { date: fmtDate(this.earliest(), this.lang()) }); }
   conflictText(): string { return fmt(this.t().farmer.log.phiConflict, { date: fmtDate(this.season()?.expectedHarvestDate, this.lang()) }); }

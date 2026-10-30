@@ -116,6 +116,7 @@ import { PurchaseError } from '../services/purchase.utils';
                         <a [routerLink]="['/products', it.productId]" class="font-semibold text-fg no-underline">{{ it.productName }}</a>
                         @if (it.expiryDate) { <span class="block text-xs text-fg-muted">{{ t().purchases.expiry }}: {{ it.expiryDate.toDate() | date: 'dd.MM.yyyy' }}</span> }
                         @if (it.gtsNumbers.length) { <span class="block break-all font-mono text-11 text-fg-muted">{{ it.gtsNumbers.join(', ') }}</span> }
+                        @if (it.lotNo) { <span class="block font-mono text-11 text-fg-muted">{{ t().inventory.lotNo }}: {{ it.lotNo }}</span> }
                       </td>
                       <td class="num whitespace-nowrap px-3 py-3 text-right font-bold text-success-text">+{{ it.quantity }} <span class="font-sans text-xs font-medium text-fg-muted">{{ it.unit }}</span></td>
                       <td class="num whitespace-nowrap px-3 py-3 text-right text-fg-secondary">{{ it.unitCost | currencyTr }}</td>

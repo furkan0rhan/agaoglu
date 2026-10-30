@@ -20,14 +20,14 @@ import { authErrorMessage } from '../auth-errors';
       </div>
 
       @if (pendingInvite()) {
-        <div role="status" class="mb-3 flex items-start gap-2.5 rounded-token-lg border border-info-line bg-info-soft px-3.5 py-3 text-left text-sm text-info">
+        <div role="status" class="mb-3 flex items-start gap-2.5 rounded-token-lg border border-info-line bg-info-soft px-3.5 py-3 text-left text-sm text-info-text">
           <i class="pi pi-info-circle mt-0.5 text-sm" aria-hidden="true"></i>
           <span>{{ t().auth.invitePending }}</span>
         </div>
       }
 
       @if (verified()) {
-        <div role="status" class="mb-3 flex items-start gap-2.5 rounded-token-lg border border-success-line bg-success-soft px-3.5 py-3 text-left text-sm text-success">
+        <div role="status" class="mb-3 flex items-start gap-2.5 rounded-token-lg border border-success-line bg-success-soft px-3.5 py-3 text-left text-sm text-success-text">
           <i class="pi pi-check-circle mt-0.5 text-sm" aria-hidden="true"></i>
           <span>{{ t().auth.verifySuccess }}</span>
         </div>
@@ -38,14 +38,14 @@ import { authErrorMessage } from '../auth-errors';
       }
 
       @if (infoMsg()) {
-        <div role="status" class="mb-3 flex items-start gap-2.5 rounded-token-lg border border-success-line bg-success-soft px-3.5 py-3 text-left text-sm text-success">
+        <div role="status" class="mb-3 flex items-start gap-2.5 rounded-token-lg border border-success-line bg-success-soft px-3.5 py-3 text-left text-sm text-success-text">
           <i class="pi pi-envelope mt-0.5 text-sm" aria-hidden="true"></i>
           <span>{{ infoMsg() }}</span>
         </div>
       }
 
       @if (errorMsg()) {
-        <div role="alert" class="mb-3 flex items-start gap-2.5 rounded-token-lg border border-danger-line bg-danger-soft px-3.5 py-3 text-left text-sm text-danger">
+        <div role="alert" class="mb-3 flex items-start gap-2.5 rounded-token-lg border border-danger-line bg-danger-soft px-3.5 py-3 text-left text-sm text-danger-text">
           <i class="pi pi-exclamation-circle mt-0.5 text-sm" aria-hidden="true"></i>
           <span>{{ errorMsg() }}</span>
         </div>

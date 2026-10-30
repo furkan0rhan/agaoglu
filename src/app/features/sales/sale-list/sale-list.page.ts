@@ -16,9 +16,10 @@ import { LoggerService } from '../../../core/logging/logger.service';
 import { CurrencyTrPipe } from '../../../shared/pipes/currency-tr.pipe';
 import { Sale, SaleStatus } from '../../../shared/models/sale.model';
 import {
-  EmptyStateComponent, MoneyComponent, PageHeaderComponent, StatusBadgeComponent, TONE_SOFT, UiTone,
+  DateFieldComponent, EmptyStateComponent, MoneyComponent, PageHeaderComponent, StatusBadgeComponent, TONE_SOFT, UiTone,
 } from '../../../shared/ui';
 import { SalesQueryService } from '../services/sales-query.service';
+import { injectPermissions } from '../../../core/auth/permissions';
 import {
   formatDateTime, fromDateInput, methodIcon, methodLabel, methodTone, statusLabel, statusTone, StatusTone, toDateInput,
 } from '../services/sales.helpers';
@@ -28,7 +29,7 @@ import {
   standalone: true,
   imports: [
     RouterLink, FormsModule, CurrencyTrPipe, InputTextModule, ToastModule, ButtonModule,
-    PageHeaderComponent, EmptyStateComponent, StatusBadgeComponent, MoneyComponent,
+    PageHeaderComponent, EmptyStateComponent, StatusBadgeComponent, MoneyComponent, DateFieldComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
@@ -37,8 +38,10 @@ import {
 
     <ui-page-header [title]="t().sales.title"
       [subtitle]="filtered().length + ' ' + t().sales.count + ' · ' + (revenue() | currencyTr)">
-      <p-button [label]="t().compliance.rxExport" icon="pi pi-file-excel" severity="secondary"
-        [loading]="exporting()" [disabled]="exporting() || loading()" (onClick)="exportRx()" />
+      @if (can().exportData) {
+        <p-button [label]="t().compliance.rxExport" icon="pi pi-file-excel" severity="secondary"
+          [loading]="exporting()" [disabled]="exporting() || loading()" (onClick)="exportRx()" />
+      }
       <a routerLink="/pos"
         class="hidden min-h-[42px] items-center gap-2 rounded-token-md bg-accent px-4 text-sm font-bold text-accent-contrast no-underline transition-opacity hover:opacity-90 sm:inline-flex">
         <i class="pi pi-shopping-cart" aria-hidden="true"></i>{{ t().pos.newSale }}
@@ -65,14 +68,10 @@ import {
         <!-- Filtreler -->
         <div class="flex flex-col gap-3 border-b border-line p-3 sm:px-4">
           <div class="grid grid-cols-2 gap-2.5 lg:grid-cols-[repeat(2,minmax(0,10.5rem))_minmax(0,1fr)] lg:items-end">
-            <div class="flex min-w-0 flex-col gap-1">
-              <label class="text-xs font-semibold text-fg-secondary" for="sales-from">{{ t().sales.from }}</label>
-              <input pInputText id="sales-from" type="date" class="h-11 w-full text-sm" [ngModel]="from()" (ngModelChange)="from.set($event)" />
-            </div>
-            <div class="flex min-w-0 flex-col gap-1">
-              <label class="text-xs font-semibold text-fg-secondary" for="sales-to">{{ t().sales.to }}</label>
-              <input pInputText id="sales-to" type="date" class="h-11 w-full text-sm" [ngModel]="to()" (ngModelChange)="to.set($event)" />
-            </div>
+            <ui-date-field class="!gap-1" inputId="sales-from" valueType="iso" labelClass="text-xs font-semibold text-fg-secondary" [label]="t().sales.from"
+              [ngModel]="from()" (ngModelChange)="from.set($event)" />
+            <ui-date-field class="!gap-1" inputId="sales-to" valueType="iso" labelClass="text-xs font-semibold text-fg-secondary" [label]="t().sales.to"
+              [ngModel]="to()" (ngModelChange)="to.set($event)" />
             <div class="relative col-span-2 lg:col-span-1">
               <label for="sales-search" class="sr-only">{{ t().common.search }}</label>
               <i class="pi pi-search pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-muted" aria-hidden="true"></i>
@@ -84,7 +83,7 @@ import {
             @for (o of statusOptions(); track o.value) {
               <button type="button" (click)="status.set(o.value)" [attr.aria-pressed]="status() === o.value"
                 class="inline-flex h-10 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-token-md border px-3.5 text-13.5 font-semibold transition-colors"
-                [class]="status() === o.value ? 'border-fg bg-fg text-surface' : 'border-line-strong bg-surface text-fg-secondary hover:bg-surface-muted'">
+                [class]="status() === o.value ? 'border-brand-line bg-brand-soft text-brand-text' : 'border-line-strong bg-surface text-fg-secondary hover:bg-surface-muted'">
                 {{ o.label }} <b class="num font-bold opacity-80">{{ o.count }}</b>
               </button>
             }
@@ -289,7 +288,11 @@ export class SaleListPage {
    * Reçeteli satış kaydı (Excel): tarih, müşteri, TC / ÇKS, ürün, ruhsat no, miktar, GTS, e-reçete no.
    * Tarih aralığı ve durum filtresi uygulanır; arama ve "reçeteli" filtresinden bağımsız olarak tüm reçeteli satışlar.
    */
+  /** Y5: dışa aktarma (reçete kayıtları: müşteri TC / ÇKS) yalnız yönetici */
+  readonly can = injectPermissions();
+
   async exportRx(): Promise<void> {
+    if (!this.can().exportData) return;
     if (this.exporting()) return;
     this.exporting.set(true);
     const c = this.t().compliance;
@@ -316,12 +319,12 @@ export class SaleListPage {
         headers: [
           this.t().sales.date, this.t().sales.saleNo, this.t().sales.status, this.t().sales.customer,
           c.tcNo, c.cksNo, this.t().sales.products, c.licenseNo, this.t().sales.quantity, c.unit,
-          c.gtsList, c.rxNo, c.rxPrescriber,
+          c.gtsList, this.t().inventory.lotNo, c.rxNo, c.rxPrescriber,
         ],
         rows: rows.map(r => [
           r.date ? r.date.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') : '',
           r.saleNumber, statusLabel(this.t(), r.status), r.customerName, r.tcNo, r.cksNo, r.productName, r.licenseNo,
-          r.quantity, r.unit, r.gtsNos, r.prescriptionNo, r.prescriberName,
+          r.quantity, r.unit, r.gtsNos, r.lotNos, r.prescriptionNo, r.prescriberName,
         ]),
       }]);
     } catch (err) {

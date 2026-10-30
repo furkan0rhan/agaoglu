@@ -45,7 +45,6 @@ import { RecommendationDialogComponent } from './recommendation-dialog.component
             <span class="eyebrow mr-1 text-fg-muted">{{ d().consents }}</span>
             <ui-status-badge size="sm" [tone]="l.consent.fields ? 'success' : 'neutral'" [icon]="l.consent.fields ? 'pi-check' : 'pi-times'">{{ d().cFields }}</ui-status-badge>
             <ui-status-badge size="sm" [tone]="l.consent.logs ? 'success' : 'neutral'" [icon]="l.consent.logs ? 'pi-check' : 'pi-times'">{{ d().cLogs }}</ui-status-badge>
-            <ui-status-badge size="sm" [tone]="l.consent.notifications ? 'success' : 'neutral'" [icon]="l.consent.notifications ? 'pi-check' : 'pi-times'">{{ d().cNotify }}</ui-status-badge>
           </div>
           @if (l.status === 'active') {
             <div class="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">

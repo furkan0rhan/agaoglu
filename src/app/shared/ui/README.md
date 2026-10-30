@@ -1,12 +1,17 @@
 # Ortak UI bileşenleri ve tasarım tokenları — v2 "Saha / Komuta"
 
 Prototip (birebir referans): `docs/design/c-saha-komuta/index.html` — tarayıcıda açıp "Koyu tema",
-"1366×768" ve "Telefon" düğmeleriyle bakın. B prototipinden (`docs/design/b-bento-yumusak`) yalnız
+"1366×768" ve "Telefon" düğmeleriyle bakın. B prototipinden (`docs/design/arsiv/b-bento-yumusak`) yalnız
 dashboard'daki büyük ciro kartı ve POS hızlı para butonları alındı.
 
-**Tasarım dili:** kalıcı koyu yeşil sidebar + kâğıt tonlu içerik; **düz, opak kartlar** (gölge yok,
+**Renk v3 "Adaçayı & Krem"** (30.10.2026, `docs/design/renk-secenekleri/index.html?v=v2`): koyu blok yok —
+sidebar, mobil çubuklar, ciro kartı ve giriş paneli açık adaçayı; dolu pastel zeminlerde metin koyu mürekkep
+(`text-brand-contrast`, `text-accent-contrast`, `text-fg-inverse`). Pastel dolgu (`text-brand`, `text-danger` …) METİN rengi olarak
+kullanılmaz; her zaman `-text` tokenı.
+
+**Tasarım dili:** açık adaçayı sidebar + krem kâğıt içerik; **düz, opak kartlar** (gölge yok,
 1px kenarlık, 10px köşe); kart başlıklarında ince **tarla çizgili başlık şeridi**; Manrope başlık ve
-rakamlar, Inter gövde; turuncu = satış/sepet, zümrüt = marka/onay. Cam, blur, gradyan blob **YOK**.
+rakamlar, Inter gövde; şeftali-kiremit = satış/sepet, adaçayı = marka/onay. Cam, blur, gradyan blob **YOK**.
 
 ## Kurallar
 - Şablonda **hex renk yok**, **`style="..."` yok**. Renkler token sınıflarıyla (`bg-surface`, `text-fg-secondary`,
@@ -23,7 +28,7 @@ rakamlar, Inter gövde; turuncu = satış/sepet, zümrüt = marka/onay. Cam, blu
 - Dokunma hedefi ≥ 44px (`min-h-[44px]`, `.tap`, PrimeNG input zaten 44px, buton 42px; `size="large"` 52px).
 - Etiketler: `<label for="x">` + `id="x"` (PrimeNG: `inputId="x"`). Sadece ikonlu buton: `<ui-icon-button>` (`ariaLabel` zorunlu).
 - Koyu tema otomatik (`html.dark` altında tokenlar değişir) — `dark:` öneki gerekmez. Sidebar/mobil çubuklar
-  her iki temada koyu (`bg-side`, `text-side-*`).
+  `bg-side`, `text-side-*` (açıkta adaçayı, koyuda zeytin).
 - `@for` içindeki her öğeye kart koymayın; uzun listede satırlar `.list-row` + `border-b border-line`.
 
 İçe aktarma: `import { GlassCardComponent, PageHeaderComponent, ... } from '../../shared/ui';`
@@ -55,7 +60,7 @@ rakamlar, Inter gövde; turuncu = satış/sepet, zümrüt = marka/onay. Cam, blu
 ```
 
 - **Başlık kabukta:** ana kabuk içinde `ui-page-header`'ın `title`, `subtitle` ve `backLink`'i masaüstünde
-  **topbar'a** (h1 + gri alt satır + geri oku), mobilde **koyu üst çubuğa** taşınır (`PageTitleService`).
+  **topbar'a** (h1 + gri alt satır + geri oku), mobilde **üst çubuğa** taşınır (`PageTitleService`).
   Bileşenin kendisi yalnız **sağa yaslı aksiyon satırını** çizer; aksiyon yoksa yer kaplamaz.
   Alt başlık verilmezse topbar bugünün tarihini yazar. Kabuksuz yerlerde (superadmin) başlığı kendisi çizer.
   Kabuk içinde yerinde başlık gerekiyorsa `[hoist]="false"`.
@@ -78,14 +83,14 @@ rakamlar, Inter gövde; turuncu = satış/sepet, zümrüt = marka/onay. Cam, blu
 | `ui-status-badge` yuvarlak + kenarlık | 6px köşe "pill", kenarlıksız, 24px | API aynı |
 | `ui-icon-button variant="glass"` | `variant="outline"` (kâğıt + kenarlık); `glass` aynı çizilir | |
 | `ui-section` başlığı | küçük büyük harf etiket (menü grubu gibi) | |
-| `ui-avatar variant="solid"` (gradyan) | koyu yeşil kare + açık yeşil harf | |
+| `ui-avatar variant="solid"` (gradyan) | açık adaçayı kare + koyu yeşil harf | |
 | `.glass`, `.glass-strong`, `.surface-card` | opak kart (geriye uyum). Yenide `.ui-card` / `<ui-glass-card>` | |
 | `bg-brand-gradient` | yalnız logo karesi | butonlarda düz `bg-brand` |
 | `bg-accent-gradient` | düz `bg-accent` olarak çizilir | |
 | `shadow-glass`, `backdrop-blur-*` | etkisiz (none / 0px) — kullanmayın | |
 | `text-brand` (soft zemin üstünde) | `text-brand-text` | `TONE_SOFT` haritası güncellendi |
 | `rounded-token-xl` (18px) | 10px (kart). `-2xl` 12px (dialog/sheet) | |
-| `bg-surface-muted` iç kutu | aynı (#f1eee6 / #212521) | |
+| `bg-surface-muted` iç kutu | aynı (#f2eee3 / #31332c) | |
 | — | `bg-surface-strong` | nötr rozet, ilerleme izi |
 
 ## Dönüştürme kılavuzu (2. aşama sayfaları için)
@@ -99,9 +104,9 @@ rakamlar, Inter gövde; turuncu = satış/sepet, zümrüt = marka/onay. Cam, blu
 5. **Özet şeridi** (C "sumstrip"): `ui-card grid grid-cols-2 lg:grid-cols-4` + hücreler `border-r border-line px-4 py-3`, ikon karesi `TONE_SOFT`.
 6. **Tablo:** PrimeNG `p-table` otomatik C tablosu (40px büyük harf başlık, 52px satır, okunur hover). Elle tablo: dashboard'daki
    "Son satışlar" kalıbı. Para sütunu `text-right num font-extrabold`. Kritik satıra `shadow-[inset_3px_0_0_var(--danger)]`.
-7. **Filtre çipleri** (C "chip"): 40px, `rounded-token-md border border-line-strong`; seçili `bg-fg text-surface`.
+7. **Filtre çipleri** (C "chip"): 40px, `rounded-token-md border border-line-strong`; seçili `border-brand-line bg-brand-soft text-brand-text`.
    Tek seçimli dönem/görünüm için `ui-segmented`.
-8. **Butonlar:** birincil `p-button` (zümrüt), satış/sepet `severity="warn"` (turuncu), diğerleri `severity="secondary"` (düz kâğıt + kenarlık),
+8. **Butonlar:** birincil `p-button` (adaçayı + koyu mürekkep), satış/sepet `severity="warn"` (şeftali), diğerleri `severity="secondary"` (düz kâğıt + kenarlık),
    ikincil metin `text`/`link`. Klavye kısayolu `<ui-kbd>F1</ui-kbd>` (dolu buton içinde `tone="inverse"`).
 9. **Uyarı kutusu** (C "note/grant"): `rounded-token-lg border border-warning-line bg-warning-soft` + 40px dolu ikon karesi (`bg-warning text-fg-inverse`) + metin + düz buton. Örnek: dashboard yedek hatırlatması.
 10. **Ayarlar:** kart başına bir konu; satırlar `ui-settings-row` (switch için `inline`), kurulum durumu `ui-progress-ring`.
@@ -140,6 +145,23 @@ Slotlar: `[stat-badge]` (şeridin sağı), varsayılan (gövdenin altı: pill'le
 `options: {value, label, icon?}[]` (zorunlu), `[(value)]`, `ariaLabel`, `size` (`sm` 32px | `md` 36px), `block` (tam genişlik).
 ```html
 <ui-segmented [options]="[{value: 7, label: '7G'}, {value: 14, label: '14G'}, {value: 30, label: '30G'}]" [(value)]="days" ariaLabel="Dönem" />
+```
+
+### `ui-date-field` (tek tarih girişi)
+Uygulamadaki **tüm** tarih girişleri bu bileşendir — `<input type="date">` ya da doğrudan `p-datepicker` YAZMAYIN.
+PrimeNG DatePicker sarmalayıcı: Türkçe takvim (`primeng-locale.ts`), `dd.mm.yyyy`, panel `appendTo="body"`,
+dokunmatik cihazda (`pointer: coarse`) `touchUI` + salt-okunur input (klavye açılmaz).
+- Bağlama: `formControlName` / `[(ngModel)]` (ControlValueAccessor) **veya** signal `[(value)]`.
+- Değer: `Date | null`, yerel gün başına (00:00) normalize. `endOfDay` → 23:59:59.999 ("bitiş" filtreleri).
+  `valueType="iso"` → `"yyyy-mm-dd"` metni (boşken `''`; eski string modeller için).
+- `label` + `inputId` (`<label for>` bağlı; `inputId` yoksa otomatik), `labelClass` (ör. `sr-only`, küçük etiket),
+  `ariaLabel` (etiketsiz, ör. tablo hücresi), `placeholder`, `min` / `max` (Date ya da iso), `clearable` (true: × + "Bugün / Temizle"),
+  `error` (metin: kırmızı çerçeve + altta `role="alert"`), `invalid`, `disabled`.
+- Saf yardımcılar: `parseDateFieldValue()`, `toIsoDay()`, `normalizeDay(d, endOfDay?)`.
+```html
+<ui-date-field inputId="pf-date" [label]="t().purchases.documentDate" [clearable]="false" [(value)]="documentDate" />
+<ui-date-field inputId="pf-expiry" formControlName="expiryDateVal" [min]="today" [error]="expiryError()" />
+<ui-date-field inputId="pu-to" [label]="t().sales.to" endOfDay [ngModel]="to()" (ngModelChange)="to.set($event)" />
 ```
 
 ### `ui-kbd` (yeni)
@@ -182,7 +204,7 @@ Zümrüt gradyan kare + filiz ikonu. `size` (px).
 `name`, `size` (`sm|md|lg`), `tone` (`auto|brand|accent|neutral|info`), `variant` (`soft|solid`), `decorative`.
 
 ### `ui-auth-shell`
-Solda koyu tarla desenli tanıtım paneli, sağda kâğıt form. `title` (zorunlu), `subtitle`, `eyebrow`, `icon`. Slot `[auth-footer]`.
+Solda açık adaçayı, tarla desenli tanıtım paneli, sağda kâğıt form. `title` (zorunlu), `subtitle`, `eyebrow`, `icon`. Slot `[auth-footer]`.
 
 ### `PageTitleService`
 Kabuk ↔ `ui-page-header` köprüsü (`hosted()`, `current()`). Sayfalar doğrudan kullanmaz.
@@ -199,7 +221,7 @@ Dinamik sınıf için bunları kullanın (`'bg-' + tone` Tailwind tarafından g�
 |---|---|
 | `.ui-card` | opak kart (surface + 1px line + 10px) |
 | `.card-head` (+ `.card-head-sm`, `.card-head-icon`) | tarla çizgili başlık şeridi (48px / 40px), 30px ikon karesi |
-| `.field-dark` | koyu tarla zemini (giriş paneli, ciro kartı, plan kartı) |
+| `.field-dark` | tarla zemini — v3'te açık adaçayı `--side-bg` + `--furrow` (giriş paneli, ciro kartı, plan kartı; ad geriye uyum) |
 | `.kbd` | klavye rozeti |
 | `.eyebrow` | 11px büyük harf etiket (Manrope 700) |
 | `.num` / `.num-xl` | Manrope tabular rakam / büyük KPI rakamı |
@@ -218,7 +240,7 @@ Dinamik sınıf için bunları kullanın (`'bg-' + tone` Tailwind tarafından g�
 | Marka | `bg-brand`, `text-brand-contrast`, `bg-brand-soft`, `text-brand-text`, `border-brand-line`, `hover:bg-brand-hover`, ölçek `brand-50..950` |
 | Vurgu | `bg-accent`, `text-accent-contrast`, `bg-accent-soft`, `text-accent-text`, `border-accent-line`, ölçek `accent-50..950` |
 | Durum | `bg-{success,warning,danger,info,neutral}` + `-soft` + `-line` + `-text` |
-| Sidebar (koyu) | `bg-side`, `bg-side-2`, `border-side-line`, `text-side-text`, `text-side-muted`, `text-side-hi`, `bg-side-active`, `text-side-active-text`, `text-side-em`, `text-side-soft`, `bg-side-count`, `bg-side-count-alt`, `bg-sale text-sale-text` |
+| Sidebar / ciro kartı | `bg-side`, `bg-side-2`, `border-side-line`, `text-side-text`, `text-side-muted`, `text-side-hi`, `bg-side-active`, `text-side-active-text`, `text-side-em`, `text-side-soft`, `bg-side-count`, `bg-side-count-alt`, `bg-sale text-sale-text` |
 | Desen | `bg-furrow` (başlık şeridi çizgileri), `bg-side-pattern` |
 | Yazı | `font-sans` (Inter), `font-display` (Manrope), `font-mono` |
 | Yarıçap | `rounded-token-sm` 6 · `-md` 8 · `-lg` 10 · `-xl` 10 · `-2xl` 12 |
@@ -229,33 +251,39 @@ Dinamik sınıf için bunları kullanın (`'bg-' + tone` Tailwind tarafından g�
 Token renkleri CSS değişkeni olduğu için `/50` opaklık değiştiricisini desteklemez; `-soft` varyantlarını kullanın.
 
 ## Token değerleri (özet)
-| | Açık (kâğıt) | Koyu (kömür) |
+Renk v3 "Adaçayı & Krem". Tam liste: `src/styles/_tokens.scss` (prototipteki token tablosuyla birebir).
+
+| | Açık (krem) | Koyu (zeytin-kömür) |
 |---|---|---|
-| `--bg-page` | `#f6f4ee` | `#121412` |
-| `--surface` / `-muted` / `-strong` | `#fffefb` / `#f1eee6` / `#e8e4d9` | `#1a1d1a` / `#212521` / `#2a2f2a` |
-| `--border-subtle` / `-strong` | `#e2ddd1` / `#c9c2b2` | `#2f342f` / `#454b44` |
-| `--text-primary` / `-secondary` / `-muted` | `#1b1e19` / `#454a41` / `#62685c` | `#ecebe4` / `#c3c4b9` / `#9fa296` |
-| `--brand` / `-soft` / `-text` | `#047857` / `#e2f2e9` / `#03644a` | `#34d399` / `rgba(52,211,153,.12)` / `#5fe0ae` |
-| `--accent` / `-soft` / `-text` | `#c2410c` / `#fbeadc` / `#9f350a` | `#fb923c` / `rgba(251,146,60,.13)` / `#fdac70` |
-| `--danger` / `-soft` / `-text` | `#dc2626` / `#fbe6e2` / `#b42318` | `#f87171` / `rgba(239,68,68,.15)` / `#fb8f8f` |
-| `--warning` / `-soft` / `-text` | `#b45309` / `#faeed6` / `#8a3f0a` | `#fbbf24` / `rgba(245,158,11,.14)` / `#fcc94d` |
-| `--info` / `-soft` / `-text` | `#1d4ed8` / `#e5ebfa` / `#1d4ed8` | `#93b4fb` / `rgba(96,140,250,.15)` / `#a5c0fc` |
-| `--side-bg` / `--side-2` | `#16211c` / `#1f2c26` | `#0b0e0c` / `#161b18` |
+| `--bg-page` | `#f7f4ec` | `#22231e` |
+| `--surface` / `-muted` / `-strong` | `#fffdf8` / `#f2eee3` / `#e6e0d2` | `#2a2b25` / `#31332c` / `#3e4036` |
+| `--border-subtle` / `-strong` | `#e6e0d3` / `#cdc4b1` | `#3b3d34` / `#535649` |
+| `--text-primary` / `-secondary` / `-muted` / `-inverse` | `#2a2c25` / `#4d5044` / `#5f6254` / `#1f241c` | `#eeebe0` / `#c9c6b8` / `#a8a597` / `#1d2119` |
+| `--brand` / `-contrast` / `-soft` / `-text` | `#9ec6a2` / `#1b3822` / `#e7f0e2` / `#3a6140` | `#a8cfac` / `#1b3822` / `#34442f` / `#bcdcbd` |
+| `--accent` / `-contrast` / `-soft` / `-text` | `#eab691` / `#47230e` / `#f9ece0` / `#8a4520` | `#ebbd9c` / `#47230e` / `#4a3a2d` / `#f0c6a7` |
+| `--danger` / `-soft` / `-text` | `#e8a69b` / `#f9e6e1` / `#96392d` | `#eaa99f` / `#4c3330` / `#f2b8ae` |
+| `--warning` / `-soft` / `-text` | `#ebca80` / `#f9f0d8` / `#714d12` | `#eccf8f` / `#47402a` / `#f0d69c` |
+| `--info` / `-soft` / `-text` | `#a8c2db` / `#e8eff6` / `#36597c` | `#b0c8e0` / `#323c48` / `#c0d4e9` |
+| `--side-bg` / `--side-2` / `--side-active` | `#edf0e4` / `#e2e8d8` / `#d3e5cc` | `#2a2d25` / `#33372d` / `#3d5137` |
+| `--side-hi` (aktif çizgi, odak halkası) | `#6f9c76` | `#a8cfac` |
+| `--side-count` / `-alt` (beyaz yazılı sayaç, bilerek doygun) | `#b2453a` / `#a2542a` | aynı |
+| `--sale` / `--sale-text` | `#eab691` / `#47230e` | `#ebbd9c` / `#47230e` |
+| `--chart-1..6` | `#7fae86 #86a6c9 #e09486 #e3a979 #b4a0cf #c9b46a` | `#9fcba6 #a3bedc #eba395 #edb88d #c5b2de #d8c47c` |
 
 **Eski isimler (alias, korunuyor):** `--bg-surface`, `--bg-muted`, `--border`, `--border-mid`, `--nav-active-bg`, `--icon-bg`,
 `--icon-color`, `--surface-glass*`, `--border-glass*`, `--blob-1..4` (şeffaf), `--blur-*` (0px), `--chart-1..6`, `--chart-grid`.
 
 ## PrimeNG
 Preset: `src/app/core/theme/primeng-preset.ts`. Global `!important` override YAZMAYIN; preset'e token ekleyin, olmuyorsa `src/styles/_primeng.scss`.
-- `severity` yok / `success` → zümrüt; `warn` → yanık turuncu (satış/sepet); `secondary` → düz kâğıt buton (C "btn"); `danger` kırmızı.
+- `severity` yok / `success` → adaçayı (koyu mürekkep metin); outlined/text/link → `--brand-text`; odak halkası `--side-hi`; `warn` → şeftali-kiremit (satış/sepet); `secondary` → düz kâğıt buton (C "btn"); `danger` kırmızı.
 - Input/select 44px, buton 42px (`size="large"` 52px), form köşesi 8px; dialog 12px + başlık şeridi; select/datepicker/popover opak + `shadow-overlay`.
 - Tablo: büyük harf 12.5px başlık `bg-surface-muted`, 52px satır, hover `surface-hover` (koyu temada okunur).
 - Toast: opak kart + sol 4px renk şeridi. Tooltip: koyu (metin rengi) zemin.
 - Türkçe yerelleştirme `LangService` ile dil değişince güncellenir.
 
 ## Kabuk (src/app/layout)
-- `sidebar/` kalıcı koyu menü; grup = `NavItem.group` (`ops | analysis | manage`, `nav-items.ts`). POS listede değil, turuncu "Hızlı Satış F2" butonunda.
+- `sidebar/` açık adaçayı menü; grup = `NavItem.group` (`ops | analysis | manage`, `nav-items.ts`). POS listede değil, şeftali "Hızlı Satış F2" butonunda.
   Sayaçlar: Ürünler = kritik stok (ProductStore), Veresiye = gecikmiş müşteri (`ShellStatusService`, dashboard doldurur).
 - `topbar/` başlık + tarih, arama (Enter → Ürünler'de aranır, Ctrl+K odaklar), durum rozeti, `notification-bell`, tema/dil, kullanıcı menüsü.
-- `main-layout/` mobil koyu üst çubuk + alt nav + "Diğer" sheet; F2 → POS (POS içinde F2 = kart, POS yönetir); `<app-support-banner />` tek satır.
+- `main-layout/` mobil üst çubuk + alt nav + "Diğer" sheet; F2 → POS (POS içinde F2 = kart, POS yönetir); `<app-support-banner />` tek satır.
 - Metinler: `layout/shell.i18n.ts` (`t().shell`), dashboard: `features/dashboard/home.i18n.ts` (`t().home`).

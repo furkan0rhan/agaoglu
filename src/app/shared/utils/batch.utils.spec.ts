@@ -2,7 +2,7 @@ import type { Timestamp } from '@angular/fire/firestore';
 import type { Batch } from '../models/product.model';
 import {
   applyFEFO, batchTotal, checkStockVsBatches, consumeFEFO, daysUntilExpiry, duplicateValues,
-  expiryInfo, findBarcodeConflict, findGtsConflict, firstFEFO, isBatchExpired, nearestExpiry, sortFEFO,
+  expiryInfo, findBarcodeConflict, findGtsConflict, firstFEFO, isBatchExpired, lotFor, nearestExpiry, normalizeLotNo, sortFEFO, withLot,
 } from './batch.utils';
 
 const DAY = 86_400_000;
@@ -153,5 +153,27 @@ describe('benzersizlik', () => {
 
   it('duplicateValues', () => {
     expect(duplicateValues(['a', 'b', 'a', 'c', 'b'])).toEqual(['a', 'b']);
+  });
+});
+
+describe('parti no (lotNo, karekod AI 10)', () => {
+  it('normalizeLotNo: kırpar, büyük harf, en çok 20, boşsa null', () => {
+    expect(normalizeLotNo('  lot1 ')).toBe('LOT1');
+    expect(normalizeLotNo('')).toBeNull();
+    expect(normalizeLotNo(null)).toBeNull();
+    expect(normalizeLotNo('A'.repeat(25))).toHaveLength(20);
+  });
+  it('lotFor: tek değer herkese, eşleme GTS başına', () => {
+    expect(lotFor('L1', 'G1')).toBe('L1');
+    expect(lotFor('L1', null)).toBe('L1');
+    expect(lotFor({ G1: 'a1', G2: null }, 'G1')).toBe('A1');
+    expect(lotFor({ G1: 'a1' }, 'G2')).toBeNull();
+    expect(lotFor({ G1: 'a1' }, null)).toBeNull();
+    expect(lotFor(undefined, 'G1')).toBeNull();
+  });
+  it('withLot: parti no yoksa alan hiç eklenmez (eski biçim)', () => {
+    const b = { id: 'x', quantity: 1, expiryDate: null, gtsNo: null, addedAt: null as never, supplierId: null } as Batch;
+    expect('lotNo' in withLot(b, null)).toBe(false);
+    expect(withLot(b, 'L9').lotNo).toBe('L9');
   });
 });

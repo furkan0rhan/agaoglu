@@ -26,7 +26,7 @@ import { authErrorMessage } from '../auth-errors';
             <input pInputText id="login-email" type="email" formControlName="email" [placeholder]="t().auth.emailPlaceholder" class="w-full" autocomplete="email" />
           </p-iconfield>
           @if (form.get('email')?.invalid && form.get('email')?.touched) {
-            <p class="m-0 text-xs font-medium text-danger">{{ t().auth.emailInvalid }}</p>
+            <p class="m-0 text-xs font-medium text-danger-text">{{ t().auth.emailInvalid }}</p>
           }
         </div>
 
@@ -43,7 +43,7 @@ import { authErrorMessage } from '../auth-errors';
             autocomplete="current-password"
           ></p-password>
           @if (form.get('password')?.invalid && form.get('password')?.touched) {
-            <p class="m-0 text-xs font-medium text-danger">{{ t().auth.passwordRequired }}</p>
+            <p class="m-0 text-xs font-medium text-danger-text">{{ t().auth.passwordRequired }}</p>
           }
         </div>
 
@@ -52,13 +52,13 @@ import { authErrorMessage } from '../auth-errors';
             <p-checkbox formControlName="rememberMe" [binary]="true" inputId="remember"></p-checkbox>
             <label for="remember" class="cursor-pointer select-none text-sm text-fg-secondary">{{ t().auth.rememberMe }}</label>
           </div>
-          <a [routerLink]="['/auth/forgot-password']" class="text-sm font-semibold text-brand no-underline hover:underline">
+          <a [routerLink]="['/auth/forgot-password']" class="text-sm font-semibold text-brand-text no-underline hover:underline">
             {{ t().auth.forgotPassword }}
           </a>
         </div>
 
       @if (error()) {
-        <div role="alert" class="mb-4 flex items-start gap-2.5 rounded-token-lg border border-danger-line bg-danger-soft px-3.5 py-3 text-sm text-danger">
+        <div role="alert" class="mb-4 flex items-start gap-2.5 rounded-token-lg border border-danger-line bg-danger-soft px-3.5 py-3 text-sm text-danger-text">
           <i class="pi pi-exclamation-circle mt-0.5 text-sm" aria-hidden="true"></i>
           <span class="flex-1">{{ error() }}</span>
           @if (canRetry()) {
@@ -78,9 +78,20 @@ import { authErrorMessage } from '../auth-errors';
         ></p-button>
       </form>
 
+      <!-- Çiftçi girişi (ayrı alan: telefon + PIN, /ciftci) — TASKS 14.9 -->
+      <a routerLink="/ciftci/giris" data-testid="farmer-login-cta"
+        class="mt-5 flex min-h-[64px] items-center gap-3 rounded-token-lg border border-success-line bg-success-soft px-3.5 py-3 no-underline transition-colors hover:border-success">
+        <span class="grid h-10 w-10 shrink-0 place-items-center rounded-token-md bg-success text-fg-inverse"><i class="pi pi-mobile" aria-hidden="true"></i></span>
+        <span class="min-w-0 flex-1">
+          <b class="block text-14.5 text-success-text">{{ t().farmer.auth.ctaTitle }} {{ t().farmer.auth.ctaAction }}</b>
+          <span class="block text-13 text-fg-secondary">{{ t().farmer.auth.ctaDesc }}</span>
+        </span>
+        <i class="pi pi-chevron-right text-12 text-success-text" aria-hidden="true"></i>
+      </a>
+
       <div auth-footer class="flex flex-wrap justify-center gap-1.5">
         <span>{{ t().auth.noAccount }}</span>
-        <a [routerLink]="['/auth/register']" class="font-semibold text-brand no-underline hover:underline">{{ t().auth.register }}</a>
+        <a [routerLink]="['/auth/register']" class="font-semibold text-brand-text no-underline hover:underline">{{ t().auth.register }}</a>
       </div>
     </ui-auth-shell>
   `,

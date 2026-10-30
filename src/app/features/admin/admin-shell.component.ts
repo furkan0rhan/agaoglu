@@ -11,6 +11,8 @@ import { AvatarComponent, IconButtonComponent } from '../../shared/ui';
 import { PageTitleService } from '../../shared/ui/page-title.service';
 import { formatDisplayName, injectCurrentUrl } from '../../layout/nav-items';
 import { ADMIN_TEXTS } from './admin.i18n';
+import { TourService } from '../../core/onboarding/tour.service';
+import { injectOnboardingTexts } from '../../core/onboarding/onboarding.i18n';
 
 /**
  * /admin kabuğu (tasarım v2 "Saha / Komuta", platform kimliği): işletme verisi yüklemeyen yalın düzen.
@@ -24,7 +26,7 @@ import { ADMIN_TEXTS } from './admin.i18n';
   imports: [RouterOutlet, RouterLink, ToastModule, ConfirmDialogModule, TooltipModule, AvatarComponent, IconButtonComponent],
   providers: [MessageService, ConfirmationService],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex h-full overflow-hidden bg-page' },
+  host: { class: 'flex h-full overflow-hidden bg-admin-page' },
   template: `
     <p-toast position="top-right" />
     <p-confirmdialog [style]="{ width: 'min(520px, 94vw)' }" />
@@ -32,11 +34,11 @@ import { ADMIN_TEXTS } from './admin.i18n';
     @if (!isMobile()) {
       <aside class="relative flex h-full w-[236px] shrink-0 flex-col gap-1 overflow-hidden border-r border-side-line bg-side bg-side-pattern px-3 pb-3 pt-3.5 text-side-text"
         [attr.aria-label]="x().navMenu">
-        <span class="absolute inset-x-0 top-0 h-[3px] bg-side-count" aria-hidden="true"></span>
+        <span class="absolute inset-x-0 top-0 h-[5px] bg-side-count" aria-hidden="true"></span>
 
         <!-- Platform kimliği -->
         <a routerLink="/admin" class="flex items-center gap-[11px] px-1.5 pb-2.5 text-side-text no-underline">
-          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] bg-side-count text-white shadow-[inset_0_-2px_0_rgba(0,0,0,0.2)]">
+          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] bg-side-count text-white shadow-[inset_0_-2px_0_rgba(0,0,0,0.12)]">
             <i class="pi pi-shield text-19" aria-hidden="true"></i>
           </span>
           <span class="min-w-0 leading-tight">
@@ -44,9 +46,10 @@ import { ADMIN_TEXTS } from './admin.i18n';
             <span class="block truncate text-12.5 text-side-muted">Tarım Market Pro</span>
           </span>
         </a>
-        <span class="eyebrow mb-1.5 ml-1.5 inline-flex h-6 items-center gap-1.5 self-start rounded-token-sm bg-side-danger-soft px-2 text-side-danger">
-          <i class="pi pi-lock text-10" aria-hidden="true"></i>{{ x().badge }}
+        <span class="eyebrow mx-1.5 mb-1.5 flex h-8 items-center justify-center gap-1.5 rounded-token-md bg-side-count px-2 text-white">
+          <i class="pi pi-lock text-11" aria-hidden="true"></i>{{ x().platformBadge }}
         </span>
+        <span class="mb-1 ml-1.5 text-11 font-bold tracking-wider text-side-danger">{{ x().badge }}</span>
 
         <p class="eyebrow m-0 px-2.5 pb-1 pt-2.5 text-side-muted">{{ x().overview }}</p>
         <nav class="flex flex-col gap-0.5" [attr.aria-label]="x().navMenu">
@@ -92,7 +95,7 @@ import { ADMIN_TEXTS } from './admin.i18n';
               <span class="block truncate text-xs text-side-muted">{{ auth.currentUser()?.email }}</span>
             </span>
             <button type="button" (click)="logout()" [attr.aria-label]="x().logout" [pTooltip]="x().logout" tooltipPosition="right"
-              class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-token-md border-0 bg-transparent text-side-muted transition-colors hover:bg-side-line hover:text-white">
+              class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-token-md border-0 bg-transparent text-side-muted transition-colors hover:bg-side-line hover:text-side-text">
               <i class="pi pi-sign-out text-15" aria-hidden="true"></i>
             </button>
           </div>
@@ -103,7 +106,7 @@ import { ADMIN_TEXTS } from './admin.i18n';
     <div class="flex min-w-0 flex-1 flex-col">
       @if (isMobile()) {
         <header class="relative flex shrink-0 items-center gap-2.5 bg-side pb-1.5 pl-3 pr-2 pt-[calc(6px+var(--safe-top))] text-side-text">
-          <span class="absolute inset-x-0 top-0 h-[3px] bg-side-count" aria-hidden="true"></span>
+          <span class="absolute inset-x-0 top-0 h-[5px] bg-side-count" aria-hidden="true"></span>
           @if (page()?.backLink; as back) {
             <a [routerLink]="back" [attr.aria-label]="page()?.backLabel || x().back"
               class="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[9px] text-side-text no-underline hover:bg-side-2">
@@ -121,6 +124,10 @@ import { ADMIN_TEXTS } from './admin.i18n';
               @if (page()?.subtitle; as s) { <span class="truncate">· {{ s }}</span> }
             </p>
           </div>
+          <button type="button" (click)="tour.restartWelcome()" [attr.aria-label]="ob().startTour"
+            class="grid h-[42px] w-[42px] shrink-0 cursor-pointer place-items-center rounded-[9px] border-0 bg-transparent text-side-text hover:bg-side-2">
+            <i class="pi pi-compass text-17" aria-hidden="true"></i>
+          </button>
           <button type="button" (click)="theme.toggle()" [attr.aria-label]="theme.isDark() ? t().nav.lightMode : t().nav.darkMode"
             class="grid h-[42px] w-[42px] shrink-0 cursor-pointer place-items-center rounded-[9px] border-0 bg-transparent text-side-text hover:bg-side-2">
             <i class="pi text-17" [class]="theme.isDark() ? 'pi-sun' : 'pi-moon'" aria-hidden="true"></i>
@@ -131,7 +138,8 @@ import { ADMIN_TEXTS } from './admin.i18n';
           </button>
         </header>
       } @else {
-        <header class="flex h-16 shrink-0 items-center gap-3 border-b border-line bg-surface px-4 xl:px-6">
+        <header class="relative flex h-16 shrink-0 items-center gap-3 border-b border-line bg-surface px-4 pt-[5px] xl:px-6">
+          <span class="absolute inset-x-0 top-0 h-[5px] bg-side-count" aria-hidden="true"></span>
           @if (page()?.backLink; as back) {
             <a [routerLink]="back" [attr.aria-label]="page()?.backLabel || x().back"
               class="-ml-1 grid h-10 w-10 shrink-0 place-items-center rounded-token-md text-fg-secondary no-underline transition-colors hover:bg-surface-muted hover:text-fg">
@@ -142,6 +150,8 @@ import { ADMIN_TEXTS } from './admin.i18n';
             <h1 class="m-0 truncate font-display text-[1.3125rem] font-extrabold text-fg">{{ page()?.title || x().platform }}</h1>
             <p class="m-0 mt-0.5 truncate text-13 text-fg-muted">{{ page()?.subtitle || x().subtitle }}</p>
           </div>
+          <ui-icon-button variant="outline" icon="pi-compass" [ariaLabel]="ob().startTour" [pTooltip]="ob().startTour" tooltipPosition="bottom"
+            (click)="tour.restartWelcome()" />
           <ui-icon-button variant="outline" [icon]="theme.isDark() ? 'pi-sun' : 'pi-moon'" [pressed]="theme.isDark()"
             [ariaLabel]="theme.isDark() ? t().nav.lightMode : t().nav.darkMode" (click)="theme.toggle()" />
         </header>
@@ -157,6 +167,8 @@ export class AdminShellComponent {
   readonly auth = inject(AuthService);
   readonly theme = inject(ThemeService);
   readonly lang = inject(LangService);
+  readonly tour = inject(TourService);
+  readonly ob = injectOnboardingTexts();
   readonly t = this.lang.t;
   readonly x = computed(() => ADMIN_TEXTS[this.lang.lang()]);
   private readonly pageTitle = inject(PageTitleService);

@@ -5,6 +5,8 @@ export interface Batch {
   quantity: number;
   expiryDate: Timestamp | null;
   gtsNo: string | null;
+  /** Karekod AI (10) parti / şarj no. Eski kayıtlarda yoktur. */
+  lotNo?: string | null;
   addedAt: Timestamp;
   supplierId: string | null;
 }
@@ -52,6 +54,11 @@ export interface Product {
   description: string | null;
   expiryDate: Timestamp | null;
   vatRate: number | null;
+  /**
+   * Alış fiyatı KDV dahil mi? Yoksa / false = KDV hariç (varsayılan). Satış fiyatı her zaman KDV dahildir.
+   * Kâr hesabı: bkz. shared/utils/pricing.ts.
+   */
+  purchasePriceIncludesVat?: boolean;
   /** Birim (opsiyonel, varsayılan 'adet'). kg / lt / metre ürünlerde stok ondalıklı olabilir. */
   unit?: ProductUnit;
   /** Varsayılan tedarikçi (yeni partilerde önden seçili gelir). */

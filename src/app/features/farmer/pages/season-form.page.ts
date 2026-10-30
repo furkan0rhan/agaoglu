@@ -8,10 +8,11 @@ import { FarmerStore } from '../services/farmer-store.service';
 import { CROPS } from '../utils/crops';
 
 /** Ekim (sezon) kaydı: ürün (ikonlu sabit liste), çeşit, ekim ve beklenen hasat tarihi, durum. */
+import { DateFieldComponent } from '../../../shared/ui/date-field.component';
 @Component({
   selector: 'app-farmer-season-form',
   standalone: true,
-  imports: [FormsModule, FarmerHeaderComponent],
+  imports: [FormsModule, FarmerHeaderComponent, DateFieldComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-farmer-header [title]="t().farmer.season.title" [back]="'/ciftci/tarlalar/' + fieldId" />
@@ -30,10 +31,8 @@ import { CROPS } from '../utils/crops';
       </fieldset>
       <div><label for="sf-var" [class]="F.label">{{ t().farmer.season.variety }} ({{ t().farmer.common.optional }})</label>
         <input id="sf-var" name="variety" [class]="F.input" [(ngModel)]="variety" /></div>
-      <div><label for="sf-sow" [class]="F.label">{{ t().farmer.season.sowingDate }}</label>
-        <input id="sf-sow" name="sow" type="date" [class]="F.input" [(ngModel)]="sowing" /></div>
-      <div><label for="sf-exp" [class]="F.label">{{ t().farmer.season.expectedHarvest }}</label>
-        <input id="sf-exp" name="exp" type="date" [class]="F.input" [(ngModel)]="expected" /></div>
+      <ui-date-field [class]="F.date" inputId="sf-sow" name="sow" valueType="iso" [labelClass]="F.label" [label]="t().farmer.season.sowingDate" [(ngModel)]="sowing" />
+      <ui-date-field [class]="F.date" inputId="sf-exp" name="exp" valueType="iso" [labelClass]="F.label" [label]="t().farmer.season.expectedHarvest" [(ngModel)]="expected" />
       <fieldset class="m-0 border-0 p-0">
         <legend [class]="F.label">{{ t().farmer.season.status }}</legend>
         <div class="grid grid-cols-3 gap-2">
@@ -45,8 +44,7 @@ import { CROPS } from '../utils/crops';
         </div>
       </fieldset>
       @if (status === 'harvested') {
-        <div><label for="sf-h" [class]="F.label">{{ t().farmer.season.harvestDate }}</label>
-          <input id="sf-h" name="harvest" type="date" [class]="F.input" [(ngModel)]="harvest" /></div>
+        <ui-date-field [class]="F.date" inputId="sf-h" name="harvest" valueType="iso" [labelClass]="F.label" [label]="t().farmer.season.harvestDate" [(ngModel)]="harvest" />
       }
       @if (error()) { <p [class]="F.danger" role="alert">{{ error() }}</p> }
       <button type="submit" [class]="F.btn"><i class="pi pi-check" aria-hidden="true"></i>{{ t().farmer.common.save }}</button>

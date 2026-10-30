@@ -12,7 +12,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
-    class: 'inline-grid shrink-0 place-items-center bg-brand-gradient text-white shadow-brand',
+    class: 'inline-grid shrink-0 place-items-center bg-brand-gradient text-brand-contrast shadow-brand',
     'aria-hidden': 'true',
     '[style.width.px]': 'size()',
     '[style.height.px]': 'size()',

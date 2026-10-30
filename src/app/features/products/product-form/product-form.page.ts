@@ -8,7 +8,6 @@ import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { TextareaModule } from 'primeng/textarea';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
-import { DatePickerModule } from 'primeng/datepicker';
 import { ToastModule } from 'primeng/toast';
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { SelectModule } from 'primeng/select';
@@ -18,15 +17,21 @@ import { ProductService, ProductStockError } from '../services/product.service';
 import { ProductStore } from '../store/product.store';
 import { LangService } from '../../../core/i18n/lang.service';
 import { Batch, DEFAULT_PRODUCT_UNIT, isDecimalUnit, Product, ProductType, productUnit, ProductUnit } from '../../../shared/models/product.model';
-import { findBarcodeConflict, findGtsConflict, roundQty } from '../../../shared/utils/batch.utils';
+import { findBarcodeConflict, findGtsConflict, normalizeLotNo, roundQty, withLot } from '../../../shared/utils/batch.utils';
+import { priceBreakdown, PriceBreakdown } from '../../../shared/utils/pricing';
 import { collectCategories, collectVatRates, parseVatRate, suggestCategories, suggestVatRates } from '../../../shared/utils/product-form.utils';
-import { GlassCardComponent, IconButtonComponent, PageHeaderComponent, StatusBadgeComponent } from '../../../shared/ui';
+import { DateFieldComponent, GlassCardComponent, IconButtonComponent, PageHeaderComponent, StatusBadgeComponent } from '../../../shared/ui';
 import { unitOptions, unitText } from '../product-unit';
+import { formatPct } from '../inventory-ui';
+import {
+  barcodeFromScan, gtinMatches, Gs1KeysDirective, injectScannerTexts, ScanButtonComponent, ScanFeedback, ScanResult, scanResultFromText,
+} from '../../../shared/scanner';
+import { userErrorMessage } from '../../../core/error/user-error';
 import { SupplierService } from '../../suppliers/services/supplier.service';
 import { Supplier } from '../../../shared/models/supplier.model';
 import { ProductRegulatoryFieldsComponent } from '../components/product-regulatory-fields.component';
 import {
-  RegulatoryForm, regulatoryFromProduct, regulatoryToChanges, suggestProductType, defaultRequiresPrescription,
+  RegulatoryForm, regulatoryFromProduct, regulatoryToChanges, suggestProductType, defaultRequiresPrescription, isPlantProtection,
 } from '../../../shared/utils/regulatory.utils';
 
 @Component({
@@ -35,9 +40,10 @@ import {
   imports: [
     ReactiveFormsModule, FormsModule,
     ButtonModule, InputTextModule, InputNumberModule, SelectModule,
-    TextareaModule, ToggleSwitchModule, DatePickerModule,
+    TextareaModule, ToggleSwitchModule, DateFieldComponent,
     ToastModule, AutoCompleteModule,
     PageHeaderComponent, GlassCardComponent, IconButtonComponent, StatusBadgeComponent, ProductRegulatoryFieldsComponent,
+    ScanButtonComponent, Gs1KeysDirective,
   ],
   providers: [MessageService],
   host: { class: 'block', '(window:keydown.control.s)': 'onCtrlS($event)' },
@@ -82,7 +88,11 @@ import {
 
               <div class="flex flex-col gap-1.5">
                 <label for="pf-barcode" class="text-sm font-semibold text-fg-secondary">{{ t().products.formBarcode }}</label>
-                <input id="pf-barcode" pInputText formControlName="barcode" [placeholder]="t().products.formBarcodePlaceholder" class="w-full font-mono" />
+                <div class="flex items-center gap-2">
+                  <input id="pf-barcode" pInputText appGs1Keys formControlName="barcode" [placeholder]="t().products.formBarcodePlaceholder" class="w-full min-w-0 font-mono"
+                         (keydown.enter)="onBarcodeTyped($event)" (blur)="onBarcodeTyped()" />
+                  <ui-scan-button (scanned)="onBarcodeScan($event)" />
+                </div>
                 @if (barcodeConflict(); as c) {
                   <p class="m-0 text-xs text-danger-text" role="alert">{{ t().products.barcodeDuplicate }} {{ c }}</p>
                 }
@@ -162,7 +172,17 @@ import {
                 }
               </div>
             </div>
-            <dl class="m-0 mt-4 grid grid-cols-3 overflow-hidden rounded-token-lg border border-line bg-surface-muted">
+            <div class="mt-4 flex items-center gap-3 rounded-token-lg border border-line bg-surface-muted px-4 py-3">
+              <p-toggleswitch inputId="pf-buy-incl-vat" formControlName="purchasePriceIncludesVat" />
+              <label for="pf-buy-incl-vat" class="min-w-0 flex-1 cursor-pointer">
+                <span class="block text-sm font-semibold text-fg">{{ inv().purchaseIncludesVat }}</span>
+                <span class="block text-xs text-fg-secondary">{{ inv().purchaseIncludesVatHint }}</span>
+              </label>
+            </div>
+            <p class="num m-0 mt-3 text-sm text-fg-secondary" data-testid="pf-vat-breakdown" aria-live="polite">
+              {{ vatBreakdownText() }}
+            </p>
+            <dl class="m-0 mt-3 grid grid-cols-3 overflow-hidden rounded-token-lg border border-line bg-surface-muted">
               <div class="border-r border-line px-3 py-2.5">
                 <dt class="text-xs font-semibold text-fg-muted">{{ t().inventory.unitProfit }}</dt>
                 <dd class="num m-0 text-base font-extrabold" [class]="unitProfit() < 0 ? 'text-danger-text' : 'text-fg'">{{ money(unitProfit()) }}</dd>
@@ -176,6 +196,7 @@ import {
                 <dd class="num m-0 text-base font-extrabold text-fg">{{ marginText() }}</dd>
               </div>
             </dl>
+            <p class="m-0 mt-2 text-xs text-fg-muted">{{ inv().profitNetNote }}</p>
           </ui-glass-card>
 
           <!-- 3. Stok ve birim -->
@@ -223,8 +244,11 @@ import {
               <div class="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                 <div class="flex flex-col gap-1.5">
                   <label for="pf-gts" class="text-sm font-semibold text-fg-secondary">{{ t().products.formGtsNo }}</label>
-                  <input id="pf-gts" pInputText formControlName="gtsNo" [placeholder]="t().products.dialogGtsScanPlaceholder"
-                         class="w-full font-mono" autocomplete="off" (keydown.enter)="addFormGts($event)" (blur)="addFormGts()" />
+                  <div class="flex items-center gap-2">
+                    <input id="pf-gts" pInputText appGs1Keys formControlName="gtsNo" [placeholder]="t().products.dialogGtsScanPlaceholder"
+                           class="w-full min-w-0 font-mono" autocomplete="off" (keydown.enter)="addFormGts($event)" (blur)="addFormGts()" />
+                    <ui-scan-button continuous [handler]="onGtsScan" />
+                  </div>
                   <span class="text-xs text-fg-muted">{{ t().compliance.formGtsHint }}</span>
                   @if (gtsList().length) {
                     <ul class="m-0 mt-1 flex max-h-40 list-none flex-wrap gap-1.5 overflow-auto p-0">
@@ -246,8 +270,18 @@ import {
 
                 <div class="flex flex-col gap-1.5">
                   <label for="pf-expiry" class="text-sm font-semibold text-fg-secondary">{{ t().products.formExpiry }}</label>
-                  <p-datepicker inputId="pf-expiry" formControlName="expiryDateVal" dateFormat="dd.mm.yy" [showIcon]="true" [showButtonBar]="true"
-                                [placeholder]="t().products.formExpiryPlaceholder" styleClass="w-full" appendTo="body" />
+                  <ui-date-field inputId="pf-expiry" formControlName="expiryDateVal" [placeholder]="t().products.formExpiryPlaceholder" />
+                  @if (expiryMissingForPp()) {
+                    <p class="m-0 text-xs" [class]="submitted() ? 'text-danger-text' : 'text-warning-text'" [attr.role]="submitted() ? 'alert' : null">{{ inv().expiryRequiredPpHint }}</p>
+                  } @else if (gtsWithoutExpiry() > 0 && form.controls.expiryDateVal.value) {
+                    <p class="m-0 text-xs text-fg-muted">{{ inv().gtsNoExpiry(gtsWithoutExpiry()) }}</p>
+                  }
+                </div>
+
+                <div class="flex flex-col gap-1.5">
+                  <label for="pf-lot" class="text-sm font-semibold text-fg-secondary">{{ inv().lotNo }}</label>
+                  <input id="pf-lot" pInputText formControlName="lotNoVal" maxlength="20" autocomplete="off"
+                         class="w-full font-mono uppercase placeholder:normal-case" [placeholder]="inv().lotNoPlaceholder" />
                 </div>
               </div>
             </ui-glass-card>
@@ -312,7 +346,9 @@ export class ProductFormPage implements OnInit {
   private readonly messageSvc = inject(MessageService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly supplierSvc = inject(SupplierService);
-  readonly t = inject(LangService).t;
+  private readonly lang = inject(LangService);
+  readonly t = this.lang.t;
+  private readonly sx = injectScannerTexts();
   readonly inv = computed(() => this.t().inventory);
 
   readonly suppliers = signal<Supplier[]>([]);
@@ -323,6 +359,10 @@ export class ProductFormPage implements OnInit {
   private lastSuggestedType: ProductType | null = regulatoryFromProduct(null).productType;
   /** İlk partide okutulan GTS'ler (her biri 1 birim) */
   readonly gtsList = signal<string[]>([]);
+  /** GTS → karekoddan okunan parti no */
+  private readonly scannedLots = new Map<string, string>();
+  /** GTS → karekoddan okunan SKT (AI 17). Farklı SKT'li birimler kendi SKT'siyle ayrı parti olur (Y3). */
+  private readonly scannedExpiries = new Map<string, Date>();
 
   readonly saving = signal(false);
   readonly submitted = signal(false);
@@ -362,19 +402,33 @@ export class ProductFormPage implements OnInit {
     if (!this.form.invalid && !this.saving()) this.save();
   }
 
-  unitProfit(): number {
+  /** Canlı fiyat dökümü: satış KDV dahil; kâr KDV hariç net tutarlardan (shared/utils/pricing.ts). */
+  pricing(): PriceBreakdown {
     const v = this.form.value;
-    return Math.round(((Number(v.salePrice) || 0) - (Number(v.purchasePrice) || 0)) * 100) / 100;
+    return priceBreakdown({
+      salePrice: Number(v.salePrice) || 0,
+      purchasePrice: Number(v.purchasePrice) || 0,
+      vatRate: parseVatRate(this.vatRateStr).value,
+      purchasePriceIncludesVat: !!v.purchasePriceIncludesVat,
+    });
+  }
+
+  unitProfit(): number {
+    return this.pricing().profit;
   }
 
   markupText(): string {
-    const cost = Number(this.form.value.purchasePrice) || 0;
-    return cost > 0 ? '%' + ((this.unitProfit() / cost) * 100).toFixed(1) : '—';
+    return formatPct(this.pricing().markup, this.t().products.locale);
   }
 
   marginText(): string {
-    const sale = Number(this.form.value.salePrice) || 0;
-    return sale > 0 ? '%' + ((this.unitProfit() / sale) * 100).toFixed(1) : '—';
+    return formatPct(this.pricing().margin, this.t().products.locale);
+  }
+
+  vatBreakdownText(): string {
+    const b = this.pricing();
+    return this.inv().vatBreakdown(this.money(b.gross), this.money(b.netSale), this.money(b.vat))
+      + (b.vatRate ? ` (%${b.vatRate})` : '');
   }
 
   money(n: number): string {
@@ -391,11 +445,13 @@ export class ProductFormPage implements OnInit {
     brand: [''],
     purchasePrice: [0, [Validators.required, Validators.min(0)]],
     salePrice: [0, [Validators.required, Validators.min(0.01)]],
+    purchasePriceIncludesVat: [false],
     stock: [0, [Validators.required, Validators.min(0)]],
     minStock: [5],
     unit: [DEFAULT_PRODUCT_UNIT as ProductUnit],
     gtsNo: [''],
     expiryDateVal: [null as Date | null],
+    lotNoVal: [''],
     description: [''],
     isActive: [true],
   });
@@ -474,28 +530,103 @@ export class ProductFormPage implements OnInit {
     this.regulatory = { ...this.regulatory, productType: type, requiresPrescription: defaultRequiresPrescription(type) };
   }
 
-  /** GTS okut/yaz + Enter: listeye ekle (1 birim). Stok GTS sayısından azsa stok artırılır. */
+  /**
+   * GTS okut/yaz + Enter: listeye ekle (1 birim). Stok GTS sayısından azsa stok artırılır.
+   * Y3: USB okuyucu / elle giriş kamera ile aynı yoldan geçer; karekoddaki SKT (17) ve parti (10) forma yazılır.
+   */
   addFormGts(event?: Event): void {
     event?.preventDefault();
     const raw = (this.form.controls.gtsNo.value ?? '').trim();
     if (!raw) return;
     this.form.controls.gtsNo.setValue('');
-    const pr = this.t().products;
-    if (this.gtsList().includes(raw)) {
-      this.messageSvc.add({ severity: 'warn', summary: '', detail: pr.dialogGtsDuplicate, life: 2500 });
-      return;
+    const r = scanResultFromText(raw);
+    const fb = this.onGtsScan(r);
+    // Düz GTS başarıyla eklendiyse sessiz; karekodsa okunan SKT / parti bilgisi gösterilir
+    if (fb.tone !== 'success' || r.gs1) {
+      this.messageSvc.add({ severity: fb.tone === 'success' ? 'success' : fb.tone === 'warn' ? 'warn' : 'error', summary: '', detail: fb.message, life: 3500 });
     }
-    const conflict = this.gtsConflictOf(raw);
-    if (conflict) {
-      this.messageSvc.add({ severity: 'warn', summary: '', detail: `${pr.gtsDuplicateOther} ${conflict}`, life: 3500 });
-      return;
-    }
-    this.gtsList.update(l => [...l, raw]);
-    const n = this.gtsList().length;
-    if ((Number(this.form.controls.stock.value) || 0) < n) this.form.controls.stock.setValue(n);
   }
 
+  /** Barkod alanına USB okuyucuyla karekod okutulduysa kamera yoluyla aynı işlem (GTIN → EAN-13, GTS, SKT). */
+  onBarcodeTyped(event?: Event): void {
+    const raw = (this.form.controls.barcode.value ?? '').trim();
+    const r = raw ? scanResultFromText(raw) : null;
+    if (!r?.gs1?.gtin) return;
+    event?.preventDefault();
+    this.onBarcodeScan(r);
+  }
+
+  /** Bitki koruma ürünü + stok var + SKT'siz birim kalıyor (ne formda ne karekodda SKT). */
+  expiryMissingForPp(): boolean {
+    if (this.isEdit) return false;
+    if (!isPlantProtection({ productType: this.regulatory.productType, category: this.categoryStr })) return false;
+    const stock = Math.max(Number(this.form.controls.stock.value) || 0, this.gtsList().length);
+    if (stock <= 0 || this.form.controls.expiryDateVal.value) return false;
+    // Formda SKT yok: tüm birimler karekoddan SKT almış olmalı (GTS'siz kalan birim varsa SKT'siz kalır)
+    const list = this.gtsList();
+    return list.length < stock || list.some(g => !this.scannedExpiries.has(g));
+  }
+
+  /** Karekodunda SKT olmayan GTS sayısı (formdaki SKT bunlara yazılır). */
+  gtsWithoutExpiry(): number {
+    return this.gtsList().filter(g => !this.scannedExpiries.has(g)).length;
+  }
+
+  /** Karekoddaki parti no (AI 10): GTS'ye özel saklanır; form alanı boşsa oraya da yazılır. */
+  private rememberLot(gts: string, lot: string | null): void {
+    const l = normalizeLotNo(lot);
+    if (!l) return;
+    this.scannedLots.set(gts, l);
+    if (!(this.form.controls.lotNoVal.value ?? '').trim()) this.form.controls.lotNoVal.setValue(l);
+  }
+
+  /**
+   * Barkod alanına kamerayla okut. Karekodsa barkod = GTIN'den EAN-13; yeni üründe ayrıca birim GTS listeye,
+   * SKT boşsa karekoddaki SKT forma yazılır.
+   */
+  onBarcodeScan(r: ScanResult): void {
+    this.form.controls.barcode.setValue(barcodeFromScan(r.text));
+    this.form.controls.barcode.markAsDirty();
+    if (r.gs1?.gtin && !this.isEdit) {
+      const fb = this.onGtsScan(r);
+      this.messageSvc.add({ severity: fb.tone === 'success' ? 'success' : 'warn', summary: '', detail: fb.message, life: 3500 });
+    }
+  }
+
+  /**
+   * GTS / ilk parti: sürekli kamera okutması — her karekod bir GTS çipi. GTIN ürün barkoduyla eşleşmezse eklenmez;
+   * barkod boşsa GTIN'den doldurulur; SKT boşsa karekoddaki SKT yazılır.
+   */
+  readonly onGtsScan = (r: ScanResult): ScanFeedback => {
+    const sx = this.sx();
+    const pr = this.t().products;
+    const barcode = (this.form.controls.barcode.value ?? '').trim();
+    const gtin = r.gs1?.gtin ?? null;
+    if (gtin && barcode && !gtinMatches(barcode, gtin)) {
+      return { tone: 'error', message: sx.gtinMismatch(r.gs1?.ean13 ?? gtin, barcode) };
+    }
+    if (gtin && !barcode) this.form.controls.barcode.setValue(r.gs1?.ean13 ?? gtin);
+    const code = r.code;
+    if (this.gtsList().includes(code)) return { tone: 'warn', message: pr.dialogGtsDuplicate };
+    const conflict = this.gtsConflictOf(code);
+    if (conflict) return { tone: 'warn', message: `${pr.gtsDuplicateOther} ${conflict}` };
+    this.gtsList.update(l => [...l, code]);
+    const n = this.gtsList().length;
+    if ((Number(this.form.controls.stock.value) || 0) < n) this.form.controls.stock.setValue(n);
+    const parts = [`GTS ${n}`];
+    if (r.gs1?.expiry) {
+      this.scannedExpiries.set(code, r.gs1.expiry);
+      if (!this.form.controls.expiryDateVal.value) this.form.controls.expiryDateVal.setValue(r.gs1.expiry);
+      parts.push(`${sx.gs1Expiry}: ${r.gs1.expiry.toLocaleDateString(pr.locale)}`);
+    }
+    if (r.gs1?.lot) parts.push(`${sx.gs1Lot}: ${r.gs1.lot}`);
+    this.rememberLot(code, r.gs1?.lot ?? null);
+    return { tone: 'success', message: parts.join(' · ') };
+  };
+
   removeFormGts(index: number): void {
+    const g = this.gtsList()[index];
+    if (g) { this.scannedExpiries.delete(g); this.scannedLots.delete(g); }
     this.gtsList.update(l => l.filter((_, i) => i !== index));
   }
 
@@ -512,6 +643,7 @@ export class ProductFormPage implements OnInit {
       brand: product.brand ?? '',
       purchasePrice: product.purchasePrice,
       salePrice: product.salePrice,
+      purchasePriceIncludesVat: !!product.purchasePriceIncludesVat,
       minStock: product.minStock,
       unit: productUnit(product),
       description: product.description ?? '',
@@ -530,6 +662,14 @@ export class ProductFormPage implements OnInit {
     const pr = this.t().products;
     if (this.form.invalid || !this.categoryStr.trim() || !this.vatValid()) { this.form.markAllAsTouched(); return; }
     if (this.isEdit && !this.editLoaded) return;
+    // Yazılıp Enter'a basılmamış son GTS de (SKT kontrolünden önce) listeye alınsın
+    if (!this.isEdit && (this.form.controls.gtsNo.value ?? '').trim()) this.addFormGts();
+    // Y3 (mevzuat): bitki koruma ürünü SKT'siz kaydedilemez
+    if (this.expiryMissingForPp()) {
+      this.messageSvc.add({ severity: 'error', summary: this.t().common.error, detail: this.inv().expiryRequiredPp, life: 6000 });
+      document.getElementById('pf-expiry')?.focus();
+      return;
+    }
     const dupBarcode = this.barcodeConflict();
     if (dupBarcode) {
       this.messageSvc.add({ severity: 'error', summary: this.t().common.error, detail: `${pr.barcodeDuplicate} ${dupBarcode}`, life: 4000 });
@@ -552,6 +692,7 @@ export class ProductFormPage implements OnInit {
         purchasePrice: Number(v.purchasePrice) || 0,
         salePrice: Number(v.salePrice),
         vatRate: parseVatRate(this.vatRateStr).value,
+        purchasePriceIncludesVat: !!v.purchasePriceIncludesVat,
         minStock: this.normQty(v.minStock),
         unit: productUnit({ unit: v.unit ?? undefined }),
         description: v.description?.trim() || null,
@@ -571,8 +712,16 @@ export class ProductFormPage implements OnInit {
         const gtsList = this.gtsList();
         const addedAt = Timestamp.now();
         const supplierId = this.supplierId() || null;
+        const formLot = normalizeLotNo(v.lotNoVal);
+        // Parti no: karekoddan okunduysa o GTS'nin kendi partisi, değilse formdaki
+        // SKT: karekoddan okunduysa o GTS'nin kendi SKT'si (farklı SKT = ayrı parti), değilse formdaki
+        const expiryOf = (gts: string | null): Timestamp | null => {
+          const d = gts ? this.scannedExpiries.get(gts) : undefined;
+          return d ? Timestamp.fromDate(d) : expiryDate;
+        };
         const mk = (quantity: number, gts: string | null): Batch =>
-          ({ id: crypto.randomUUID(), quantity, expiryDate, gtsNo: gts, addedAt, supplierId });
+          withLot({ id: crypto.randomUUID(), quantity, expiryDate: expiryOf(gts), gtsNo: gts, addedAt, supplierId },
+            (gts && this.scannedLots.get(gts)) || formLot);
         // GTS kuralı: GTS'li her birim = quantity:1. Kalan adet GTS'siz tek parti olur.
         const totalStock = Math.max(stock, gtsList.length);
         const rest = roundQty(totalStock - gtsList.length);
@@ -590,7 +739,7 @@ export class ProductFormPage implements OnInit {
         ? `${pr.dialogGtsDuplicate}: ${err.detail ?? ''}`
         : e?.message?.includes('permission') || e?.code === 'permission-denied'
           ? pr.permissionError
-          : (e?.message ?? pr.updateFailed);
+          : userErrorMessage(err, pr.updateFailed, this.lang.lang());
       this.messageSvc.add({ severity: 'error', summary: this.t().common.error, detail, life: 5000 });
     } finally {
       this.saving.set(false);

@@ -117,6 +117,15 @@ describe('buildPrescriptionRows (denetim kaydı)', () => {
     });
   });
 
+  it('parti no sütunu: lotNos, yoksa kalem partilerinden', () => {
+    const item = { productId: 'p1', productName: 'İlaç A', barcode: '', quantity: 1, unitPrice: 1, discount: 0,
+      discountType: 'percent' as const, totalPrice: 1, requiresPrescription: true, prescriptionNo: 'RX1' };
+    const a = sale({ items: [{ ...item, lotNos: ['L1', 'L2'] }] });
+    const b = sale({ items: [{ ...item, batches: [{ batchId: 'x', quantity: 1, gtsNo: null, lotNo: 'L7', expiryDate: null }] }] });
+    const c = sale({ items: [item] });
+    expect(buildPrescriptionRows([a, b, c]).map(r => r.lotNos)).toEqual(['L1, L2', 'L7', '']);
+  });
+
   it('eski satışta bayrak yoksa kalemlere bakılır', () => {
     expect(isPrescriptionSale({ items: [{ requiresPrescription: true } as Sale['items'][number]] })).toBe(true);
     expect(isPrescriptionSale({ items: [] })).toBe(false);

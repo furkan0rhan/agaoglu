@@ -1,59 +1,125 @@
-# TarimMarket
+# Tarım Market Pro
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.11.
+[![Windows Release](https://github.com/furkan0rhan/agaoglu/actions/workflows/windows-release.yml/badge.svg)](https://github.com/furkan0rhan/agaoglu/actions/workflows/windows-release.yml)
+[![Android APK Build](https://github.com/furkan0rhan/agaoglu/actions/workflows/android-build.yml/badge.svg)](https://github.com/furkan0rhan/agaoglu/actions/workflows/android-build.yml)
 
-## Development server
+Zirai ilaç, gübre, tohum ve fide bayileri için satış (POS), stok, veresiye ve mevzuat takip uygulaması.
+Windows masaüstü (exe/msi), Android (apk) ve web'de aynı kod tabanıyla çalışır; bayinin çiftçileri için
+ayrı bir çiftçi modülü ve platform yönetimi için superadmin paneli içerir.
 
-To start a local development server, run:
+| Ana sayfa | Hızlı satış (POS) |
+|---|---|
+| ![Ana sayfa](docs/screenshots/dashboard.png) | ![POS](docs/screenshots/pos.png) |
+| **Ürünler** | **Veresiye / Cari** |
+| ![Ürünler](docs/screenshots/urunler.png) | ![Veresiye](docs/screenshots/veresiye.png) |
 
-```bash
-ng serve
-```
+<img src="docs/screenshots/mobil-ciftci.png" alt="Çiftçi modülü (mobil)" width="300">
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## Özellikler
 
-## Code scaffolding
+**Bayi**
+- **POS:** barkod/karekod ile hızlı satış, F tuşları, ondalık miktar ve birimler, iskonto, satış bekletme, nakit/kart/veresiye ve karışık ödeme, 58/80 mm fiş.
+- **Stok:** parti ve SKT takibi (FEFO), GTS/karekod birim takibi, kritik stok ve SKT uyarıları, stok sayımı, stok hareketleri — ayrıntı: [docs/GTS-KAREKOD.md](docs/GTS-KAREKOD.md).
+- **Veresiye:** vade, taksit takvimi, peşinat, hasatta ödeme, gecikmiş alacaklar, ekstre PDF, WhatsApp/SMS hatırlatma.
+- **Mevzuat:** e-reçete kaydı, ruhsat ve etken madde bilgisi, satışta GTS kaydı, SKT'si geçmiş ürün engeli, KVKK rızası ve TC maskeleme.
+- **Alış ve tedarikçi:** alış faturası/irsaliye, tedarikçi cari hesabı ve ödemeler.
+- **Raporlar:** ciro, brüt kâr, kasa özeti, en çok satanlar, kategori; Excel/PDF dışa aktarma.
+- **Ekip ve roller:** yönetici / kasiyer / personel, e-posta davetiyle katılım.
+- **Yedek:** tüm verinin JSON/Excel yedeği ve boş işletmeye geri yükleme.
+- **Kamera ile barkod/karekod okuma** (web/masaüstü ve Android), GS1 karekoddan SKT ve parti no.
+- **Çevrimdışı çalışma:** Firestore kalıcı önbelleği; bağlantı gelince otomatik eşitleme.
+- Türkçe/İngilizce arayüz, açık/koyu tema.
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+**Çiftçi modülü** (`/ciftci`) — bayi davetiyle giriş; tarlalar ve sezonlar, ilaçlama defteri ve hasat aralığı (PHI), ambar,
+bayiye borç, bayi önerileri, hava durumu. Ayrıntı: [docs/CIFTCI-MODULU.md](docs/CIFTCI-MODULU.md).
 
-```bash
-ng generate component component-name
-```
+**Superadmin** — işletme listesi, lisans (plan, süre, kullanıcı sınırı), destek modu ve erişim kaydı.
+Ayrıntı: [docs/SUPERADMIN.md](docs/SUPERADMIN.md).
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Teknoloji
 
-```bash
-ng generate --help
-```
+Angular 21 (standalone, signals, NgRx Signals) · PrimeNG 21 · Tailwind CSS 3 · Firebase (Auth + Firestore, Spark planı) ·
+Tauri 2 (Windows + Android) · ZXing · Chart.js · jsPDF · SheetJS · Vitest · ESLint.
 
-## Building
+## Hızlı başlangıç
 
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
+Gerekenler: Node.js 22+, npm. (Masaüstü paketi için ayrıca Rust ve Tauri önkoşulları.)
 
 ```bash
-ng e2e
+npm ci --legacy-peer-deps   # @angular/fire 20 ile Angular 21 peer uyumsuzluğu nedeniyle
+npm start                   # http://localhost:4200 (canlı Firebase projesine bağlanır)
+npm run tauri:dev           # masaüstü uygulaması olarak
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+## Yerel test ortamı (Firebase Emulator)
 
-## Additional Resources
+Canlı veriye dokunmadan demo veriyle çalışmak için (ayrıntı: [docs/TEST-ORTAMI.md](docs/TEST-ORTAMI.md)):
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+```bash
+npm run emu        # Terminal 1: Auth + Firestore emulator (veri .emulator-data içinde saklanır)
+npm run emu:seed   # Terminal 2: demo verisi ve test hesapları (bir kez)
+npm run dev:emu    # Terminal 2: uygulama emulator'e bağlı, http://localhost:4200
+```
+
+Test hesapları (şifre hepsinde `Test1234!`): `admin@test.local` (bayi sahibi), `kasiyer@test.local`,
+`personel@test.local`, `admin2@test.local` (ikinci bayi), `super@test.local` (superadmin), `ciftci@test.local` (çiftçi).
+
+## Testler
+
+```bash
+npm test             # birim testleri (Vitest, ng test)
+npm run test:rules   # Firestore güvenlik kuralı testleri (emulator'ü kendisi başlatır)
+npm run lint         # ESLint
+```
+
+## Sürüm çıkarma (exe / apk)
+
+```bash
+npm run release -- 1.2.0
+```
+
+Script sürüm numarasını `package.json`, `tauri.conf.json` ve `Cargo.toml`'a yazar, commit + etiket oluşturup gönderir.
+Etiketle GitHub Actions Windows (exe/msi) ve Android (apk/aab) derlemelerini başlatır; dosyalar taslak bir
+**GitHub Release**'e eklenir, kontrol edip yayınlarsınız. Android imzalama ve kurulum: [docs/APK.md](docs/APK.md).
+
+## Firebase deploy
+
+Kurallar ve indeksler (canlıya yüklemeden önce `firestore.rules.md` kontrol listesine bakın):
+
+```bash
+firebase deploy --only firestore:rules,firestore:indexes
+```
+
+## Klasör yapısı
+
+```
+src/app/core/        kimlik doğrulama, i18n, lisans, ayarlar, tema, bildirimler, ürün turu
+src/app/features/    ekranlar: pos, products, credit, customers, purchases, suppliers, reports, farmer, admin …
+src/app/layout/      uygulama kabuğu (kenar çubuğu, üst çubuk, mobil menü)
+src/app/shared/      ortak UI bileşenleri, modeller, barkod/karekod okuyucu, yardımcılar
+src-tauri/           Tauri (Rust) masaüstü ve Android projesi
+tests/rules/         Firestore kural testleri
+scripts/             sürüm, emulator ve yardımcı script'ler
+docs/                rehberler, tasarım prototipleri, marka dosyaları, ekran görüntüleri
+```
+
+## Dokümanlar
+
+| Dosya | İçerik |
+|---|---|
+| [TASKS.md](TASKS.md) | Görev listesi ve proje durumu |
+| [CHANGELOG.md](CHANGELOG.md) | Sürüm geçmişi |
+| [docs/TEST-ORTAMI.md](docs/TEST-ORTAMI.md) | Emulator ile yerel test ortamı, demo veri, test hesapları |
+| [docs/APK.md](docs/APK.md) | Android derleme, imzalama, kurulum |
+| [docs/SUPERADMIN.md](docs/SUPERADMIN.md) | Superadmin, destek modu, lisans |
+| [docs/CIFTCI-MODULU.md](docs/CIFTCI-MODULU.md) | Çiftçi modülü tasarımı |
+| [docs/GTS-KAREKOD.md](docs/GTS-KAREKOD.md) | Ürünler ve GTS/karekod takibi |
+| [docs/MUSTERI-TEST-RAPORU.md](docs/MUSTERI-TEST-RAPORU.md) | Müşteri gözüyle test bulguları |
+| [firestore.rules.md](firestore.rules.md) | Güvenlik kuralları açıklaması ve deploy kontrol listesi |
+| [src/app/shared/ui/README.md](src/app/shared/ui/README.md) | Ortak UI bileşenleri ve tasarım tokenları |
+| `docs/design/` | Seçilen tasarım prototipi (`c-saha-komuta`), renk seçenekleri; reddedilenler `arsiv/` altında |
+
+## Lisans
+
+© Tüm hakları saklıdır. Ticari üründür; izinsiz kopyalanamaz, dağıtılamaz.
+<!-- TODO: lisans metni ürün sahibiyle netleştirilecek. -->

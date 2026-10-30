@@ -35,6 +35,14 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
+        .setup(|app| {
+            // Kamera tarayıcı yalnız mobilde (Android/iOS) kayıtlı.
+            #[cfg(mobile)]
+            app.handle().plugin(tauri_plugin_barcode_scanner::init())?;
+            #[cfg(not(mobile))]
+            let _ = app;
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![get_printers, print_receipt])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

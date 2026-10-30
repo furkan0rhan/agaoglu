@@ -1,5 +1,7 @@
 import { signalStore, withState, withComputed, withMethods, withHooks, patchState, getState } from '@ngrx/signals';
-import { computed, effect } from '@angular/core';
+import { computed, effect, inject } from '@angular/core';
+import { AuthService } from '../../../core/auth/services/auth.service';
+import { HELD_CARTS_KEY } from './held-carts';
 import { CartItem, DiscountType, PaymentMethod } from '../../../shared/models/sale.model';
 import { isDecimalUnit, lineAmounts, normalizeQty, round2, roundQty } from '../services/sale.utils';
 
@@ -20,6 +22,31 @@ export interface CartState {
 }
 
 export const CART_STORAGE_KEY = 'tm.cart.v1';
+/** Kayıtlı sepet / bekleyen sepetler hangi oturuma (`uid|tenantId`) ait (Y1). */
+export const CART_OWNER_KEY = 'tm.cart.owner';
+
+/**
+ * Yerel sepet verisi başka oturuma aitse (başka kullanıcı / işletme) siler. Sahip yoksa (eski sürüm) sahiplenir.
+ * @returns kayıtlı sepet bu oturuma ait mi
+ */
+export function claimCartStorage(sessionKey: string, storage: Storage | null = safeLocalStorage()): boolean {
+  if (!storage || !sessionKey) return false;
+  try {
+    const owner = storage.getItem(CART_OWNER_KEY);
+    if (owner && owner !== sessionKey) {
+      storage.removeItem(CART_STORAGE_KEY);
+      storage.removeItem(HELD_CARTS_KEY);
+    }
+    storage.setItem(CART_OWNER_KEY, sessionKey);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function safeLocalStorage(): Storage | null {
+  try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; }
+}
 
 const initial: CartState = {
   items: [],
@@ -191,10 +218,17 @@ export const CartStore = signalStore(
   })),
 
   withHooks({
-    onInit(store) {
-      const saved = loadPersisted();
+    onInit(store, auth = inject(AuthService)) {
+      // Kayıtlı sepet yalnız aynı oturumun (kullanıcı + işletme) ise geri yüklenir
+      const saved = claimCartStorage(auth.sessionKey()) ? loadPersisted() : null;
       if (saved) patchState(store, { ...initial, ...saved });
       effect(() => persist(getState(store) as CartState));
+      // Y1: çıkış / başka kullanıcı ya da işletme: sepet (müşteri, fiyatlar) bellekte kalmasın
+      auth.onSessionChange(key => {
+        patchState(store, { ...initial });
+        persist({ ...initial });
+        if (key) claimCartStorage(key);
+      });
     },
   })
 );

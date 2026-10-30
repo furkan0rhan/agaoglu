@@ -122,3 +122,12 @@ describe('backup.utils — Excel ve hatırlatma', () => {
     expect(backupOverdue(new Date(2026, 9, 19, 12), now)).toBe(true);
   });
 });
+
+describe('Y15: yeni işletmede yedek uyarısı yok', () => {
+  it('hiç yedek yoksa ve işletme 7 günden yeniyse uyarma', () => {
+    const now = new Date(2026, 9, 30, 12);
+    expect(backupOverdue(null, now, 7, new Date(2026, 9, 30, 11))).toBe(false);
+    expect(backupOverdue(null, now, 7, new Date(2026, 9, 10))).toBe(true);
+    expect(backupOverdue(null, now)).toBe(true);
+  });
+});

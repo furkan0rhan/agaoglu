@@ -4,7 +4,7 @@ import { firstValueFrom, Observable } from 'rxjs';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { FirestoreService } from '../../../core/firebase/firestore.service';
 import { Batch, CreateProductDto, Product, StockMovement } from '../../../shared/models/product.model';
-import { batchTotal, consumeFEFO, duplicateValues, nearestExpiry, roundQty } from '../../../shared/utils/batch.utils';
+import { batchTotal, consumeFEFO, duplicateValues, type LotInput, lotFor, nearestExpiry, normalizeLotNo, roundQty, withLot } from '../../../shared/utils/batch.utils';
 
 const PRODUCTS = 'products';
 const MOVEMENTS = 'stockMovements';
@@ -117,9 +117,10 @@ export class ProductService {
    * Stok ekle/çıkar.
    * @param gtsNumbers GTS/karekod listesi. Doluysa her GTS için ayrı bir birim (quantity:1) parti oluşturulur
    *                   ve delta = gtsNumbers.length kabul edilir. Boşsa tek parti (quantity:delta) eklenir.
+   * @param lotNo parti / şarj no (AI 10): tek değer tüm yeni partilere, `{ gts: lot }` eşlemesi GTS başına yazılır.
    * @returns çıkışta partilerin karşılayamadığı miktar (`shortfall`) — 0 değilse stok ≠ Σ parti demektir.
    */
-  async adjustStock(product: Product, delta: number, reason: string, reference: string | null = null, expiryDate?: Date | null, gtsNumbers?: string[] | null, supplierId?: string | null): Promise<StockWriteResult> {
+  async adjustStock(product: Product, delta: number, reason: string, reference: string | null = null, expiryDate?: Date | null, gtsNumbers?: string[] | null, supplierId?: string | null, lotNo?: LotInput): Promise<StockWriteResult> {
     const gtsList = (gtsNumbers ?? []).map(g => g.trim()).filter(Boolean);
     if (gtsList.length > 0) {
       const existing = new Set((product.batches ?? []).filter(b => b.quantity > 0 && b.gtsNo).map(b => b.gtsNo!));
@@ -140,9 +141,9 @@ export class ProductService {
       const supplier = supplierId || null;
       const newBatches: Batch[] = gtsList.length > 0
         // Her GTS = kendi benzersiz GTS'li tek birim (quantity:1)
-        ? gtsList.map(g => ({ id: crypto.randomUUID(), quantity: 1, expiryDate: expiryTs, gtsNo: g, addedAt, supplierId: supplier }))
+        ? gtsList.map(g => withLot({ id: crypto.randomUUID(), quantity: 1, expiryDate: expiryTs, gtsNo: g, addedAt, supplierId: supplier }, lotFor(lotNo, g)))
         // GTS'siz toplu ekleme — tek parti
-        : [{ id: crypto.randomUUID(), quantity: delta, expiryDate: expiryTs, gtsNo: null, addedAt, supplierId: supplier }];
+        : [withLot({ id: crypto.randomUUID(), quantity: delta, expiryDate: expiryTs, gtsNo: null, addedAt, supplierId: supplier }, lotFor(lotNo, null))];
       const updatedBatches = [...currentBatches, ...newBatches];
       productUpdate['batches'] = updatedBatches;
       productUpdate['expiryDate'] = nearestExpiry(updatedBatches);
@@ -164,7 +165,7 @@ export class ProductService {
   }
 
   /** Tek bir partinin/GTS biriminin SKT, tedarikçi veya GTS'sini güncelle (ürün içi GTS tekrarı reddedilir) */
-  async updateBatch(product: Product, batchId: string, changes: { expiryDate?: Date | null; supplierId?: string | null; gtsNo?: string | null }): Promise<void> {
+  async updateBatch(product: Product, batchId: string, changes: { expiryDate?: Date | null; supplierId?: string | null; gtsNo?: string | null; lotNo?: string | null }): Promise<void> {
     const current = product.batches ?? [];
     if (!current.some(b => b.id === batchId)) throw new ProductStockError('batch-not-found');
     const newGts = changes.gtsNo !== undefined ? (changes.gtsNo?.trim() || null) : undefined;
@@ -178,6 +179,7 @@ export class ProductService {
         ...(changes.expiryDate !== undefined ? { expiryDate: changes.expiryDate ? Timestamp.fromDate(changes.expiryDate) : null } : {}),
         ...(changes.supplierId !== undefined ? { supplierId: changes.supplierId || null } : {}),
         ...(newGts !== undefined ? { gtsNo: newGts } : {}),
+        ...(changes.lotNo !== undefined ? { lotNo: normalizeLotNo(changes.lotNo) } : {}),
       };
     });
     await firstValueFrom(this.fs.update(PRODUCTS, product.id, {
@@ -265,3 +267,4 @@ export class ProductService {
     });
   }
 }
+

@@ -6,6 +6,8 @@ import { ApplicationLog } from '../../../shared/models/farmer.model';
 import { fmt } from '../i18n/farmer.i18n';
 import { F, FarmerHeaderComponent, fmtDate, fmtNum, TYPE_ICON, TYPE_STRIPE, typeTile } from '../layout/farmer-ui';
 import { FarmerStore } from '../services/farmer-store.service';
+import { doseDisplay } from '../utils/dose.util';
+import { toFarmUnit, unitLabel } from '../utils/units';
 
 /** Kişisel uygulama defteri. Resmî ÜKD değildir — ekranda açıkça yazar. */
 @Component({
@@ -39,8 +41,8 @@ import { FarmerStore } from '../services/farmer-store.service';
           <div class="mt-2 flex flex-col gap-0.5">
             <p class="m-0 text-17">{{ store.field(l.fieldId)?.name ?? '—' }} @if (l.areaDecare) { <span class="num text-fg-secondary">· {{ num(l.areaDecare) }} {{ t().farmer.common.decare }}</span> }</p>
             @if (l.productName) {
-              <p class="m-0 text-17"><b>{{ l.productName }}</b> @if (l.quantity !== null) { <span class="num ml-1">· {{ num(l.quantity) }} {{ l.unit }}</span> }
-                @if (l.dosePerDecare !== null) { <span class="num ml-1 text-fg-secondary">({{ num(l.dosePerDecare) }} {{ l.unit }}/da)</span> }</p>
+              <p class="m-0 text-17"><b>{{ l.productName }}</b> @if (l.quantity !== null) { <span class="num ml-1">· {{ num(l.quantity) }} {{ uLabel(l.unit) }}</span> }
+                @if (doseText(l); as dt) { <span class="num ml-1 text-fg-secondary">({{ dt }})</span> }</p>
             }
             @if (l.earliestHarvestDate) {
               <p class="m-0 mt-1 inline-flex items-center gap-1.5 self-start rounded-token-md bg-warning-soft px-2 py-1 text-15 font-bold text-warning-text">
@@ -76,6 +78,17 @@ export class FarmerLogbookPage {
   tile(l: ApplicationLog): string { return typeTile(l.type); }
   date(d: Date): string { return fmtDate(d, this.lang()); }
   num(v: number): string { return fmtNum(v, this.lang()); }
+  uLabel(u: string | null): string { return unitLabel(u, this.lang()); }
+  /** "dekara 3,3 kg" / "1 çuval ile yaklaşık 15 dekar" (kayıt formuyla aynı hesap) */
+  doseText(l: ApplicationLog): string | null {
+    if (l.dosePerDecare === null || !l.unit) return null;
+    const d = doseDisplay(l.quantity, toFarmUnit(l.unit), l.areaDecare, l.productName);
+    if (!d) return null;
+    const t = this.t().farmer.log;
+    return d.kind === 'decare-per-unit'
+      ? fmt(t.decarePerUnit, { u: this.uLabel(d.unit), v: this.num(d.value) }).replace(/^=\s*/, '')
+      : fmt(t.perDecare, { v: `${this.num(d.value)} ${this.uLabel(d.unit)}` }).replace(/^=\s*/, '');
+  }
   earliest(l: ApplicationLog): string { return fmt(this.t().farmer.log.phiEarliest, { date: fmtDate(l.earliestHarvestDate, this.lang()) }); }
 
   remove(l: ApplicationLog): void {

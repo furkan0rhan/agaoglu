@@ -3,6 +3,7 @@ import { LangService } from '../../../core/i18n/lang.service';
 import { CurrencyTrPipe } from '../../../shared/pipes/currency-tr.pipe';
 import { SaleReceipt } from '../../../shared/models/sale.model';
 import { methodLabel, qtyWithUnit } from '../services/sales.helpers';
+import { receiptVatBreakdown } from './receipt.utils';
 import { DEFAULT_RECEIPT_SETTINGS, ReceiptSettings } from '../../../core/settings/tenant-settings.model';
 import { injectSettingsTexts } from '../../settings/settings.i18n';
 import { RECEIPT_FALLBACK_NAME, ReceiptBusiness } from './receipt-business.service';
@@ -36,12 +37,28 @@ import { RECEIPT_FALLBACK_NAME, ReceiptBusiness } from './receipt-business.servi
         <div class="tm-r-center">{{ st().dealerLicenseNo }}: {{ business()?.dealerLicenseNo }}</div>
       }
       <div class="tm-r-sep"></div>
+      @if (isPayment()) {
+        <div class="tm-r-center tm-r-strong">{{ t().sales.paymentReceipt }}</div>
+      }
       <div class="tm-r-row"><span>{{ t().sales.date }}</span><span>{{ dateText() }}</span></div>
       <div class="tm-r-row"><span>{{ t().sales.saleNo }}</span><span class="tm-r-break">{{ receipt().saleNumber }}</span></div>
       @if (receipt().customerName) {
         <div class="tm-r-row"><span>{{ t().sales.customer }}</span><span>{{ receipt().customerName }}</span></div>
       }
       <div class="tm-r-sep"></div>
+
+      @if (receipt().payment; as p) {
+        <!-- Y11: veresiye tahsilat makbuzu -->
+        <div class="tm-r-row"><span>{{ t().sales.prevBalance }}</span><span>{{ p.previousBalance | currencyTr }}</span></div>
+        <div class="tm-r-row tm-r-total"><span>{{ t().sales.paymentAmount }}</span><span>{{ p.amount | currencyTr }}</span></div>
+        <div class="tm-r-row"><span>{{ t().sales.paymentMethod }}</span><span>{{ paymentMethodText() }}</span></div>
+        <div class="tm-r-row tm-r-strong"><span>{{ t().sales.newBalance }}</span><span>{{ p.newBalance | currencyTr }}</span></div>
+        @if (p.note) { <div class="tm-r-small tm-r-break">{{ p.note }}</div> }
+        <div class="tm-r-sep"></div>
+        <div class="tm-r-sign">{{ t().sales.debtorSignature }}: ______________</div>
+        <div class="tm-r-sep"></div>
+        <div class="tm-r-center tm-r-strong">{{ business()?.receiptFooter || t().sales.thankYou }}</div>
+      } @else {
 
       @for (i of receipt().items; track $index) {
         <div class="tm-r-item">
@@ -60,6 +77,9 @@ import { RECEIPT_FALLBACK_NAME, ReceiptBusiness } from './receipt-business.servi
           }
           @if (opts().showGts && i.gtsNos?.length) {
             <div class="tm-r-small tm-r-break">GTS: {{ i.gtsNos!.join(', ') }}</div>
+          }
+          @if (opts().showGts && i.lotNos?.length) {
+            <div class="tm-r-small tm-r-break">{{ t().inventory.lotNo }}: {{ i.lotNos!.join(', ') }}</div>
           }
         </div>
       }
@@ -88,7 +108,7 @@ import { RECEIPT_FALLBACK_NAME, ReceiptBusiness } from './receipt-business.servi
       }
       @if (receipt().totalWithInterest) {
         <div class="tm-r-row tm-r-small">
-          <span>{{ t().pos.totalWithInterest }}{{ receipt().installmentCount ? ' (' + receipt().installmentCount + 'x)' : '' }}</span>
+          <span>{{ t().pos.creditDebtWithInterest }}{{ receipt().installmentCount ? ' (' + receipt().installmentCount + 'x)' : '' }}</span>
           <span>{{ receipt().totalWithInterest | currencyTr }}</span>
         </div>
       }
@@ -108,9 +128,32 @@ import { RECEIPT_FALLBACK_NAME, ReceiptBusiness } from './receipt-business.servi
         <div class="tm-r-row"><span>{{ t().pos2.dueLabel }}</span><span>{{ day(receipt().dueDate!) }}</span></div>
       }
 
+      @if (vatRows().length) {
+        <!-- Y12: oran bazında KDV dökümü (fiyatlar KDV dahil) -->
+        <div class="tm-r-sep"></div>
+        <div class="tm-r-strong">{{ t().sales.vatBreakdown }}</div>
+        @for (v of vatRows(); track v.rate) {
+          @if (v.rate === null) {
+            <div class="tm-r-row tm-r-small"><span>{{ t().sales.vatUnknown }}</span><span>{{ v.gross | currencyTr: false }}</span></div>
+          } @else {
+            <div class="tm-r-row tm-r-small">
+              <span>%{{ v.rate }} {{ t().sales.vatBase }} {{ v.base | currencyTr: false }}</span>
+              <span>KDV {{ v.vat | currencyTr: false }}</span>
+            </div>
+          }
+        }
+      }
+
+      @if (receipt().creditAmount > 0) {
+        <!-- Y12: veresiye fişinde borçlu imzası -->
+        <div class="tm-r-sep"></div>
+        <div class="tm-r-sign">{{ t().sales.debtorSignature }}: ______________</div>
+      }
+
       <div class="tm-r-sep"></div>
       <div class="tm-r-center">{{ receipt().items.length }} {{ t().sales.items }}</div>
       <div class="tm-r-center tm-r-strong">{{ business()?.receiptFooter || t().sales.thankYou }}</div>
+      }
     </div>
   `,
   styles: `
@@ -152,6 +195,7 @@ import { RECEIPT_FALLBACK_NAME, ReceiptBusiness } from './receipt-business.servi
     .tm-receipt .tm-r-small { font-size: 11px; }
     .tm-receipt .tm-r-strong { font-weight: 700; }
     .tm-receipt .tm-r-total { font-size: 16px; font-weight: 700; }
+    .tm-receipt .tm-r-sign { margin-top: 6mm; }
   `,
 })
 export class ReceiptComponent {
@@ -172,6 +216,12 @@ export class ReceiptComponent {
     }),
   );
   readonly method = computed(() => methodLabel(this.t(), this.receipt().paymentMethod));
+  readonly isPayment = computed(() => this.receipt().kind === 'payment');
+  readonly vatRows = computed(() => (this.isPayment() ? [] : receiptVatBreakdown(this.receipt())));
+  readonly paymentMethodText = computed(() => {
+    const m = this.receipt().payment?.method;
+    return m === 'transfer' ? this.t().sales.methodTransfer : m === 'card' ? this.t().sales.methodCard : this.t().sales.methodCash;
+  });
 
   day(d: Date): string {
     return d.toLocaleDateString(this.lang.lang() === 'tr' ? 'tr-TR' : 'en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
