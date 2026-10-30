@@ -120,7 +120,6 @@ const TR = {
   // Hakkında
   build: 'Sürüm', platform: 'Platform', environment: 'Ortam',
   legal: 'Yasal', kvkkText: 'KVKK aydınlatma metni',
-  openSource: 'Açık kaynak bileşenler', openSourceDesc: 'Bu uygulama aşağıdaki açık kaynak yazılımlarla geliştirildi',
   emulator: 'Test (emulator)', live: 'Canlı',
 };
 
@@ -229,7 +228,6 @@ const EN: SettingsTexts = {
   emailRowDesc: 'A verification link is sent to the new address',
   build: 'Version', platform: 'Platform', environment: 'Environment',
   legal: 'Legal', kvkkText: 'Privacy notice (KVKK)',
-  openSource: 'Open-source components', openSourceDesc: 'This app is built with the following open-source software',
   emulator: 'Test (emulator)', live: 'Live',
 };
 

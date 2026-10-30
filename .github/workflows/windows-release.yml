@@ -113,6 +113,9 @@ jobs:
           args: ${{ steps.signing.outputs.args }}
           # latest.json'daki genel "windows-x86_64" girdisi setup.exe'yi (NSIS) göstersin (önerilen kurulum).
           updaterJsonPreferNsis: true
+          # ASCII dosya adı şart: productName'deki "ı" GitHub'da "i"ye çevriliyor, tauri-action ise
+          # latest.json'u yazarken asset'leri orijinal adla arıyor → eşleşmeyince latest.json HİÇ yüklenmiyor (v1.3.2).
+          assetNamePattern: 'TarimMarketPro_[version]_[arch][setup][ext]'
 
       - name: Build only (no tag)
         if: needs.ensure-release.outputs.release_id == ''

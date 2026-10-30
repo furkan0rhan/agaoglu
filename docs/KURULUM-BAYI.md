@@ -10,7 +10,7 @@ Bu sayfa, programı dükkândaki Windows bilgisayara kurmanız için hazırland�
 2. Adres çubuğuna şunu yazın ve Enter'a basın:
    **https://github.com/furkan0rhan/agaoglu/releases/latest**
 3. Sayfanın altındaki **Assets** başlığında, adı **`_x64-setup.exe`** ile biten dosyaya tıklayın.
-   Örnek: `Tarım Market Pro_1.3.0_x64-setup.exe`
+   Örnek: `TarimMarketPro_1.3.3_x64-setup.exe`
    (`.msi`, `.apk`, `.aab` ile bitenleri indirmeyin, onlar sizin için değil.)
 4. Dosya **İndirilenler** klasörüne iner.
 

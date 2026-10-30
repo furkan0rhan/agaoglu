@@ -21,24 +21,7 @@ export function detectPlatform(win: Window | undefined = typeof window === 'unde
   return 'web';
 }
 
-/** Uygulamada kullanılan başlıca açık kaynak bileşenler ve lisansları (package.json). */
-const OPEN_SOURCE: { name: string; license: string }[] = [
-  { name: 'Angular', license: 'MIT' },
-  { name: 'PrimeNG / PrimeIcons', license: 'MIT' },
-  { name: 'Firebase JS SDK, AngularFire', license: 'Apache-2.0 / MIT' },
-  { name: 'Tauri', license: 'MIT / Apache-2.0' },
-  { name: 'Chart.js', license: 'MIT' },
-  { name: 'ZXing (barkod)', license: 'Apache-2.0' },
-  { name: 'SheetJS (xlsx)', license: 'Apache-2.0' },
-  { name: 'jsPDF, jspdf-autotable', license: 'MIT' },
-  { name: 'fflate', license: 'MIT' },
-  { name: 'driver.js (ürün turu)', license: 'MIT' },
-  { name: 'RxJS, NgRx Signals', license: 'Apache-2.0 / MIT' },
-  { name: 'Tailwind CSS', license: 'MIT' },
-  { name: 'Inter, Manrope (Fontsource)', license: 'OFL-1.1' },
-];
-
-/** Hakkında: sürüm, platform, ortam, destek hattı, yasal metinler, açık kaynak lisansları. Tüm roller. */
+/** Hakkında: sürüm, platform, ortam, destek hattı, yasal metinler. Tüm roller. */
 @Component({
   selector: 'app-about-section',
   standalone: true,
@@ -90,17 +73,6 @@ const OPEN_SOURCE: { name: string; license: string }[] = [
         }
       </ui-glass-card>
     }
-
-    <ui-glass-card [title]="s().openSource" [subtitle]="s().openSourceDesc" icon="pi-code" tone="neutral" padding="none" clip>
-      <ul class="m-0 grid list-none grid-cols-1 p-0 sm:grid-cols-2">
-        @for (o of openSource; track o.name) {
-          <li class="flex items-center justify-between gap-3 border-b border-line px-3 py-2.5 text-sm sm:px-4">
-            <span class="min-w-0 truncate text-fg">{{ o.name }}</span>
-            <span class="shrink-0 rounded-token-sm bg-surface-muted px-2 py-0.5 font-mono text-12 text-fg-secondary">{{ o.license }}</span>
-          </li>
-        }
-      </ul>
-    </ui-glass-card>
   `,
 })
 export class AboutSectionComponent {
@@ -110,7 +82,6 @@ export class AboutSectionComponent {
   readonly t = inject(LangService).t;
   readonly s = injectSettingsTexts();
   readonly contact = SUPPORT_CONTACT;
-  readonly openSource = OPEN_SOURCE;
   readonly appName = environment.appName;
   readonly version = environment.appVersion;
   readonly emulator = 'useEmulators' in environment && !!(environment as { useEmulators?: boolean }).useEmulators;
