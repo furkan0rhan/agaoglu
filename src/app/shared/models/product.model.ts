@@ -12,10 +12,10 @@ export interface Batch {
 }
 
 /** Satış/stok birimi. Alan yoksa 'adet' kabul edilir. */
-export type ProductUnit = 'adet' | 'kg' | 'lt' | 'paket' | 'cuval' | 'metre';
+export type ProductUnit = 'adet' | 'kg' | 'lt' | 'paket' | 'cuval' | 'metre' | 'viyol' | 'kasa' | 'demet' | 'sise';
 
 /** Seçim sırası (form, detay) */
-export const PRODUCT_UNITS: readonly ProductUnit[] = ['adet', 'kg', 'lt', 'paket', 'cuval', 'metre'];
+export const PRODUCT_UNITS: readonly ProductUnit[] = ['adet', 'kg', 'lt', 'paket', 'cuval', 'metre', 'viyol', 'kasa', 'demet', 'sise'];
 
 /** Ondalıklı miktar kabul eden birimler (12,5 kg; 2,5 lt; 3,2 metre) */
 export const DECIMAL_UNITS: readonly ProductUnit[] = ['kg', 'lt', 'metre'];

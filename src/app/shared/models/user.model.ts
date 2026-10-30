@@ -19,6 +19,29 @@ export interface AppUser {
   lastLogin?: Date;
   /** Çiftçi modülü: 'farmer' hesabı yalnız /ciftci alanını görür (yoksa 'dealer'). */
   accountType?: 'dealer' | 'farmer';
+  /** Y5: yöneticinin bu kullanıcıya verdiği ek yetkiler (Ayarlar → Kullanıcılar). Yönetici zaten her şeyi yapar. */
+  permissions?: UserPermissionOverrides;
+}
+
+/**
+ * Y5: kullanıcı bazlı yetki anahtarları (users/{uid}.permissions). Yalnız işletme yöneticisi yazar (kurallar zorlar).
+ *  - seeCosts: alış fiyatı, kâr, stok değeri, aylık ciro (yalnız arayüz; alış / tedarikçi / gider kayıtları yine yöneticide)
+ *  - cancelAnySale: kasiyer geçmiş günün ve başkasının satışını da iptal edebilir (kurallarda da)
+ */
+export interface UserPermissionOverrides {
+  seeCosts?: boolean;
+  cancelAnySale?: boolean;
+}
+
+export const GRANTABLE_PERMISSIONS = ['seeCosts', 'cancelAnySale'] as const;
+
+/** Firestore'daki ham değeri doğrular (yalnız bilinen anahtarlar, yalnız true değerler). */
+export function parsePermissionOverrides(raw: unknown): UserPermissionOverrides | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const o = raw as Record<string, unknown>;
+  const out: UserPermissionOverrides = {};
+  for (const k of GRANTABLE_PERMISSIONS) if (o[k] === true) out[k] = true;
+  return Object.keys(out).length ? out : undefined;
 }
 
 /** tenants/{tenantId} */

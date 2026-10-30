@@ -22,6 +22,8 @@ import {
 } from '../nav-items';
 import { TourService } from '../../core/onboarding/tour.service';
 import { injectOnboardingTexts } from '../../core/onboarding/onboarding.i18n';
+import { UpdateBannerComponent } from '../../core/updater/update-banner.component';
+import { isTauriDesktop } from '../../core/updater/update-policy';
 
 /** Alt navigasyonda sabit duran rotalar (rolü uygun olanlar). Kalanlar "Diğer" sheet'inde. */
 const BOTTOM_PATHS = ['/dashboard', '/products', '/pos', '/credit'];
@@ -39,7 +41,7 @@ const BOTTOM_PATHS = ['/dashboard', '/products', '/pos', '/credit'];
   standalone: true,
   imports: [
     RouterOutlet, RouterLink, SidebarComponent, TopbarComponent, NotificationBellComponent, AvatarComponent,
-    LogoMarkComponent, SupportBannerComponent,
+    LogoMarkComponent, SupportBannerComponent, UpdateBannerComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex h-full overflow-hidden bg-page' },
@@ -133,6 +135,11 @@ const BOTTOM_PATHS = ['/dashboard', '/products', '/pos', '/credit'];
       }
     </div>
 
+    @if (updaterEnabled) {
+      <!-- Masaüstü (EXE) otomatik güncelleme: denetim + bildirim. Açık satış varken kurulum önerilmez. -->
+      @defer (on idle) { <app-update-banner [saleInProgress]="cart.items().length > 0" /> }
+    }
+
     @if (isMobile() && showMore()) {
       <!-- "Diğer" sheet -->
       <button type="button" tabindex="-1" (click)="closeMore()" [attr.aria-label]="t().common.close"
@@ -208,6 +215,8 @@ export class MainLayoutComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   readonly cart = inject(CartStore);
+  /** Yalnız Tauri masaüstünde (Windows EXE/MSI) güncelleyici yüklenir. */
+  readonly updaterEnabled = isTauriDesktop();
   readonly themeSvc = inject(ThemeService);
   readonly langSvc = inject(LangService);
   readonly network = inject(NetworkService);

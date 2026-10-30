@@ -1,11 +1,12 @@
 import { inject, Injectable } from '@angular/core';
-import { Firestore, collection, query, where, orderBy, getDocs } from '@angular/fire/firestore';
+import { Firestore, collection, query, where, orderBy, getDocs, limit } from '@angular/fire/firestore';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { Sale } from '../../../shared/models/sale.model';
 import { CreditTransaction } from '../../../shared/models/credit.model';
 import { Expense } from '../../../shared/models/expense.model';
 import { DateRange } from '../../../shared/utils/date-range.util';
 import { isCompletedSale } from './report-calc';
+import { SaleCancelLog } from './cancellations';
 
 /**
  * Rapor/dashboard için tarih aralıklı Firestore okumaları.
@@ -19,6 +20,11 @@ export class ReportDataService {
 
   /** Aralıktaki tamamlanmış satışlar (yeniden eskiye). Status süzmesi istemcide (ek indeks gerekmesin). */
   async getSales(range: DateRange): Promise<Sale[]> {
+    return (await this.getSalesSplit(range)).completed;
+  }
+
+  /** Aynı okuma: tamamlanan + iptal edilen satışlar ayrı (İptaller raporu). */
+  async getSalesSplit(range: DateRange): Promise<{ completed: Sale[]; cancelled: Sale[] }> {
     const snap = await getDocs(query(
       collection(this.firestore, 'sales'),
       where('tenantId', '==', this.auth.currentTenantId()),
@@ -26,9 +32,35 @@ export class ReportDataService {
       where('createdAt', '<=', range.end),
       orderBy('createdAt', 'desc'),
     ));
+    const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as Sale));
+    return { completed: all.filter(isCompletedSale), cancelled: all.filter(s => s.status === 'cancelled') };
+  }
+
+  /**
+   * Aralıkta yapılan satış iptallerinin denetim kayıtları (kurallar: yalnız yönetici okur).
+   * Mevcut indeks auditLogs(tenantId ASC, createdAt DESC); action süzmesi istemcide (ek indeks / deploy gerekmesin).
+   */
+  async getCancelLogs(range: DateRange, max = 500): Promise<SaleCancelLog[]> {
+    const snap = await getDocs(query(
+      collection(this.firestore, 'auditLogs'),
+      where('tenantId', '==', this.auth.currentTenantId()),
+      where('createdAt', '>=', range.start),
+      where('createdAt', '<=', range.end),
+      orderBy('createdAt', 'desc'),
+      limit(max),
+    ));
     return snap.docs
-      .map(d => ({ id: d.id, ...d.data() } as Sale))
-      .filter(isCompletedSale);
+      .map(d => ({ id: d.id, ...d.data() } as SaleCancelLog))
+      .filter(l => l.action === 'sale_cancel');
+  }
+
+  /** İşletme kullanıcılarının adları (uid → ad, yoksa e-posta). Kurallar: yalnız yönetici listeler. */
+  async getUserNames(): Promise<Map<string, string>> {
+    const snap = await getDocs(query(collection(this.firestore, 'users'), where('tenantId', '==', this.auth.currentTenantId())));
+    return new Map(snap.docs.map(d => {
+      const x = d.data();
+      return [d.id, String(x['displayName'] || x['email'] || '')] as [string, string];
+    }));
   }
 
   /** Aralıktaki veresiye tahsilatları (type == 'payment'; tip süzmesi istemcide). */

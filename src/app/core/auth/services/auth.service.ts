@@ -32,7 +32,7 @@ import {
 } from '@angular/fire/firestore';
 import { Router } from '@angular/router';
 import { LoggerService } from '../../logging/logger.service';
-import { AppUser, DEFAULT_MAX_USERS, Invite, isUserRole, TRIAL_DAYS, UserRole } from '../../../shared/models/user.model';
+import { AppUser, DEFAULT_MAX_USERS, Invite, isUserRole, parsePermissionOverrides, TRIAL_DAYS, UserRole } from '../../../shared/models/user.model';
 import { AuditLogService } from './audit-log.service';
 import { isFarmerEmail } from '../../../shared/models/farmer.model';
 import { environment } from '../../../../environments/environment';
@@ -146,6 +146,8 @@ export class AuthService {
   private profileLoad: { uid: string; promise: Promise<AppUser | null> } | null = null;
   /** Kayıt sürerken onAuthStateChanged profil oluşturmasın diye. */
   private registering: Promise<AppUser | null> | null = null;
+  /** Y14: kayıt formundaki işletme adı (tenants/{uid}.name); createProfile okur. */
+  private pendingBusinessName: string | null = null;
   private unsubProfile: (() => void) | null = null;
   /** Testlerde beklemeleri kısaltmak için. */
   protected profileFetchOptions: ProfileFetchOptions = {};
@@ -282,9 +284,11 @@ export class AuthService {
       .join(' ');
   }
 
-  async register(email: string, password: string, displayName: string): Promise<void> {
+  async register(email: string, password: string, displayName: string, businessName?: string): Promise<void> {
     this.authNotice.set(null);
     const formattedName = this.formatDisplayName(displayName);
+    // Y14: işletme adı kayıtta sorulur (yoksa eskisi gibi kişi adı)
+    this.pendingBusinessName = (businessName ?? '').trim().replace(/\s+/g, ' ').slice(0, 80) || null;
     let resolveReg!: (u: AppUser | null) => void;
     let rejectReg!: (e: unknown) => void;
     this.registering = new Promise<AppUser | null>((res, rej) => { resolveReg = res; rejectReg = rej; });
@@ -313,6 +317,7 @@ export class AuthService {
       throw err;
     } finally {
       this.registering = null;
+      this.pendingBusinessName = null;
     }
   }
 
@@ -610,7 +615,7 @@ export class AuthService {
     const batch = writeBatch(this.firestore);
     batch.set(doc(this.firestore, 'users', uid), { ...base, tenantId: uid, role: 'admin' });
     batch.set(doc(this.firestore, 'tenants', uid), {
-      name: displayName, ownerId: uid, createdAt: serverTimestamp(), ...newTrialLicenseFields(),
+      name: this.pendingBusinessName || displayName, ownerId: uid, createdAt: serverTimestamp(), ...newTrialLicenseFields(),
     });
     try {
       await batch.commit();
@@ -649,8 +654,9 @@ export class AuthService {
         if (!fresh.isActive) { void this.forceSignOut('inactive', true); return; }
         this.writeCachedProfile(fresh);
         const cur = this.profile();
-        if (cur && (cur.role !== fresh.role || cur.displayName !== fresh.displayName || cur.tenantId !== fresh.tenantId)) {
-          this.setProfile({ ...cur, role: fresh.role, displayName: fresh.displayName, tenantId: fresh.tenantId });
+        const permsChanged = JSON.stringify(cur?.permissions ?? null) !== JSON.stringify(fresh.permissions ?? null);
+        if (cur && (cur.role !== fresh.role || cur.displayName !== fresh.displayName || cur.tenantId !== fresh.tenantId || permsChanged)) {
+          this.setProfile({ ...cur, role: fresh.role, displayName: fresh.displayName, tenantId: fresh.tenantId, permissions: fresh.permissions });
         }
       },
       err => this.logger.warn('Profil dinleyicisi hatası', err),
@@ -700,6 +706,7 @@ export class AuthService {
       createdAt: created instanceof Timestamp ? created.toDate() : created instanceof Date ? created : new Date(),
       lastLogin: lastLogin instanceof Timestamp ? lastLogin.toDate() : undefined,
       accountType: data['accountType'] === 'farmer' ? 'farmer' : 'dealer',
+      permissions: parsePermissionOverrides(data['permissions']),
     };
   }
 

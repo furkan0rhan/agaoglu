@@ -35,6 +35,10 @@ describe('suggestCategories / suggestVatRates', () => {
     expect(suggestCategories(['Gübre'], 'Fide')).toEqual(['Fide']);
   });
 
+  it('Y29: başlayan mevcut kategori önce, yazılan yeni değer sonda', () => {
+    expect(suggestCategories(['Organik Gübre', 'Gübre'], 'güb')).toEqual(['Gübre', 'Organik Gübre', 'güb']);
+  });
+
   it('KDV: başlayan eşleşmeler, geçerli yeni sayı başa', () => {
     expect(suggestVatRates(['0', '1', '10', '20'], '1')).toEqual(['1', '10']);
     expect(suggestVatRates(['0', '1', '10', '20'], '5')).toEqual(['5']);

@@ -36,6 +36,16 @@ const passwordMatchValidator: ValidatorFn = (group: AbstractControl): Validation
         </div>
 
         <div class="flex flex-col gap-1.5">
+          <label for="reg-business" class="text-sm font-semibold text-fg-secondary">{{ t().auth.regBusinessName }}</label>
+          <p-iconfield class="w-full">
+            <p-inputicon styleClass="pi pi-building" />
+            <input pInputText id="reg-business" type="text" formControlName="businessName" [placeholder]="t().auth.regBusinessNamePlaceholder"
+              class="w-full" maxlength="80" autocomplete="organization" />
+          </p-iconfield>
+          <p class="m-0 text-xs text-fg-muted">{{ t().auth.regBusinessNameHint }}</p>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
           <label for="reg-email" class="text-sm font-semibold text-fg-secondary">{{ t().auth.email }}</label>
           <p-iconfield class="w-full">
             <p-inputicon styleClass="pi pi-envelope" />
@@ -114,6 +124,8 @@ export class RegisterPage {
 
   readonly form = this.fb.group({
     displayName: ['', Validators.required],
+    // Davetle katılan personel boş bırakır (işletme zaten var)
+    businessName: ['', Validators.maxLength(80)],
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(6)]],
     confirmPassword: ['', Validators.required],
@@ -124,8 +136,8 @@ export class RegisterPage {
     this.loading.set(true);
     this.error.set('');
     try {
-      const { email, password, displayName } = this.form.value;
-      await this.authService.register(email!, password!, displayName!);
+      const { email, password, displayName, businessName } = this.form.value;
+      await this.authService.register(email!, password!, displayName!, businessName!);
     } catch (err) {
       this.error.set(authErrorMessage(err, this.t().auth, this.t().auth.errRegisterDefault));
     } finally {

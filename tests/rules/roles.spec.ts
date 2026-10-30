@@ -140,3 +140,22 @@ describe('Y5: ürün tanımı yalnız yönetici', () => {
     await assertSucceeds(setDoc(doc(as(env, 'OWNER'), 'suppliers', 'S1'), { tenantId: 'OWNER', name: 'Toptancı' }));
   });
 });
+
+describe('Y5: kullanıcı bazlı yetki — kasiyere "her satışı iptal eder"', () => {
+  it('yetki verilen kasiyer dünkü ve başkasının satışını iptal eder; yetkisiz kasiyer edemez', async () => {
+    await assertFails(cancelBatch(as(env, 'CASH'), 'OWN_OLD', 'CASH'));
+    await seed(env, { 'users/CASH': { ...BASE_USERS['users/CASH'], permissions: { cancelAnySale: true, seeCosts: false } } });
+    await assertSucceeds(cancelBatch(as(env, 'CASH'), 'OWN_OLD', 'CASH'));
+    await assertSucceeds(cancelBatch(as(env, 'CASH'), 'OTHER_TODAY', 'CASH'));
+  });
+
+  it('yetki personele iptal hakkı vermez; neden ve denetim kaydı yine zorunlu', async () => {
+    await seed(env, {
+      'users/STAFF': { ...BASE_USERS['users/STAFF'], permissions: { cancelAnySale: true } },
+      'users/CASH': { ...BASE_USERS['users/CASH'], permissions: { cancelAnySale: true } },
+    });
+    await assertFails(cancelBatch(as(env, 'STAFF'), 'OWN_TODAY', 'STAFF'));
+    await assertFails(cancelBatch(as(env, 'CASH'), 'OWN_OLD', 'CASH', { reason: '' }));
+    await assertFails(cancelBatch(as(env, 'CASH'), 'OWN_OLD', 'CASH', { log: false }));
+  });
+});

@@ -1,9 +1,10 @@
 import { inject, Injectable } from '@angular/core';
-import { Firestore, doc, onSnapshot, orderBy, Timestamp, where } from '@angular/fire/firestore';
+import { Firestore, collection, doc, getDocs, onSnapshot, orderBy, query, Timestamp, where } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { FirestoreService } from '../../../core/firebase/firestore.service';
 import { Sale } from '../../../shared/models/sale.model';
+import { CreditTransaction, Installment } from '../../../shared/models/credit.model';
 
 @Injectable({ providedIn: 'root' })
 export class SalesQueryService {
@@ -33,5 +34,21 @@ export class SalesQueryService {
       );
       return () => unsub();
     });
+  }
+
+  /**
+   * Satışın veresiye borç kaydındaki taksit planı (fiş yeniden basımı). Yoksa / okunamazsa null.
+   * Sorgu tenantId + saleId eşitlikleri (tek alan indeksleri yeter).
+   */
+  async getCreditPlan(saleId: string): Promise<Installment[] | null> {
+    const snap = await getDocs(query(
+      collection(this.firestore, 'creditTransactions'),
+      where('tenantId', '==', this.auth.currentTenantId()),
+      where('saleId', '==', saleId),
+    ));
+    const tx = snap.docs
+      .map(d => d.data() as CreditTransaction)
+      .find(t => t.type === 'debt' && !t.isReversal && (t.installments?.length ?? 0) > 0);
+    return tx?.installments ?? null;
   }
 }

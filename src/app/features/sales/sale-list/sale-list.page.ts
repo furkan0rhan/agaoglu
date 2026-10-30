@@ -67,7 +67,7 @@ import {
       <section class="ui-card overflow-hidden" [attr.aria-label]="t().sales.title">
         <!-- Filtreler -->
         <div class="flex flex-col gap-3 border-b border-line p-3 sm:px-4">
-          <div class="grid grid-cols-2 gap-2.5 lg:grid-cols-[repeat(2,minmax(0,10.5rem))_minmax(0,1fr)] lg:items-end">
+          <div class="grid grid-cols-2 gap-2.5 lg:grid-cols-[repeat(2,minmax(0,12.5rem))_minmax(0,1fr)] lg:items-end">
             <ui-date-field class="!gap-1" inputId="sales-from" valueType="iso" labelClass="text-xs font-semibold text-fg-secondary" [label]="t().sales.from"
               [ngModel]="from()" (ngModelChange)="from.set($event)" />
             <ui-date-field class="!gap-1" inputId="sales-to" valueType="iso" labelClass="text-xs font-semibold text-fg-secondary" [label]="t().sales.to"

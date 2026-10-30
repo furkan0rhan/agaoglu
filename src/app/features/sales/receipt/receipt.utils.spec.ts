@@ -45,6 +45,40 @@ describe('saleInstallments / saleToReceipt (Y12)', () => {
     expect(plan.map(i => i.amount)).toEqual([2305.53, 2305.53, 2305.55]);
   });
 
+  it('2 ay aralıklı satış: ara vadeler aralığa göre (aylık değil)', () => {
+    const plan = saleInstallments(
+      { creditAmount: 3000, totalWithInterest: null, installmentCount: 3, installmentIntervalMonths: 2 }, d(2027, 3, 15))!;
+    expect(plan.map(i => i.dueDate)).toEqual([d(2026, 11, 15), d(2027, 1, 15), d(2027, 3, 15)]);
+  });
+
+  it('3 ay aralıklı 4 taksit', () => {
+    const plan = saleInstallments(
+      { creditAmount: 4000, totalWithInterest: null, installmentCount: 4, installmentIntervalMonths: 3 }, d(2027, 10, 1))!;
+    expect(plan.map(i => i.dueDate)).toEqual([d(2027, 1, 1), d(2027, 4, 1), d(2027, 7, 1), d(2027, 10, 1)]);
+  });
+
+  it('saleToReceipt saklı planı (borç kaydı) aynen kullanır', () => {
+    const ts = (x: Date) => ({ toDate: () => x });
+    const sale = {
+      saleNumber: 'S-2', createdAt: ts(d(2026, 10, 30)), customerName: 'Hüseyin', items: [],
+      subtotal: 3000, totalDiscount: 0, totalAmount: 3000, paymentMethod: 'credit', cashPaid: 0, cardPaid: 0, creditAmount: 3000,
+      change: 0, totalWithInterest: null, installmentCount: 3, creditDueDate: d(2027, 3, 31),
+    } as unknown as Sale;
+    // Eski satış (aralık alanı yok) ama borç kaydında 2 ay aralıklı plan var; ay sonu kırpması da korunur
+    const stored = [
+      { no: 2, dueDate: ts(d(2027, 1, 31)), amount: 1000 },
+      { no: 1, dueDate: ts(d(2026, 11, 30)), amount: 1000 },
+      { no: 3, dueDate: ts(d(2027, 3, 31)), amount: 1000 },
+    ];
+    expect(saleToReceipt(sale, stored).installments).toEqual([
+      { no: 1, dueDate: d(2026, 11, 30), amount: 1000 },
+      { no: 2, dueDate: d(2027, 1, 31), amount: 1000 },
+      { no: 3, dueDate: d(2027, 3, 31), amount: 1000 },
+    ]);
+    // Saklı plan yoksa aylık türetme (eski davranış)
+    expect(saleToReceipt(sale).installments!.map(i => i.dueDate)).toEqual([d(2027, 1, 31), d(2027, 2, 28), d(2027, 3, 31)]);
+  });
+
   it('vadesiz veya veresiyesiz satışta plan yok', () => {
     expect(saleInstallments({ creditAmount: 100, totalWithInterest: null, installmentCount: 1 }, null)).toBeNull();
     expect(saleInstallments({ creditAmount: 0, totalWithInterest: null, installmentCount: null }, d(2027, 1, 1))).toBeNull();

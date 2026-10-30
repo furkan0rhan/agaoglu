@@ -3,8 +3,14 @@ import { addMonthsClamped, buildInstallmentPlan } from '../../credit/services/cr
 
 const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
-/** Firestore satış dokümanından fiş verisi. */
-export function saleToReceipt(sale: Sale): SaleReceipt {
+/** Fiş yeniden basımında kullanılan saklı plan (veresiye borç kaydındaki `installments`). */
+export interface StoredInstallment { no: number; dueDate: unknown; amount: number }
+
+/**
+ * Firestore satış dokümanından fiş verisi.
+ * `storedPlan`: satışın veresiye borç kaydındaki taksit planı (varsa tarihler/tutarlar aynen kullanılır).
+ */
+export function saleToReceipt(sale: Sale, storedPlan?: readonly StoredInstallment[] | null): SaleReceipt {
   const dueDate = toDate(sale.creditDueDate);
   return {
     saleNumber: sale.saleNumber,
@@ -24,23 +30,35 @@ export function saleToReceipt(sale: Sale): SaleReceipt {
     prescriptionNo: sale.prescriptionNo ?? null,
     dueDate,
     downPayment: sale.downPayment ?? null,
-    installments: saleInstallments(sale, dueDate),
+    installments: storedInstallments(storedPlan) ?? saleInstallments(sale, dueDate),
   };
 }
 
+/** Saklı plan → fiş taksitleri (tarih Timestamp/Date). Geçersiz ya da boşsa null. */
+export function storedInstallments(
+  plan: readonly StoredInstallment[] | null | undefined,
+): { no: number; dueDate: Date; amount: number }[] | null {
+  if (!plan?.length) return null;
+  const rows = plan.map(i => ({ no: Number(i.no), dueDate: toDate(i.dueDate), amount: r2(Number(i.amount) || 0) }));
+  if (rows.some(r => !r.dueDate)) return null;
+  return rows.sort((a, b) => a.no - b.no) as { no: number; dueDate: Date; amount: number }[];
+}
+
 /**
- * Y12: satışın taksit planı (fişte tarih + tutar). Satış dokümanı planı saklamaz; POS ile aynı hesapla
- * (`buildInstallmentPlan`, kuruş farkı son taksitte) borç tutarı + taksit sayısı + son vadeden aylık aralıkla türetilir.
+ * Y12: saklı plan yoksa satışın taksit planı (fişte tarih + tutar) POS ile aynı hesapla
+ * (`buildInstallmentPlan`, kuruş farkı son taksitte) borç tutarı + taksit sayısı + son vadeden
+ * `installmentIntervalMonths` (eski satışta yok → 1 ay) aralıkla geriye doğru türetilir.
  * Vadesi olmayan (eski) veresiyede null.
  */
 export function saleInstallments(
-  sale: Pick<Sale, 'creditAmount' | 'totalWithInterest' | 'installmentCount'>, lastDue: Date | null,
+  sale: Pick<Sale, 'creditAmount' | 'totalWithInterest' | 'installmentCount' | 'installmentIntervalMonths'>, lastDue: Date | null,
 ): { no: number; dueDate: Date; amount: number }[] | null {
   const financed = r2(sale.totalWithInterest ?? sale.creditAmount ?? 0);
   if (!(financed > 0) || !lastDue) return null;
   const n = Math.min(36, Math.max(1, Math.floor(Number(sale.installmentCount) || 1)));
-  const first = addMonthsClamped(lastDue, -(n - 1));
-  const plan = buildInstallmentPlan(financed, n, first, 0, 1);
+  const step = Math.min(12, Math.max(1, Math.floor(Number(sale.installmentIntervalMonths) || 1)));
+  const first = addMonthsClamped(lastDue, -(n - 1) * step);
+  const plan = buildInstallmentPlan(financed, n, first, 0, step);
   return plan.installments.map(i => ({ no: i.no, dueDate: i.dueDate, amount: i.amount }));
 }
 

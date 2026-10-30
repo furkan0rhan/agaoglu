@@ -40,3 +40,12 @@ describe('cancel-policy (Y4)', () => {
     expect(businessDay(new Date(Date.UTC(2026, 9, 29, 21, 0)))).toBe(businessDay(new Date(Date.UTC(2026, 9, 30, 20, 59))));
   });
 });
+
+describe('cancel-policy — Y5 kullanıcı bazlı yetki', () => {
+  it('"her satışı iptal eder" yetkili kasiyer geçmiş / başkasının satışını iptal eder; personel yine edemez', () => {
+    const old = { status: 'completed', createdBy: 'X', createdAt: new Date(Date.UTC(2026, 9, 1)) };
+    expect(cancelDenial(old, { ...cashier, cancelAnySale: true }, NOW)).toBeNull();
+    expect(cancelDenial(old, { ...staff, cancelAnySale: true }, NOW)).toBe('role');
+    expect(cancelDenial({ ...old, status: 'cancelled' }, { ...cashier, cancelAnySale: true }, NOW)).toBe('not-completed');
+  });
+});

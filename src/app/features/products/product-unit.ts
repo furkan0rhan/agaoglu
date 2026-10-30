@@ -10,6 +10,10 @@ export function unitText(unit: ProductUnit | null | undefined, p: Translations['
     case 'paket': return p.unitPaket;
     case 'cuval': return p.unitCuval;
     case 'metre': return p.unitMetre;
+    case 'viyol': return p.unitViyol;
+    case 'kasa': return p.unitKasa;
+    case 'demet': return p.unitDemet;
+    case 'sise': return p.unitSise;
     default: return p.unitAdet;
   }
 }

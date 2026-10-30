@@ -40,6 +40,8 @@
     "@tauri-apps/api": "~2.11.0",
     "@tauri-apps/plugin-barcode-scanner": "~2.4.6",
     "@tauri-apps/plugin-notification": "^2.3.3",
+    "@tauri-apps/plugin-process": "~2.3.1",
+    "@tauri-apps/plugin-updater": "~2.12.0",
     "@zxing/browser": "^0.2.1",
     "@zxing/library": "^0.23.0",
     "chart.js": "^4.5.1",

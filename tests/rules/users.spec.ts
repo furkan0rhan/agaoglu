@@ -104,3 +104,27 @@ describe('users: oluşturma', () => {
     await assertFails(setDoc(doc(db, 'users', 'NEW'), { tenantId: 'NEW', role: 'owner', isActive: true }));
   });
 });
+
+describe('users: Y5 ek yetkiler (permissions)', () => {
+  it('admin personele ek yetki verir / geri alır', async () => {
+    const db = as(env, 'OWNER');
+    await assertSucceeds(updateDoc(doc(db, 'users', 'CASH'), { permissions: { seeCosts: true, cancelAnySale: true } }));
+    await assertSucceeds(updateDoc(doc(db, 'users', 'CASH'), { permissions: { seeCosts: false, cancelAnySale: false } }));
+  });
+
+  it('bilinmeyen anahtar ya da bool olmayan değer reddedilir', async () => {
+    const db = as(env, 'OWNER');
+    await assertFails(updateDoc(doc(db, 'users', 'CASH'), { permissions: { manageProducts: true } }));
+    await assertFails(updateDoc(doc(db, 'users', 'CASH'), { permissions: { seeCosts: 'yes' } }));
+    await assertFails(updateDoc(doc(db, 'users', 'CASH'), { permissions: true }));
+  });
+
+  it('kullanıcı kendine yetki veremez; başka işletmenin admini veremez; kayıtta yetkiyle oluşturulamaz', async () => {
+    await assertFails(updateDoc(doc(as(env, 'CASH'), 'users', 'CASH'), { permissions: { cancelAnySale: true } }));
+    await assertFails(updateDoc(doc(as(env, 'OTHER'), 'users', 'CASH'), { permissions: { seeCosts: true } }));
+    const db = as(env, 'NEW2', { email: 'new2@test.local' });
+    await assertFails(setDoc(doc(db, 'users', 'NEW2'), {
+      tenantId: 'NEW2', role: 'admin', isActive: true, email: 'new2@test.local', displayName: 'Yeni', permissions: { seeCosts: true },
+    }));
+  });
+});

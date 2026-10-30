@@ -11,6 +11,8 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { ToastModule } from 'primeng/toast';
+import { DialogModule } from 'primeng/dialog';
+import { TooltipModule } from 'primeng/tooltip';
 import { MessageService } from 'primeng/api';
 import { LangService } from '../../../core/i18n/lang.service';
 import { CurrencyTrPipe } from '../../../shared/pipes/currency-tr.pipe';
@@ -27,6 +29,7 @@ import {
   gtinMatches, Gs1KeysDirective, injectScannerTexts, ScanButtonComponent, ScanFeedback, ScanResult, scanResultFromText,
 } from '../../../shared/scanner';
 import { isPlantProtection } from '../../../shared/utils/regulatory.utils';
+import { formatTrPhone, isValidTrPhone } from '../../../shared/utils/tr-validation';
 
 interface FormLine {
   key: string;
@@ -46,7 +49,7 @@ interface FormLine {
   selector: 'app-purchase-form',
   standalone: true,
   imports: [
-    FormsModule, CurrencyTrPipe, ButtonModule, InputTextModule, TextareaModule, SelectModule, CheckboxModule, ToastModule, IconFieldModule, InputIconModule,
+    FormsModule, CurrencyTrPipe, ButtonModule, InputTextModule, TextareaModule, SelectModule, CheckboxModule, ToastModule, IconFieldModule, InputIconModule, DialogModule, TooltipModule,
     PageHeaderComponent, GlassCardComponent, IconButtonComponent, EmptyStateComponent, DateFieldComponent, ScanButtonComponent, Gs1KeysDirective,
   ],
   providers: [MessageService],
@@ -66,8 +69,13 @@ interface FormLine {
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div class="flex min-w-0 flex-col gap-1.5 sm:col-span-2">
             <label for="pf-supplier" class="text-sm font-semibold text-fg-secondary">{{ t().purchases.supplier }}</label>
-            <p-select inputId="pf-supplier" [options]="suppliers()" optionLabel="name" optionValue="id" [filter]="true"
-              [placeholder]="t().purchases.selectSupplier" [ngModel]="supplierId()" (ngModelChange)="supplierId.set($event)" styleClass="w-full" />
+            <div class="flex gap-2">
+              <p-select inputId="pf-supplier" [options]="suppliers()" optionLabel="name" optionValue="id" [filter]="true"
+                [placeholder]="t().purchases.selectSupplier" [ngModel]="supplierId()" (ngModelChange)="supplierId.set($event)"
+                class="min-w-0 flex-1" styleClass="w-full" />
+              <p-button type="button" icon="pi pi-plus" severity="secondary" [outlined]="true" [ariaLabel]="t().purchases.quickSupplier"
+                [pTooltip]="t().purchases.quickSupplier" (onClick)="openQuickSupplier()" />
+            </div>
           </div>
           <div class="flex min-w-0 flex-col gap-1.5">
             <label for="pf-doctype" class="text-sm font-semibold text-fg-secondary">{{ t().purchases.docType }}</label>
@@ -222,6 +230,33 @@ interface FormLine {
       </div>
      </div>
     </div>
+
+    <!-- Y16: hızlı tedarikçi (fatura formu korunur) -->
+    <p-dialog [header]="t().purchases.quickSupplier" [visible]="showSupplierDlg()" (visibleChange)="showSupplierDlg.set($event)"
+      [modal]="true" [draggable]="false" [style]="{ width: '28rem' }" [breakpoints]="{ '640px': '94vw' }">
+      <form id="qs-form" class="flex flex-col gap-3" (ngSubmit)="saveQuickSupplier()" novalidate>
+        <p class="m-0 text-sm text-fg-muted">{{ t().purchases.quickSupplierHint }}</p>
+        <div class="flex flex-col gap-1.5">
+          <label for="qs-name" class="text-sm font-semibold text-fg-secondary">{{ t().suppliers.companyName }} *</label>
+          <input pInputText id="qs-name" name="qsName" class="w-full" maxlength="100" autocomplete="organization"
+            [ngModel]="qsName()" (ngModelChange)="qsName.set($event)" />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label for="qs-phone" class="text-sm font-semibold text-fg-secondary">{{ t().suppliers.phone }}</label>
+          <input pInputText id="qs-phone" name="qsPhone" type="tel" inputmode="tel" class="num w-full" maxlength="20" autocomplete="tel"
+            placeholder="0332 444 11 22" [ngModel]="qsPhone()" (ngModelChange)="qsPhone.set($event)"
+            (blur)="qsPhone.set(formatPhone(qsPhone()))" [attr.aria-invalid]="!qsPhoneOk()" />
+          @if (!qsPhoneOk()) {
+            <p class="m-0 text-xs font-medium text-danger-text">{{ t().purchases.quickSupplierPhoneInvalid }}</p>
+          }
+        </div>
+      </form>
+      <ng-template #footer>
+        <p-button [label]="t().common.cancel" severity="secondary" [text]="true" (onClick)="showSupplierDlg.set(false)" />
+        <p-button type="submit" form="qs-form" [label]="t().common.save" icon="pi pi-check" [loading]="qsSaving()"
+          [disabled]="!qsName().trim() || !qsPhoneOk() || qsSaving()" />
+      </ng-template>
+    </p-dialog>
   `,
 })
 export class PurchaseFormPage implements OnInit {
@@ -273,6 +308,39 @@ export class PurchaseFormPage implements OnInit {
   });
 
   readonly totals = computed(() => calcTotals(this.lines().map(l => this.toLineInput(l)), this.discount()));
+
+  // Y16: hızlı tedarikçi
+  readonly showSupplierDlg = signal(false);
+  readonly qsName = signal('');
+  readonly qsPhone = signal('');
+  readonly qsSaving = signal(false);
+  readonly qsPhoneOk = computed(() => isValidTrPhone(this.qsPhone()));
+  readonly formatPhone = formatTrPhone;
+
+  openQuickSupplier(): void {
+    this.qsName.set('');
+    this.qsPhone.set('');
+    this.showSupplierDlg.set(true);
+  }
+
+  async saveQuickSupplier(): Promise<void> {
+    const name = this.qsName().trim();
+    if (!name || !this.qsPhoneOk() || this.qsSaving()) return;
+    this.qsSaving.set(true);
+    try {
+      const phone = formatTrPhone(this.qsPhone()) || null;
+      const id = await this.supplierSvc.create({
+        name, contactPerson: null, phone, email: null, taxNo: null, address: null, notes: null, isActive: true,
+      });
+      this.supplierId.set(id);
+      this.showSupplierDlg.set(false);
+      this.toast.add({ severity: 'success', summary: '', detail: this.t().purchases.quickSupplierSaved, life: 2500 });
+    } catch {
+      this.toast.add({ severity: 'error', summary: this.t().common.error, detail: this.t().suppliers.saveFailed });
+    } finally {
+      this.qsSaving.set(false);
+    }
+  }
 
   ngOnInit(): void {
     this.productStore.ensureLoaded();

@@ -39,8 +39,12 @@ pub fn run() {
             // Kamera tarayıcı yalnız mobilde (Android/iOS) kayıtlı.
             #[cfg(mobile)]
             app.handle().plugin(tauri_plugin_barcode_scanner::init())?;
-            #[cfg(not(mobile))]
-            let _ = app;
+            // Otomatik güncelleme + yeniden başlatma yalnız masaüstünde (Windows EXE/MSI).
+            #[cfg(desktop)]
+            {
+                app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+                app.handle().plugin(tauri_plugin_process::init())?;
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![get_printers, print_receipt])

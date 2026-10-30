@@ -29,6 +29,8 @@ export interface PurchasesTexts {
   transactions: string; noTransactions: string; txPurchase: string; txPayment: string; reversal: string;
   supplierPurchases: string; noSupplierPurchases: string; debtColumn: string; newPurchaseForSupplier: string;
   balanceAfter: string;
+  /** Y16: alış formundan hızlı tedarikçi ekleme */
+  quickSupplier: string; quickSupplierHint: string; quickSupplierSaved: string; quickSupplierPhoneInvalid: string;
 }
 
 export const PURCHASES_TR: PurchasesTexts = {
@@ -69,6 +71,8 @@ export const PURCHASES_TR: PurchasesTexts = {
   transactions: 'Cari Hareketler', noTransactions: 'Henüz hareket yok', txPurchase: 'Alış', txPayment: 'Ödeme', reversal: 'Ters kayıt',
   supplierPurchases: 'Alış Belgeleri', noSupplierPurchases: 'Bu tedarikçiden alış girilmedi', debtColumn: 'Borç',
   newPurchaseForSupplier: 'Alış Gir', balanceAfter: 'Bakiye',
+  quickSupplier: 'Yeni tedarikçi', quickSupplierHint: 'Fatura bilgileriniz korunur; diğer alanları sonra Tedarikçiler sayfasından doldurabilirsiniz.',
+  quickSupplierSaved: 'Tedarikçi eklendi ve seçildi', quickSupplierPhoneInvalid: 'Telefonu alan koduyla yazın: 0332 444 11 22',
 };
 
 export const PURCHASES_EN: PurchasesTexts = {
@@ -109,4 +113,6 @@ export const PURCHASES_EN: PurchasesTexts = {
   transactions: 'Account Transactions', noTransactions: 'No transactions yet', txPurchase: 'Purchase', txPayment: 'Payment', reversal: 'Reversal',
   supplierPurchases: 'Purchase Documents', noSupplierPurchases: 'No purchases from this supplier', debtColumn: 'Debt',
   newPurchaseForSupplier: 'Enter Purchase', balanceAfter: 'Balance',
+  quickSupplier: 'New supplier', quickSupplierHint: 'Your invoice entries are kept; fill in other details later on the Suppliers page.',
+  quickSupplierSaved: 'Supplier added and selected', quickSupplierPhoneInvalid: 'Enter the phone with area code: 0332 444 11 22',
 };

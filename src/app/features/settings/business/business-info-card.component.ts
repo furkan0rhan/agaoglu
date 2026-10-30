@@ -10,6 +10,7 @@ import { GlassCardComponent } from '../../../shared/ui';
 import { ReceiptBusinessService } from '../../sales/receipt/receipt-business.service';
 import { injectSettingsTexts } from '../settings.i18n';
 import { EMPTY_TENANT_INFO, TenantInfo, TenantInfoService } from './tenant-info.service';
+import { formatTrPhone, isValidTaxNo, isValidTrPhone, taxNoChecksumWarn } from '../../../shared/utils/tr-validation';
 
 type BusinessForm = Omit<Required<TenantInfo>, 'receiptFooter'>;
 
@@ -28,7 +29,7 @@ type BusinessForm = Omit<Required<TenantInfo>, 'receiptFooter'>;
     <ui-glass-card [title]="s().sections.business.title" [subtitle]="s().sections.business.desc" icon="pi-building">
       @if (canEdit() && !loading()) {
         <p-button card-actions [label]="t().common.save" icon="pi pi-check" size="small"
-          [loading]="saving()" [disabled]="!form.name.trim()" (onClick)="save()" />
+          [loading]="saving()" [disabled]="!form.name.trim() || !phoneOk() || !taxNoOk()" (onClick)="save()" />
       }
       @if (loading()) {
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2" aria-hidden="true">
@@ -45,8 +46,12 @@ type BusinessForm = Omit<Required<TenantInfo>, 'receiptFooter'>;
           </div>
           <div class="flex flex-col gap-1.5">
             <label for="biz-phone" class="text-sm font-semibold text-fg-secondary">{{ t().settings.phone }}</label>
-            <input pInputText id="biz-phone" name="phone" type="tel" class="w-full" maxlength="30" autocomplete="tel"
-              [(ngModel)]="form.phone" [disabled]="!canEdit()" />
+            <input pInputText id="biz-phone" name="phone" type="tel" inputmode="tel" class="num w-full" maxlength="20" autocomplete="tel"
+              placeholder="0332 444 11 22" [(ngModel)]="form.phone" [disabled]="!canEdit()" (blur)="formatPhone()"
+              [attr.aria-invalid]="!phoneOk()" [attr.aria-describedby]="phoneOk() ? null : 'biz-phone-err'" />
+            @if (!phoneOk()) {
+              <p id="biz-phone-err" class="m-0 text-xs font-medium text-danger-text">{{ s().bizPhoneInvalid }}</p>
+            }
           </div>
           <div class="flex flex-col gap-1.5">
             <label for="biz-dealer" class="text-sm font-semibold text-fg-secondary">{{ s().dealerLicenseNo }}</label>
@@ -61,8 +66,14 @@ type BusinessForm = Omit<Required<TenantInfo>, 'receiptFooter'>;
           </div>
           <div class="flex flex-col gap-1.5">
             <label for="biz-tax-no" class="text-sm font-semibold text-fg-secondary">{{ t().settings.taxNo }}</label>
-            <input pInputText id="biz-tax-no" name="taxNo" class="num w-full" maxlength="20" inputmode="numeric"
-              [(ngModel)]="form.taxNo" [disabled]="!canEdit()" />
+            <input pInputText id="biz-tax-no" name="taxNo" class="num w-full" maxlength="11" inputmode="numeric"
+              [(ngModel)]="form.taxNo" [disabled]="!canEdit()"
+              [attr.aria-invalid]="!taxNoOk()" [attr.aria-describedby]="taxNoOk() ? null : 'biz-tax-err'" />
+            @if (!taxNoOk()) {
+              <p id="biz-tax-err" class="m-0 text-xs font-medium text-danger-text">{{ s().bizTaxNoInvalid }}</p>
+            } @else if (taxNoWarn()) {
+              <p class="m-0 text-xs font-medium text-warning-text">{{ s().bizTaxNoChecksum }}</p>
+            }
           </div>
           <div class="flex flex-col gap-1.5 sm:col-span-2">
             <label for="biz-address" class="text-sm font-semibold text-fg-secondary">{{ t().settings.address }}</label>
@@ -99,6 +110,23 @@ export class BusinessInfoCardComponent implements OnInit {
     return this.auth.hasRole('admin');
   }
 
+  /** Y14: telefon alan koduyla, vergi no 10 hane / geçerli TC (boş serbest). */
+  phoneOk(): boolean {
+    return isValidTrPhone(this.form.phone);
+  }
+
+  taxNoOk(): boolean {
+    return isValidTaxNo(this.form.taxNo);
+  }
+
+  taxNoWarn(): boolean {
+    return taxNoChecksumWarn(this.form.taxNo);
+  }
+
+  formatPhone(): void {
+    if (this.form.phone && this.phoneOk()) this.form.phone = formatTrPhone(this.form.phone);
+  }
+
   async ngOnInit(): Promise<void> {
     try {
       this.form = await this.service.get();
@@ -110,9 +138,11 @@ export class BusinessInfoCardComponent implements OnInit {
   }
 
   async save(): Promise<void> {
-    if (!this.canEdit() || !this.form.name.trim() || this.saving()) return;
+    if (!this.canEdit() || !this.form.name.trim() || !this.phoneOk() || !this.taxNoOk() || this.saving()) return;
     this.saving.set(true);
     try {
+      this.formatPhone();
+      this.form.taxNo = (this.form.taxNo ?? '').replace(/\s/g, '');
       const { name, phone, taxOffice, taxNo, address, dealerLicenseNo } = this.form;
       await this.service.savePartial({ name, phone, taxOffice, taxNo, address, dealerLicenseNo });
       this.receiptBusiness.invalidate(); // POS fiş başlığı yeni bilgiyi okusun

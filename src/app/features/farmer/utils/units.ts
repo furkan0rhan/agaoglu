@@ -1,7 +1,7 @@
 /**
  * Birim dönüşümleri (yalnızca aritmetik). Hacim → litre, kütle → kg tabanına çevrilir.
  */
-export type FarmUnit = 'ml' | 'lt' | 'g' | 'kg' | 'cuval' | 'adet' | 'paket' | 'metre';
+export type FarmUnit = 'ml' | 'lt' | 'g' | 'kg' | 'cuval' | 'adet' | 'paket' | 'metre' | 'viyol' | 'kasa' | 'demet' | 'sise';
 
 export const FARM_UNITS: readonly FarmUnit[] = ['lt', 'ml', 'kg', 'g', 'cuval', 'adet', 'paket', 'metre'];
 
@@ -16,12 +16,18 @@ const UNIT_INFO: Record<FarmUnit, { dim: Dimension; toBase: number }> = {
   adet: { dim: 'count', toBase: 1 },
   paket: { dim: 'count', toBase: 1 },
   metre: { dim: 'length', toBase: 1 },
+  // Y25: bayi satış birimleri (ambar / defterde görünür)
+  viyol: { dim: 'count', toBase: 1 },
+  kasa: { dim: 'count', toBase: 1 },
+  demet: { dim: 'count', toBase: 1 },
+  sise: { dim: 'count', toBase: 1 },
 };
 
 /** Görünen birim adı (kod değeri `cuval` kalır; ekranda "çuval"). */
 const UNIT_LABELS: Record<FarmUnit, { tr: string; en: string }> = {
   ml: { tr: 'ml', en: 'ml' }, lt: { tr: 'lt', en: 'L' }, g: { tr: 'g', en: 'g' }, kg: { tr: 'kg', en: 'kg' },
   cuval: { tr: 'çuval', en: 'sack' }, adet: { tr: 'adet', en: 'pcs' }, paket: { tr: 'paket', en: 'pack' }, metre: { tr: 'metre', en: 'm' },
+  viyol: { tr: 'viyol', en: 'tray' }, kasa: { tr: 'kasa', en: 'crate' }, demet: { tr: 'demet', en: 'bunch' }, sise: { tr: 'şişe', en: 'bottle' },
 };
 
 /** Birimin ekrandaki adı; bilinmeyen birim olduğu gibi döner. */

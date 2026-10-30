@@ -15,7 +15,7 @@ import {
 import { Observable } from 'rxjs';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { LicenseService } from '../../../core/license/license.service';
-import { AppUser, Invite, isUserRole, UserRole } from '../../../shared/models/user.model';
+import { AppUser, Invite, isUserRole, parsePermissionOverrides, UserPermissionOverrides, UserRole } from '../../../shared/models/user.model';
 
 export interface InviteRow extends Invite {
   id: string;
@@ -47,6 +47,7 @@ export class TeamService {
             isActive: data['isActive'] === true,
             createdAt: created instanceof Timestamp ? created.toDate() : new Date(),
             lastLogin: last instanceof Timestamp ? last.toDate() : undefined,
+            permissions: parsePermissionOverrides(data['permissions']),
           } as AppUser;
         })),
         err => sub.error(err),
@@ -91,5 +92,12 @@ export class TeamService {
 
   async setActive(uid: string, isActive: boolean): Promise<void> {
     await updateDoc(doc(this.firestore, 'users', uid), { isActive });
+  }
+
+  /** Y5: kullanıcı bazlı ek yetkiler (kurallar: yalnız admin, yalnız bilinen anahtarlar, bool). */
+  async setPermissions(uid: string, permissions: UserPermissionOverrides): Promise<void> {
+    await updateDoc(doc(this.firestore, 'users', uid), {
+      permissions: { seeCosts: permissions.seeCosts === true, cancelAnySale: permissions.cancelAnySale === true },
+    });
   }
 }

@@ -1,6 +1,6 @@
 import { Product } from '../../../shared/models/product.model';
 import { Sale, SaleItem } from '../../../shared/models/sale.model';
-import { productMap, saleCost, saleVat, summarizeCollections, summarizeSales } from './report-calc';
+import { productMap, saleCost, saleVat, salesByCategory, summarizeCollections, summarizeSales, topProducts } from './report-calc';
 import { CreditTransaction } from '../../../shared/models/credit.model';
 
 const item = (over: Partial<SaleItem> = {}): SaleItem => ({
@@ -93,5 +93,18 @@ describe('summarizeCollections (Y11: Havale/EFT kasaya girmez)', () => {
     const r = summarizeCollections([pay(100, 'cash'), pay(50, 'card'), pay(70.5, 'transfer'), pay(30, null),
       { type: 'debt', amount: 999, paymentMethod: null } as CreditTransaction]);
     expect(r).toEqual({ total: 250.5, cash: 130, card: 50, transfer: 70.5, count: 4 });
+  });
+});
+
+describe('report-calc — birim bazlı miktar (Y13)', () => {
+  it('kategori ve en çok satanlarda kg ile çuval toplanmaz', () => {
+    const pm = productMap([prod({ id: 'p1', category: 'Gübre' } as Partial<Product>), prod({ id: 'p2', category: 'Gübre' } as Partial<Product>)]);
+    const s = sale([
+      item({ productId: 'p1', quantity: 250.5, unit: 'kg', totalPrice: 1000 }),
+      item({ productId: 'p2', quantity: 4, unit: 'cuval', totalPrice: 4000 }),
+      item({ productId: 'p2', quantity: 1, unit: 'cuval', totalPrice: 1000 }),
+    ]);
+    expect(salesByCategory([s], pm, 'Diğer')[0].units).toEqual([{ unit: 'kg', quantity: 250.5 }, { unit: 'cuval', quantity: 5 }]);
+    expect(topProducts([s]).find(p => p.productId === 'p2')?.units).toEqual([{ unit: 'cuval', quantity: 5 }]);
   });
 });

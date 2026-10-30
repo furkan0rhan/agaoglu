@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, forwardRef, input, model, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, forwardRef, input, model, signal, viewChild } from '@angular/core';
 import { ControlValueAccessor, FormsModule, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { DatePickerModule } from 'primeng/datepicker';
+import { DatePicker, DatePickerModule } from 'primeng/datepicker';
 
 /** `ui-date-field` değeri: Date (varsayılan) ya da `valueType="iso"` iken "yyyy-mm-dd" metni. */
 export type DateFieldValue = Date | string | null;
@@ -55,7 +55,7 @@ function coarsePointer(): boolean {
   imports: [FormsModule, DatePickerModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => DateFieldComponent), multi: true }],
-  host: { class: 'flex min-w-0 flex-col gap-1.5' },
+  host: { class: 'flex min-w-0 flex-col gap-1.5', '(keydown.escape)': 'onEscape($event)' },
   template: `
     @if (label()) {
       <label [for]="id()" [class]="labelClass() || 'text-sm font-semibold text-fg-secondary'">{{ label() }}</label>
@@ -96,6 +96,7 @@ export class DateFieldComponent implements ControlValueAccessor {
   readonly disabled = input(false);
 
   readonly touch = coarsePointer();
+  private readonly picker = viewChild(DatePicker);
   private readonly autoId = `ui-date-${++nextId}`;
   private readonly cvaDisabled = signal(false);
   private onChange: (v: DateFieldValue) => void = () => undefined;
@@ -116,6 +117,19 @@ export class DateFieldComponent implements ControlValueAccessor {
 
   touched(): void {
     this.onTouched();
+  }
+
+  /**
+   * Y19: takvim açıkken Esc yalnız takvimi kapatsın. DatePicker Esc'te paneli kapatıp `preventDefault` yapar;
+   * olay yukarı (document) çıkarsa çevreleyen p-dialog da kapanıyordu (formdaki her şey gidiyordu).
+   */
+  onEscape(event: Event): void {
+    if (event.defaultPrevented) event.stopPropagation();
+  }
+
+  /** Açık takvim panelini kapatır (panel body'ye eklendiği için dialog kapanınca asılı kalmasın). */
+  close(): void {
+    this.picker()?.hideOverlay();
   }
 
   // ---- ControlValueAccessor ----

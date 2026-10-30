@@ -58,6 +58,8 @@ export interface SaleCreditPlan {
   dueDate: Date | null;
   installments: { no: number; dueDate: Date; amount: number; paidAmount: number }[];
   downPayment: number;
+  /** Taksit aralığı (ay); satış dokümanına yazılır (fiş yeniden basımı). */
+  intervalMonths?: number;
 }
 
 export interface CreditDebtOptions {

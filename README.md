@@ -82,6 +82,25 @@ Script sürüm numarasını `package.json`, `tauri.conf.json` ve `Cargo.toml`'a 
 Etiketle GitHub Actions Windows (exe/msi) ve Android (apk/aab) derlemelerini başlatır; dosyalar taslak bir
 **GitHub Release**'e eklenir, kontrol edip yayınlarsınız. Android imzalama ve kurulum: [docs/APK.md](docs/APK.md).
 
+### Windows otomatik güncelleme (v1.3.0+)
+
+Kurulu EXE'ler `https://github.com/furkan0rhan/agaoglu/releases/latest/download/latest.json` adresini denetler
+(açılıştan birkaç saniye sonra ve birkaç saatte bir). Yeni sürüm varsa sağ altta "Şimdi güncelle / Sonra" çıkar;
+POS sepeti doluyken kurulum önerilmez. Güncellemeler Tauri updater imzasıyla doğrulanır.
+
+- **Bir kez yapılacak:** GitHub → repo → *Settings → Secrets and variables → Actions → New repository secret*:
+  - `TAURI_SIGNING_PRIVATE_KEY` — `.keys/tauri-updater.key` dosyasının tüm içeriği
+  - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — `.keys/tauri-updater-password.txt` içeriği
+
+  Secret'lar yoksa derleme yine başarılı olur ama `latest.json`/`.sig` üretilmez (Actions'ta uyarı görünür)
+  ve o sürüm otomatik güncellemeyle dağıtılmaz.
+- **Güncelleme ancak "Publish" ile yayılır:** taslak (draft) ve pre-release sürümler "latest" sayılmaz.
+- **1.3.0'dan eski sürümler** (1.2.0 ve öncesi) güncelleyiciyi içermez: bayilerdeki bilgisayarlara 1.3.0
+  **bir kez elle** kurulmalı. Sonrası otomatiktir.
+- Özel anahtar kaybolursa kurulu uygulamalar yeni sürümü kabul etmez; yeni anahtarla çıkan sürüm yine bir kez elle
+  kurulmalıdır. `.keys/` klasörünü yedekleyin (gitignore'da, asla commit etmeyin).
+- Bayiye verilecek tek sayfalık kurulum rehberi: [docs/KURULUM-BAYI.md](docs/KURULUM-BAYI.md).
+
 ## Firebase deploy
 
 Kurallar ve indeksler (canlıya yüklemeden önce `firestore.rules.md` kontrol listesine bakın):
@@ -111,6 +130,7 @@ docs/                rehberler, tasarım prototipleri, marka dosyaları, ekran g
 | [CHANGELOG.md](CHANGELOG.md) | Sürüm geçmişi |
 | [docs/TEST-ORTAMI.md](docs/TEST-ORTAMI.md) | Emulator ile yerel test ortamı, demo veri, test hesapları |
 | [docs/APK.md](docs/APK.md) | Android derleme, imzalama, kurulum |
+| [docs/KURULUM-BAYI.md](docs/KURULUM-BAYI.md) | Bayi için Windows kurulum ve güncelleme rehberi (tek sayfa) |
 | [docs/SUPERADMIN.md](docs/SUPERADMIN.md) | Superadmin, destek modu, lisans |
 | [docs/CIFTCI-MODULU.md](docs/CIFTCI-MODULU.md) | Çiftçi modülü tasarımı |
 | [docs/GTS-KAREKOD.md](docs/GTS-KAREKOD.md) | Ürünler ve GTS/karekod takibi |

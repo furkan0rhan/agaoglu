@@ -6,13 +6,13 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 /** Yoğunluk: `compact` = daha alçak satır/kontrol (1366×768 ekranda daha çok satır). */
 export type Density = 'normal' | 'compact';
 /** Yazı boyutu ölçeği: `html { font-size }` + gövde yazısı bu oranla büyür. */
-export type FontScale = 'normal' | 'large' | 'xlarge';
+export type FontScale = 'normal' | 'large' | 'xlarge' | 'xxlarge';
 
 export const THEME_MODES: readonly ThemeMode[] = ['light', 'dark', 'system'];
 export const DENSITIES: readonly Density[] = ['normal', 'compact'];
-export const FONT_SCALES: readonly FontScale[] = ['normal', 'large', 'xlarge'];
+export const FONT_SCALES: readonly FontScale[] = ['normal', 'large', 'xlarge', 'xxlarge'];
 /** `--font-scale` değerleri (src/styles/_base.scss bu değişkeni kullanır). */
-export const FONT_SCALE_FACTOR: Record<FontScale, number> = { normal: 1, large: 1.125, xlarge: 1.25 };
+export const FONT_SCALE_FACTOR: Record<FontScale, number> = { normal: 1, large: 1.125, xlarge: 1.25, xxlarge: 1.375 };
 
 export interface UiPrefs {
   theme: ThemeMode;

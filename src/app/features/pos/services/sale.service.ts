@@ -282,6 +282,7 @@ export class SaleService {
       if (cartCredit > 0 && plan) {
         sale.creditDueDate = debt.dueDate;
         sale.downPayment = debt.downPayment;
+        if (plan.installments.length > 1) sale.installmentIntervalMonths = Math.max(1, Math.floor(Number(plan.intervalMonths) || 1));
       }
       if (rxNames.length) {
         sale.hasPrescriptionItems = true;
@@ -378,7 +379,7 @@ export class SaleService {
     const sale = { id: saleSnap.id, ...saleSnap.data() } as Sale;
     if (sale.status !== 'completed') throw new SaleAlreadyCancelledError();
     const user = this.auth.currentUser();
-    const denial = cancelDenial(sale, user ? { id: userId, role: user.role } : null);
+    const denial = cancelDenial(sale, user ? { id: userId, role: user.role, cancelAnySale: user.permissions?.cancelAnySale } : null);
     if (denial) throw new SaleCancelDeniedError(denial);
 
     const batch = new WriteOps();

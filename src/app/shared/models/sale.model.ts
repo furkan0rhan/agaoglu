@@ -5,8 +5,8 @@ export type SaleStatus = 'completed' | 'cancelled' | 'refunded';
 export type DiscountType = 'percent' | 'amount';
 
 /** Satış birimi (ürünün `unit` alanı). Yoksa 'adet' kabul edilir. */
-export type SaleUnit = 'adet' | 'kg' | 'lt' | 'paket' | 'cuval' | 'metre';
-export const SALE_UNITS: readonly SaleUnit[] = ['adet', 'kg', 'lt', 'paket', 'cuval', 'metre'];
+export type SaleUnit = 'adet' | 'kg' | 'lt' | 'paket' | 'cuval' | 'metre' | 'viyol' | 'kasa' | 'demet' | 'sise';
+export const SALE_UNITS: readonly SaleUnit[] = ['adet', 'kg', 'lt', 'paket', 'cuval', 'metre', 'viyol', 'kasa', 'demet', 'sise'];
 /** Ondalıklı miktara (2 hane) izin verilen birimler; diğerleri tam sayı. */
 export const DECIMAL_UNITS: readonly SaleUnit[] = ['kg', 'lt', 'metre'];
 
@@ -89,6 +89,8 @@ export interface Sale {
   creditDueDate?: Timestamp | Date | null;
   /** Veresiye satışta alınan peşinat (nakit olarak `cashPaid` içinde). */
   downPayment?: number | null;
+  /** Taksit aralığı (ay). Fiş yeniden basımında plan buna göre türetilir. Eski satışlarda yok (= 1). */
+  installmentIntervalMonths?: number | null;
   createdAt: Timestamp;
   createdBy: string;
   cancelledAt: Timestamp | null;

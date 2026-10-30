@@ -26,6 +26,7 @@ import {
 import { SalesTrendChartComponent } from './sales-trend-chart.component';
 import { FarmersDashboardTileComponent } from '../farmers/farmers-dashboard-tile.component';
 import { dailySeries, percentChange, salesOfDay } from './home-calc';
+import { injectPermissions } from '../../core/auth/permissions';
 
 interface QuickAction { label: string; icon: string; link: string; hero?: boolean; kbd?: string }
 interface AlertRow { id: string; icon: string; tone: UiTone; name: string; sub: string; badge: string }
@@ -138,7 +139,7 @@ interface AlertRow { id: string; icon: string; tone: UiTone; name: string; sub: 
 
         <div class="grid grid-cols-2 gap-3 lg:gap-4">
           <!-- Y5: kâr ve aylık ciro yalnız yöneticiye; kasiyer bugünkü satış adedini görür -->
-          @if (isAdmin()) {
+          @if (seeCosts()) {
             <ui-stat-card icon="pi-percentage" tone="brand"
               [label]="h().grossProfit"
               [value]="dashStore.todayGrossProfit() | currencyTr"
@@ -171,7 +172,7 @@ interface AlertRow { id: string; icon: string; tone: UiTone; name: string; sub: 
             }
           </ui-stat-card>
 
-          @if (isAdmin()) {
+          @if (seeCosts()) {
             <ui-stat-card icon="pi-calendar" tone="brand"
               [label]="t().dashboard.monthSales"
               [value]="dashStore.monthlySales() | currencyTr"
@@ -182,8 +183,8 @@ interface AlertRow { id: string; icon: string; tone: UiTone; name: string; sub: 
       </div>
 
       <!-- 2. Satış trendi + hızlı işlemler -->
-      <div class="grid grid-cols-1 gap-3 lg:gap-4" [class]="isAdmin() ? 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]' : ''">
-        @if (isAdmin()) {
+      <div class="grid grid-cols-1 gap-3 lg:gap-4" [class]="seeCosts() ? 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]' : ''">
+        @if (seeCosts()) {
         <ui-glass-card [title]="h().trendTitle" [subtitle]="h().trendMeta" icon="pi-chart-bar" padding="none">
           <ui-segmented card-actions size="sm" [options]="periodOptions()" [(value)]="days" [ariaLabel]="h().trendTitle" />
           <div class="flex flex-wrap gap-x-6 gap-y-2 px-4 pb-1 pt-3">
@@ -304,7 +305,7 @@ interface AlertRow { id: string; icon: string; tone: UiTone; name: string; sub: 
                       <i class="pi text-15" [class]="r.icon" aria-hidden="true"></i>
                     </span>
                     <span class="min-w-0 flex-1">
-                      <span class="block truncate text-14.5 font-semibold text-fg">{{ r.name }}</span>
+                      <span class="line-clamp-2 break-words text-14.5 font-semibold leading-snug text-fg">{{ r.name }}</span>
                       <span class="num block truncate text-12.5 text-fg-muted">{{ r.sub }}</span>
                     </span>
                     <ui-status-badge [tone]="r.tone">{{ r.badge }}</ui-status-badge>
@@ -336,6 +337,9 @@ export class DashboardPage implements OnInit {
   private readonly role = computed(() => this.auth.currentUser()?.role ?? 'admin');
   readonly canSell = computed(() => this.role() === 'admin' || this.role() === 'cashier');
   readonly isAdmin = computed(() => this.role() === 'admin');
+  /** Y5: kâr / aylık ciro / trend — yönetici ya da yetki verilmiş kullanıcı. */
+  private readonly can = injectPermissions();
+  readonly seeCosts = computed(() => this.can().seeCosts);
 
   /** Store aralığından (hafta/ay başı) eski günler — trend için bir kez okunur. */
   private readonly olderSales = signal<Sale[]>([]);

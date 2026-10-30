@@ -1,4 +1,5 @@
 import { Component, computed, DestroyRef, effect, inject, OnInit, signal } from '@angular/core';
+import { injectPermissions } from '../../../core/auth/permissions';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -227,7 +228,7 @@ import { AuthService } from '../../../core/auth/services/auth.service';
                   <span class="text-12.5 font-semibold text-fg-muted">{{ t().products.salePrice }} / {{ unitName() }}</span>
                   <ui-money class="num-xl text-26 leading-tight text-fg" [value]="product()!.salePrice" />
                 </div>
-                @if (isAdmin) {
+                @if (seeCosts()) {
                   <div class="flex flex-col gap-1 px-4 py-3.5">
                     <span class="text-12.5 font-semibold text-fg-muted">{{ t().products.purchasePrice }}</span>
                     <ui-money class="num text-lg font-extrabold text-fg-secondary" [value]="product()!.purchasePrice" />
@@ -235,7 +236,7 @@ import { AuthService } from '../../../core/auth/services/auth.service';
                 }
               </div>
               <dl class="m-0 flex flex-col px-4 py-2">
-                @if (isAdmin) {
+                @if (seeCosts()) {
                   <div class="flex items-center justify-between gap-3 py-2">
                     <dt class="text-sm text-fg-secondary">{{ t().inventory.unitProfit }}</dt>
                     <dd class="m-0"><ui-money class="num text-sm font-bold" colorize [value]="pricing().profit" /></dd>
@@ -251,7 +252,7 @@ import { AuthService } from '../../../core/auth/services/auth.service';
                     <dd class="m-0"><ui-money class="num text-sm font-semibold text-fg-secondary" [value]="pricing().vat" /></dd>
                   </div>
                 }
-                @if (isAdmin) {
+                @if (seeCosts()) {
                   @if (product()!.purchasePriceIncludesVat && pricing().vatRate) {
                     <div class="flex items-center justify-between gap-3 py-2">
                       <dt class="text-sm text-fg-secondary">{{ t().inventory.netCost }}</dt>
@@ -268,7 +269,7 @@ import { AuthService } from '../../../core/auth/services/auth.service';
                   </div>
                 }
               </dl>
-              @if (isAdmin) {
+              @if (seeCosts()) {
                 <p class="m-0 px-4 pb-2 text-xs text-fg-muted">{{ t().inventory.profitNetNote }}</p>
                 <div class="px-4 pb-3.5">
                   <div class="h-2 overflow-hidden rounded-full bg-surface-strong" aria-hidden="true">
@@ -367,6 +368,9 @@ export class ProductDetailPage implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   readonly t = inject(LangService).t;
   readonly isAdmin = inject(AuthService).hasRole('admin');
+  /** Y5: alış fiyatı / kâr — yönetici ya da yetki verilmiş kullanıcı. */
+  private readonly can = injectPermissions();
+  readonly seeCosts = computed(() => this.can().seeCosts);
 
   readonly product = signal<Product | null>(null);
   readonly movements = signal<StockMovement[]>([]);

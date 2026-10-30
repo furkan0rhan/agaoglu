@@ -15,6 +15,7 @@ import {
 } from '../../../shared/ui';
 import { SUPPLIER_FORM_TEXTS } from './supplier-form.i18n';
 import { TaxNoStatus, taxNoStatus } from './tax-no';
+import { formatTrPhone } from '../../../shared/utils/tr-validation';
 
 /** Sağ paneldeki kontrol listesinin bir bölümü. */
 interface ChecklistSection { id: string; label: string; done: number; total: number; error: boolean; missingRequired: string[] }
@@ -84,7 +85,7 @@ const TAX_ICON: Record<TaxNoStatus, string> = {
                 <div class="flex flex-col gap-1.5">
                   <label for="s-phone" class="text-sm font-semibold text-fg-secondary">{{ t().suppliers.phone }}</label>
                   <input pInputText id="s-phone" type="tel" inputmode="tel" autocomplete="tel" formControlName="phone" class="num w-full"
-                    [placeholder]="t().suppliers.phonePlaceholder" />
+                    [placeholder]="t().suppliers.phonePlaceholder" (blur)="formatPhone()" />
                 </div>
 
                 <div class="flex flex-col gap-1.5">
@@ -298,6 +299,13 @@ export class SupplierFormPage {
     void this.router.navigate(['/suppliers']);
   }
 
+  /** Y16: "05321112233" → "0532 111 22 33" (geçersizse dokunmaz). */
+  formatPhone(): void {
+    const c = this.form.controls.phone;
+    const f = formatTrPhone(c.value);
+    if (c.value && f !== c.value) c.setValue(f);
+  }
+
   /** `next = 'purchase'`: kaydettikten sonra tedarikçi seçili alış formu açılır (/purchases/new?supplierId=<id>). */
   async save(next: 'default' | 'purchase' = 'default'): Promise<void> {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
@@ -308,7 +316,7 @@ export class SupplierFormPage {
       const data = {
         name: v.name!.trim(),
         contactPerson: v.contactPerson?.trim() || null,
-        phone: v.phone?.trim() || null,
+        phone: formatTrPhone(v.phone) || null,
         email: v.email?.trim() || null,
         taxNo: v.taxNo?.trim() || null,
         address: v.address?.trim() || null,

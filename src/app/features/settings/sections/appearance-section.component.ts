@@ -55,13 +55,17 @@ import { injectSettingsTexts } from '../settings.i18n';
 
       <ui-settings-row [title]="s().fontScale" [description]="s().fontScaleDesc">
         <div role="radiogroup" [attr.aria-label]="s().fontScale"
-          class="inline-flex gap-[3px] rounded-[9px] border border-line-strong bg-surface-muted p-[3px]">
+          class="inline-flex flex-wrap gap-[3px] rounded-[9px] border border-line-strong bg-surface-muted p-[3px]">
           @for (f of fonts(); track f.value) {
             @let on = theme.fontScale() === f.value;
-            <button type="button" role="radio" [attr.aria-checked]="on" [attr.aria-label]="f.label" [title]="f.label"
+            <!-- Y23: etiketli 4 kademe -->
+            <button type="button" role="radio" [attr.aria-checked]="on" [title]="f.label"
               (click)="theme.setFontScale(f.value)"
-              class="inline-flex h-10 min-w-[48px] cursor-pointer items-center justify-center rounded-token-sm border-0 px-3 font-display font-bold"
-              [class]="(on ? 'bg-surface text-fg shadow-[0_0_0_1px_var(--border-strong)] ' : 'bg-transparent text-fg-secondary hover:text-fg ') + f.cls">A</button>
+              class="inline-flex min-h-[52px] min-w-[56px] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-token-sm border-0 px-2 py-1"
+              [class]="on ? 'bg-surface text-fg shadow-[0_0_0_1px_var(--border-strong)]' : 'bg-transparent text-fg-secondary hover:text-fg'">
+              <span class="font-display font-bold leading-none" [class]="f.cls" aria-hidden="true">A</span>
+              <span class="whitespace-nowrap text-[11px] font-semibold leading-tight">{{ f.label }}</span>
+            </button>
           }
         </div>
       </ui-settings-row>
@@ -91,5 +95,6 @@ export class AppearanceSectionComponent {
     { value: 'normal', label: this.s().fontNormal, cls: 'text-14' },
     { value: 'large', label: this.s().fontLarge, cls: 'text-17' },
     { value: 'xlarge', label: this.s().fontXLarge, cls: 'text-20' },
+    { value: 'xxlarge', label: this.s().fontXXLarge, cls: 'text-22' },
   ]);
 }

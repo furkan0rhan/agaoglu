@@ -54,6 +54,18 @@
         "installMode": "currentUser"
       }
     },
-    "publisher": "Tarım Market Pro"
+    "publisher": "Tarım Market Pro",
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEFDQTI1NUM1QkIwNUEzMjEKUldRaG93Vzd4VldpckFUd1NOb1dmV2RDR0VPNGJudG9zY3hGcE5oMW9XYXN4RXpYU051R3dpUkoK",
+      "endpoints": [
+        "https://github.com/furkan0rhan/agaoglu/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

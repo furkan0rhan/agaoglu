@@ -1,5 +1,5 @@
 import { computed, inject, Signal } from '@angular/core';
-import { UserRole } from '../../shared/models/user.model';
+import { UserPermissionOverrides, UserRole } from '../../shared/models/user.model';
 import { AuthService } from './services/auth.service';
 
 /**
@@ -14,6 +14,8 @@ import { AuthService } from './services/auth.service';
  * | cancelAnySale    |  ✓    |         |       |  her satışı iptal (kasiyer: yalnız kendi + bugünkü, bkz. cancel-policy)
  *
  * Destek modundaki superadmin işletmede admin yetkisiyle çalışır.
+ * Kullanıcı bazlı ek yetkiler (Ayarlar → Kullanıcılar, `users/{uid}.permissions`): seeCosts (kasiyer / personel)
+ * ve cancelAnySale (yalnız kasiyer; kurallarda `cashierCanCancel`).
  */
 export interface Permissions {
   seeCosts: boolean;
@@ -25,12 +27,18 @@ export interface Permissions {
 const NONE: Permissions = { seeCosts: false, manageProducts: false, exportData: false, cancelAnySale: false };
 const ALL: Permissions = { seeCosts: true, manageProducts: true, exportData: true, cancelAnySale: true };
 
-export function permissionsFor(role: UserRole | null | undefined): Permissions {
-  return role === 'admin' ? ALL : NONE;
+export function permissionsFor(role: UserRole | null | undefined, overrides?: UserPermissionOverrides | null): Permissions {
+  if (role === 'admin') return ALL;
+  if (!role || !overrides) return NONE;
+  return {
+    ...NONE,
+    seeCosts: overrides.seeCosts === true,
+    cancelAnySale: role === 'cashier' && overrides.cancelAnySale === true,
+  };
 }
 
 /** Bileşenlerde: `readonly can = injectPermissions();` → `can().seeCosts` */
 export function injectPermissions(): Signal<Permissions> {
   const auth = inject(AuthService);
-  return computed(() => permissionsFor(auth.currentUser()?.role));
+  return computed(() => { const u = auth.currentUser(); return permissionsFor(u?.role, u?.permissions); });
 }

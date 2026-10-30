@@ -9,7 +9,7 @@ import { AuthService } from '../../../core/auth/services/auth.service';
 import { LangService } from '../../../core/i18n/lang.service';
 import { LicenseService } from '../../../core/license/license.service';
 import { injectSettingsTexts } from '../settings.i18n';
-import { AppUser, UserRole } from '../../../shared/models/user.model';
+import { AppUser, UserPermissionOverrides, UserRole } from '../../../shared/models/user.model';
 import { InviteRow, TeamService } from './team.service';
 import {
   AvatarComponent, EmptyStateComponent, GlassCardComponent, IconButtonComponent, StatusBadgeComponent, UiTone,
@@ -121,6 +121,23 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                       <ui-status-badge size="sm" [tone]="roleTone(m.role)">{{ roleLabel(m.role) }}</ui-status-badge>
                     }
                   </div>
+                  <!-- Y5: kullanıcı bazlı ek yetkiler (yönetici zaten hepsini yapar) -->
+                  @if (canEdit(m) && m.role !== 'admin') {
+                    <div class="flex w-full flex-wrap gap-x-5 gap-y-1 pl-[3.25rem]" role="group" [attr.aria-label]="s().extraPerms + ': ' + (m.displayName || m.email)">
+                      <label class="flex min-h-[40px] cursor-pointer items-center gap-2 text-13 text-fg-secondary">
+                        <input type="checkbox" class="h-[18px] w-[18px] accent-[var(--brand)]" [checked]="!!m.permissions?.seeCosts"
+                          [disabled]="busyId() === m.id" (change)="setPerm(m, 'seeCosts', $any($event.target).checked)" />
+                        {{ s().permSeeCosts }}
+                      </label>
+                      @if (m.role === 'cashier') {
+                        <label class="flex min-h-[40px] cursor-pointer items-center gap-2 text-13 text-fg-secondary">
+                          <input type="checkbox" class="h-[18px] w-[18px] accent-[var(--brand)]" [checked]="!!m.permissions?.cancelAnySale"
+                            [disabled]="busyId() === m.id" (change)="setPerm(m, 'cancelAnySale', $any($event.target).checked)" />
+                          {{ s().permCancelAny }}
+                        </label>
+                      }
+                    </div>
+                  }
                 </li>
               }
             </ul>
@@ -279,6 +296,20 @@ export class TeamPanelComponent implements OnInit {
     } catch {
       this.toast.add({ severity: 'error', summary: '', detail: this.t().team.actionFailed, life: 4000 });
       this.members.update(list => [...list]); // select'i eski değere döndür
+    } finally {
+      this.busyId.set(null);
+    }
+  }
+
+  /** Y5: tek anahtarı değiştir (diğerleri korunur). Hata olursa liste eski haline döner. */
+  async setPerm(m: AppUser, key: keyof UserPermissionOverrides, value: boolean): Promise<void> {
+    this.busyId.set(m.id);
+    try {
+      await this.team.setPermissions(m.id, { ...(m.permissions ?? {}), [key]: value });
+      this.toast.add({ severity: 'success', summary: '', detail: this.s().permSaved, life: 2500 });
+    } catch {
+      this.toast.add({ severity: 'error', summary: '', detail: this.t().team.actionFailed, life: 4000 });
+      this.members.update(list => [...list]);
     } finally {
       this.busyId.set(null);
     }

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { LangService } from '../../../core/i18n/lang.service';
@@ -8,6 +8,8 @@ import { GlassCardComponent, LogoMarkComponent, SettingsRowComponent, StatusBadg
 import { injectSettingsTexts } from '../settings.i18n';
 import { TourService } from '../../../core/onboarding/tour.service';
 import { injectOnboardingTexts } from '../../../core/onboarding/onboarding.i18n';
+import { UpdaterService } from '../../../core/updater/updater.service';
+import { injectUpdaterTexts } from '../../../core/updater/updater.i18n';
 
 export type AppPlatform = 'android' | 'desktop' | 'web';
 
@@ -72,6 +74,23 @@ const OPEN_SOURCE: { name: string; license: string }[] = [
       }
     </ui-glass-card>
 
+    @if (updater.supported) {
+      <!-- Masaüstü (EXE) güncellemeleri: yüklü sürüm, elle denetim, son denetim zamanı -->
+      <ui-glass-card [title]="u().sectionTitle" [subtitle]="u().sectionDesc" icon="pi-sync" padding="none">
+        <ui-settings-row [title]="u().currentVersion" [description]="lastCheckedLabel()">
+          <span class="num text-sm font-semibold text-fg">{{ version }}</span>
+          <button type="button" (click)="checkUpdates()" [disabled]="updater.checking() || updater.installing()"
+            class="tap inline-flex cursor-pointer items-center gap-2 rounded-token-md border border-brand-line bg-brand-soft px-3 text-sm font-semibold text-brand-text hover:bg-brand-soft-hover disabled:cursor-default disabled:opacity-60">
+            <i class="pi" [class]="updater.checking() ? 'pi-spin pi-spinner' : 'pi-refresh'" aria-hidden="true"></i>
+            {{ updater.checking() ? u().checking : u().checkNow }}</button>
+        </ui-settings-row>
+        @if (updateStatus(); as st) {
+          <p role="status" class="m-0 border-t border-line px-3 py-2.5 text-13.5 sm:px-4"
+            [class]="st.tone === 'danger' ? 'text-danger-text' : st.tone === 'brand' ? 'font-semibold text-brand-text' : 'text-fg-muted'">{{ st.text }}</p>
+        }
+      </ui-glass-card>
+    }
+
     <ui-glass-card [title]="s().openSource" [subtitle]="s().openSourceDesc" icon="pi-code" tone="neutral" padding="none" clip>
       <ul class="m-0 grid list-none grid-cols-1 p-0 sm:grid-cols-2">
         @for (o of openSource; track o.name) {
@@ -96,6 +115,36 @@ export class AboutSectionComponent {
   readonly version = environment.appVersion;
   readonly emulator = 'useEmulators' in environment && !!(environment as { useEmulators?: boolean }).useEmulators;
   private readonly platform = detectPlatform();
+
+  readonly updater = inject(UpdaterService);
+  readonly u = injectUpdaterTexts();
+  private readonly lang = inject(LangService).lang;
+  /** Elle denetim yapıldı mı (sonuç satırı yalnız o zaman ya da güncelleme varken görünür). */
+  private readonly manualChecked = signal(false);
+
+  readonly lastCheckedLabel = computed(() => {
+    const at = this.updater.lastCheckedAt();
+    const label = at ? new Date(at).toLocaleString(this.lang() === 'tr' ? 'tr-TR' : 'en-GB', { dateStyle: 'short', timeStyle: 'short' }) : this.u().never;
+    return `${this.u().lastChecked}: ${label}`;
+  });
+
+  readonly updateStatus = computed<{ text: string; tone: 'brand' | 'muted' | 'danger' } | null>(() => {
+    const v = this.updater.availableVersion();
+    if (v) return { text: this.u().available(v), tone: 'brand' };
+    if (!this.manualChecked() || this.updater.checking()) return null;
+    switch (this.updater.lastResult()) {
+      case 'up-to-date': return { text: this.u().upToDate, tone: 'muted' };
+      case 'offline': return { text: this.u().offline, tone: 'muted' };
+      case 'error': return { text: this.u().checkFailed, tone: 'danger' };
+      default: return null;
+    }
+  });
+
+  /** Elle denetim; güncelleme varsa sağ alttaki bildirim (Şimdi güncelle / Sonra) yeniden görünür. */
+  async checkUpdates(): Promise<void> {
+    await this.updater.check(true);
+    this.manualChecked.set(true);
+  }
 
   readonly platformLabel = computed(() => {
     const st = this.t().settings;

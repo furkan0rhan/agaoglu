@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -189,6 +189,7 @@ export class FarmersPage implements OnInit {
   private readonly repo = inject(DEALER_FARMER_REPOSITORY);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(MessageService, { optional: true });
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly tenantId = this.auth.currentTenantId();
   readonly isAdmin = this.auth.hasRole('admin');
@@ -234,6 +235,25 @@ export class FarmersPage implements OnInit {
   ngOnInit(): void {
     void this.load();
     void this.loadPrescriber();
+    this.watchLinks();
+  }
+
+  /**
+   * Y33: bağlantılar canlı — çiftçi daveti kabul edince "Bekleyen davet" ve bağlı çiftçi listesi yenilemeden güncellenir.
+   * İlk anlık görüntü `load()` ile aynı veri; sonrakilerde davetler de yeniden okunur (kabul edilen davet kapanır).
+   */
+  private watchLinks(): void {
+    let first = true;
+    try {
+      const unsub = this.repo.watchTenantLinks(this.tenantId, links => {
+        this.links.set(links);
+        if (first) { first = false; return; }
+        this.repo.listTenantOpenInvites(this.tenantId).then(inv => this.setInvites(inv)).catch(() => undefined);
+      }, err => console.warn('[Farmers] bağlantı dinleyicisi durdu', err));
+      this.destroyRef.onDestroy(unsub);
+    } catch (e) {
+      console.warn('[Farmers] bağlantı dinleyicisi başlatılamadı', e);
+    }
   }
 
   async load(): Promise<void> {

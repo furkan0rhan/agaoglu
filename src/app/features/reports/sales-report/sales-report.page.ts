@@ -27,6 +27,9 @@ import {
 import { PurchaseService } from '../../purchases/services/purchase.service';
 import { PurchaseSummary } from '../../purchases/services/purchase.utils';
 import { injectReportTexts } from '../reports.i18n';
+import { qtyWithUnit } from '../../sales/services/sales.helpers';
+import type { UnitQty } from '../services/report-calc';
+import { buildCancellationRows, CancellationRow } from '../services/cancellations';
 
 interface ChainStep {
   key: string;
@@ -270,7 +273,7 @@ function cssVar(name: string): string {
                     <tr>
                       <td class="num text-fg-muted">{{ i + 1 }}</td>
                       <td class="text-fg">{{ r.name }}</td>
-                      <td class="num text-right text-fg-secondary">{{ r.quantity }}</td>
+                      <td class="num text-right text-fg-secondary">{{ unitQty(r.units) }}</td>
                       <td class="text-right"><ui-money class="num font-extrabold text-fg" [value]="r.revenue" /></td>
                     </tr>
                   </ng-template>
@@ -284,7 +287,7 @@ function cssVar(name: string): string {
                       [class]="i < 3 ? toneSoft.warning : toneSoft.neutral">{{ i + 1 }}</span>
                     <div class="min-w-0 flex-1">
                       <p class="m-0 truncate text-sm font-semibold text-fg">{{ r.name }}</p>
-                      <p class="num m-0 mt-0.5 text-xs text-fg-muted">{{ r.quantity }} {{ t().common.piece }}</p>
+                      <p class="num m-0 mt-0.5 text-xs text-fg-muted">{{ unitQty(r.units) }}</p>
                     </div>
                     <ui-money class="shrink-0 text-sm font-bold text-fg" [value]="r.revenue" />
                   </li>
@@ -302,7 +305,7 @@ function cssVar(name: string): string {
                   <li class="flex flex-col gap-1.5">
                     <div class="flex items-baseline justify-between gap-3 text-sm">
                       <span class="min-w-0 truncate text-fg">{{ c.category }}
-                        <span class="num text-xs text-fg-muted">· {{ c.quantity }} {{ t().common.piece }}</span></span>
+                        <span class="num text-xs text-fg-muted">· {{ unitQty(c.units) }}</span></span>
                       <ui-money class="shrink-0 font-semibold text-fg" [value]="c.revenue" />
                     </div>
                     <div class="h-2 overflow-hidden rounded-full bg-surface-muted" aria-hidden="true">
@@ -340,6 +343,52 @@ function cssVar(name: string): string {
             </ul>
           }
         </ui-glass-card>
+
+        <!-- Y4: İptaller (yalnız yönetici; rapor sayfası zaten yönetici rotası) -->
+        <ui-glass-card [title]="rx().cancelTitle" [subtitle]="cancelSubtitle()" icon="pi-ban" iconTone="danger" padding="none" clip>
+          @if (cancelError()) {
+            <p class="m-0 px-4 py-3 text-sm text-danger-text" role="alert">{{ rx().cancelFailed }}</p>
+          } @else if (cancellations().length === 0) {
+            <ui-empty-state compact icon="pi-check-circle" [title]="rx().cancelEmpty" />
+          } @else {
+            <div class="hidden md:block">
+              <p-table [value]="cancellations()" size="small">
+                <ng-template #header>
+                  <tr>
+                    <th scope="col">{{ rx().cancelDate }}</th>
+                    <th scope="col">{{ rx().cancelSaleNo }}</th>
+                    <th scope="col">{{ rx().cancelSoldBy }}</th>
+                    <th scope="col">{{ rx().cancelBy }}</th>
+                    <th scope="col">{{ rx().cancelReason }}</th>
+                    <th scope="col" class="text-right">{{ rx().cancelAmount }}</th>
+                  </tr>
+                </ng-template>
+                <ng-template #body let-c>
+                  <tr>
+                    <td class="num whitespace-nowrap text-fg-secondary">{{ formatTime(c.date) }}</td>
+                    <td class="num whitespace-nowrap"><a [routerLink]="['/sales', c.saleId]" class="font-semibold text-brand-text no-underline hover:underline">{{ c.saleNumber }}</a></td>
+                    <td class="text-fg">{{ c.soldBy }}</td>
+                    <td class="text-fg">{{ c.cancelledBy }}</td>
+                    <td class="max-w-[22rem] break-words text-fg-secondary">{{ c.reason }}@if (c.legacy) { <span class="text-fg-muted"> · {{ rx().cancelLegacy }}</span> }</td>
+                    <td class="text-right"><ui-money class="num font-bold text-fg" [value]="c.amount" /></td>
+                  </tr>
+                </ng-template>
+              </p-table>
+            </div>
+            <ul class="m-0 flex list-none flex-col p-0 md:hidden">
+              @for (c of cancellations(); track c.saleId) {
+                <li class="list-row flex items-start gap-3 border-0 border-b border-solid border-line px-4 py-3 last:border-b-0">
+                  <div class="min-w-0 flex-1">
+                    <a [routerLink]="['/sales', c.saleId]" class="num text-sm font-semibold text-brand-text no-underline">{{ c.saleNumber }}</a>
+                    <p class="m-0 mt-0.5 text-xs text-fg-muted"><span class="num">{{ formatTime(c.date) }}</span> · {{ c.soldBy }} → {{ c.cancelledBy }}</p>
+                    <p class="m-0 mt-0.5 break-words text-xs text-fg-secondary">{{ c.reason }}</p>
+                  </div>
+                  <ui-money class="shrink-0 text-sm font-bold text-fg" [value]="c.amount" />
+                </li>
+              }
+            </ul>
+          }
+        </ui-glass-card>
       }
     </div>
   `,
@@ -351,7 +400,13 @@ export class SalesReportPage implements OnInit {
   private readonly toast = inject(MessageService);
   private readonly tenantInfo = inject(TenantInfoService);
   private readonly purchaseSvc = inject(PurchaseService);
-  readonly t = inject(LangService).t;
+  private readonly langSvc = inject(LangService);
+  readonly t = this.langSvc.t;
+
+  /** Y13: "250,5 kg + 4 çuval" (birimler toplanmaz, Türkçe ondalık). */
+  unitQty(units: UnitQty | null | undefined): string {
+    return (units ?? []).map(u => qtyWithUnit(this.t(), u.quantity, u.unit, this.langSvc.lang())).join(' + ');
+  }
   readonly rx = injectReportTexts();
   readonly toneSoft = TONE_SOFT;
 
@@ -364,6 +419,13 @@ export class SalesReportPage implements OnInit {
   readonly businessName = signal('');
   readonly purchases = signal<PurchaseSummary | null>(null);
   readonly purchaseError = signal(false);
+  /** Y4: dönemdeki satış iptalleri (iptal anına göre; denetim kaydı olmayan eski iptaller satış tarihine göre). */
+  readonly cancellations = signal<CancellationRow[]>([]);
+  readonly cancelError = signal(false);
+  readonly cancelSubtitle = computed(() => {
+    const list = this.cancellations();
+    return list.length ? this.rx().cancelSummary(list.length, this.money(list.reduce((a, c) => a + c.amount, 0))) : this.rx().cancelDesc;
+  });
   readonly printedAt = signal('');
   private loadSeq = 0;
 
@@ -580,13 +642,14 @@ export class SalesReportPage implements OnInit {
           if (seq === this.loadSeq) { this.purchases.set(null); this.purchaseError.set(true); }
         },
       );
-      const [sales, payments, expenses] = await Promise.all([
-        this.data.getSales(range),
+      const [split, payments, expenses] = await Promise.all([
+        this.data.getSalesSplit(range),
         this.data.getCollections(range),
         this.data.getExpenses(range),
       ]);
       if (seq !== this.loadSeq) return; // daha yeni bir dönem seçildi
-      this.sales.set(sales);
+      void this.loadCancellations(seq, range, split.cancelled);
+      this.sales.set(split.completed);
       this.payments.set(payments);
       this.expenses.set(expenses);
     } catch (e) {
@@ -596,6 +659,21 @@ export class SalesReportPage implements OnInit {
       }
     } finally {
       if (seq === this.loadSeq) this.loading.set(false);
+    }
+  }
+
+  /** İptaller kartı ayrı yüklenir: denetim kaydı / kullanıcı listesi okunamazsa satış raporu yine görünsün. */
+  private async loadCancellations(seq: number, range: { start: Date; end: Date }, cancelledSales: Sale[]): Promise<void> {
+    this.cancelError.set(false);
+    try {
+      const [logs, names] = await Promise.all([
+        this.data.getCancelLogs(range),
+        this.data.getUserNames().catch(() => new Map<string, string>()),
+      ]);
+      if (seq === this.loadSeq) this.cancellations.set(buildCancellationRows(logs, cancelledSales, names));
+    } catch (err) {
+      console.error('[Reports] cancellations error:', err);
+      if (seq === this.loadSeq) { this.cancellations.set([]); this.cancelError.set(true); }
     }
   }
 
@@ -666,12 +744,17 @@ export class SalesReportPage implements OnInit {
       {
         title: r.topProducts,
         headers: ['#', r.product, r.quantity, r.revenue],
-        rows: this.top().map((p, i) => [i + 1, p.name, p.quantity, p.revenue]),
+        rows: this.top().map((p, i) => [i + 1, p.name, this.unitQty(p.units), p.revenue]),
       },
       {
         title: r.byCategory,
         headers: [r.category, r.quantity, r.revenue],
-        rows: this.categories().map(x => [x.category, x.quantity, x.revenue]),
+        rows: this.categories().map(x => [x.category, this.unitQty(x.units), x.revenue]),
+      },
+      {
+        title: this.rx().cancelTitle,
+        headers: [this.rx().cancelDate, this.rx().cancelSaleNo, this.rx().cancelSoldBy, this.rx().cancelBy, this.rx().cancelReason, this.rx().cancelAmount],
+        rows: this.cancellations().map(c => [this.formatTime(c.date), c.saleNumber, c.soldBy, c.cancelledBy, c.reason, c.amount]),
       },
     ];
   }

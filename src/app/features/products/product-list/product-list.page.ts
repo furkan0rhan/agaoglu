@@ -1,4 +1,5 @@
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { injectPermissions } from '../../../core/auth/permissions';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
@@ -82,7 +83,7 @@ const MOBILE_PAGE = 30;
           <div class="flex flex-col gap-2.5 border-b border-line p-3 sm:px-4 sm:py-3.5">
             <div class="flex flex-col gap-2.5 md:flex-row md:flex-wrap md:items-center">
               <div class="flex w-full items-center gap-2 md:w-auto">
-              <p-iconfield class="block min-w-0 flex-1 md:w-80 md:flex-none">
+              <p-iconfield class="block min-w-0 flex-1 md:w-80 xl:w-96 md:flex-none">
                 <p-inputicon styleClass="pi pi-search" />
                 <input pInputText type="search" [(ngModel)]="searchVal" (ngModelChange)="store.setSearch($event)"
                        (keydown.enter)="onSearchEnter($event)" enterkeyhint="search"
@@ -190,14 +191,14 @@ const MOBILE_PAGE = 30;
                 <ng-template pTemplate="header">
                   <tr>
                     <th pSortableColumn="name" class="min-w-60">{{ inv().colProduct }} <p-sortIcon field="name" /></th>
-                    <th pSortableColumn="category" class="hidden xl:table-cell">{{ inv().colCategory }} <p-sortIcon field="category" /></th>
+                    <th pSortableColumn="category" class="hidden 2xl:table-cell">{{ inv().colCategory }} <p-sortIcon field="category" /></th>
                     <th pSortableColumn="stock">{{ inv().colStock }} <p-sortIcon field="stock" /></th>
                     <th>{{ inv().colExpiry }}</th>
-                    @if (isAdmin) {
+                    @if (seeCosts()) {
                       <th pSortableColumn="purchasePrice" class="hidden text-right lg:table-cell">{{ inv().colPurchase }} <p-sortIcon field="purchasePrice" /></th>
                     }
                     <th pSortableColumn="salePrice" class="text-right">{{ inv().colSale }} <p-sortIcon field="salePrice" /></th>
-                    @if (isAdmin) {
+                    @if (seeCosts()) {
                       <th class="hidden text-right lg:table-cell">{{ inv().colMarkup }}</th>
                     }
                     <th class="w-40 text-right"><span class="sr-only">{{ t().products.addToCart }}</span></th>
@@ -205,7 +206,7 @@ const MOBILE_PAGE = 30;
                   @if (showFilters()) {
                     <tr>
                       <th><p-columnFilter type="text" field="name" matchMode="contains" [showMenu]="false" [showClearButton]="false" /></th>
-                      <th class="hidden xl:table-cell">
+                      <th class="hidden 2xl:table-cell">
                         <p-columnFilter field="category" matchMode="in" [showMenu]="false">
                           <ng-template pTemplate="filter" let-value let-filter="filterCallback">
                             <p-multiSelect [ngModel]="value" [options]="uniqueCategories()" (onChange)="filter($event.value)"
@@ -215,9 +216,9 @@ const MOBILE_PAGE = 30;
                       </th>
                       <th><p-columnFilter type="numeric" field="stock" [showMenu]="true" [showClearButton]="false" /></th>
                       <th></th>
-                      @if (isAdmin) { <th class="hidden lg:table-cell"></th> }
+                      @if (seeCosts()) { <th class="hidden lg:table-cell"></th> }
                       <th><p-columnFilter type="numeric" field="salePrice" [showMenu]="true" [showClearButton]="false" /></th>
-                      @if (isAdmin) { <th class="hidden lg:table-cell"></th> }
+                      @if (seeCosts()) { <th class="hidden lg:table-cell"></th> }
                       <th></th>
                     </tr>
                   }
@@ -239,14 +240,14 @@ const MOBILE_PAGE = 30;
                             }
                           </div>
                           @if (product.barcode) {
-                            <span class="num block text-xs text-fg-muted">{{ product.barcode }}{{ product.brand ? ' · ' + product.brand : '' }}</span>
+                            <span class="num block text-xs text-fg-muted">{{ product.barcode }}{{ product.brand ? ' · ' + product.brand : '' }}<span class="2xl:hidden">{{ product.category ? ' · ' + product.category : '' }}</span></span>
                           } @else {
                             <span class="block text-xs font-semibold text-warning-text">{{ inv().noBarcode }}{{ product.brand ? ' · ' + product.brand : '' }}</span>
                           }
                         </div>
                       </div>
                     </td>
-                    <td class="hidden text-sm text-fg-secondary xl:table-cell">{{ product.category || '—' }}</td>
+                    <td class="hidden text-sm text-fg-secondary 2xl:table-cell">{{ product.category || '—' }}</td>
                     <td>
                       <div class="flex min-w-[110px] flex-col gap-1.5">
                         <b class="num text-15 font-extrabold text-fg">{{ qtyNum(product.stock) }} <small class="font-sans text-12.5 font-medium text-fg-muted">{{ unitOf(product) }}</small></b>
@@ -265,11 +266,11 @@ const MOBILE_PAGE = 30;
                         <span class="text-fg-muted">—</span>
                       }
                     </td>
-                    @if (isAdmin) {
+                    @if (seeCosts()) {
                       <td class="hidden text-right lg:table-cell"><ui-money class="num text-sm text-fg-secondary" [value]="product.purchasePrice" /></td>
                     }
                     <td class="text-right"><ui-money class="num text-sm font-extrabold text-fg" [value]="product.salePrice" /></td>
-                    @if (isAdmin) {
+                    @if (seeCosts()) {
                       <td class="num hidden text-right text-sm text-fg-secondary lg:table-cell">{{ markup(product) }}</td>
                     }
                     <td class="text-right">
@@ -323,6 +324,9 @@ export class ProductListPage implements OnInit {
   readonly t = inject(LangService).t;
   readonly inv = computed(() => this.t().inventory);
   readonly isAdmin = inject(AuthService).hasRole('admin');
+  /** Y5: alış fiyatı / kâr oranı / stok değeri — yönetici ya da yetki verilmiş kullanıcı. */
+  private readonly can = injectPermissions();
+  readonly seeCosts = computed(() => this.can().seeCosts);
   readonly critEdge = CRIT_EDGE;
   /** Yalnız barkodsuz ürünler (sayfa içi filtre; store filtrelerinin üstüne) */
   readonly noBarcodeOnly = signal(false);
@@ -345,7 +349,7 @@ export class ProductListPage implements OnInit {
       { icon: 'pi-clock', tone: 'warning', label: i.expiringSoon(this.store.expiryWarnDays()), value: exp, valueTone: exp ? 'warning' : null },
     ];
     // Y5: stok değeri (alış) yalnız yöneticiye
-    if (this.isAdmin) {
+    if (this.seeCosts()) {
       items.push({ icon: 'pi-wallet', tone: 'accent', label: i.stockValue, value: new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(this.store.totalInventoryValue()) + ' ₺' });
     }
     return items;

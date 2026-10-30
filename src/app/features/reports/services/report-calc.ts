@@ -1,4 +1,4 @@
-import { Sale, SaleItem } from '../../../shared/models/sale.model';
+import { Sale, SaleItem, SaleUnit } from '../../../shared/models/sale.model';
 import { Product } from '../../../shared/models/product.model';
 import { CreditTransaction } from '../../../shared/models/credit.model';
 import { Expense } from '../../../shared/models/expense.model';
@@ -168,7 +168,17 @@ export function sumExpenses(list: Expense[]): number {
   return round2(list.reduce((s, e) => s + (e.amount ?? 0), 0));
 }
 
-export interface ProductRow { productId: string; name: string; quantity: number; revenue: number }
+/** Y13: miktar birim birim (kg ile çuval toplanmaz). Satış sırasına göre; 3 haneye yuvarlı. */
+export type UnitQty = { unit: SaleUnit; quantity: number }[];
+
+function addUnitQty(list: UnitQty, unit: SaleUnit | null | undefined, q: number): void {
+  const u = unit ?? 'adet';
+  const row = list.find(x => x.unit === u);
+  if (row) row.quantity = Math.round((row.quantity + (q ?? 0)) * 1000) / 1000;
+  else list.push({ unit: u, quantity: Math.round((q ?? 0) * 1000) / 1000 });
+}
+
+export interface ProductRow { productId: string; name: string; quantity: number; units: UnitQty; revenue: number }
 
 export function topProducts(sales: Sale[], n = 10): ProductRow[] {
   const map = new Map<string, ProductRow>();
@@ -176,8 +186,9 @@ export function topProducts(sales: Sale[], n = 10): ProductRow[] {
     if (!isCompletedSale(s)) continue;
     for (const i of s.items ?? []) {
       const key = i.productId || i.productName;
-      const row = map.get(key) ?? { productId: i.productId, name: i.productName, quantity: 0, revenue: 0 };
+      const row = map.get(key) ?? { productId: i.productId, name: i.productName, quantity: 0, units: [], revenue: 0 };
       row.quantity += i.quantity;
+      addUnitQty(row.units, i.unit, i.quantity);
       row.revenue += itemNet(i);
       map.set(key, row);
     }
@@ -188,7 +199,7 @@ export function topProducts(sales: Sale[], n = 10): ProductRow[] {
     .slice(0, n);
 }
 
-export interface CategoryRow { category: string; quantity: number; revenue: number }
+export interface CategoryRow { category: string; quantity: number; units: UnitQty; revenue: number }
 
 export function salesByCategory(sales: Sale[], products: ReadonlyMap<string, Product>, fallback: string): CategoryRow[] {
   const map = new Map<string, CategoryRow>();
@@ -196,8 +207,9 @@ export function salesByCategory(sales: Sale[], products: ReadonlyMap<string, Pro
     if (!isCompletedSale(s)) continue;
     for (const i of s.items ?? []) {
       const cat = products.get(i.productId)?.category || fallback;
-      const row = map.get(cat) ?? { category: cat, quantity: 0, revenue: 0 };
+      const row = map.get(cat) ?? { category: cat, quantity: 0, units: [], revenue: 0 };
       row.quantity += i.quantity;
+      addUnitQty(row.units, i.unit, i.quantity);
       row.revenue += itemNet(i);
       map.set(cat, row);
     }

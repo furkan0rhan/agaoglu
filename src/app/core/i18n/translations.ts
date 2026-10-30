@@ -62,6 +62,7 @@ export interface Translations {
     emailInvalid: string; passwordRequired: string;
     registerTitle: string; registerSubtitle: string; displayName: string;
     displayNamePlaceholder: string; displayNameRequired: string;
+    regBusinessName: string; regBusinessNamePlaceholder: string; regBusinessNameHint: string;
     confirmPassword: string; confirmPasswordPlaceholder: string;
     passwordMismatch: string; passwordTooShort: string;
     hasAccount: string; goLogin: string;
@@ -146,6 +147,7 @@ export interface Translations {
     categoryRequired: string; salePriceRequired: string; formStockEditHint: string;
     movementsLimitNote: string;
     unitLabel: string; unitAdet: string; unitKg: string; unitLt: string; unitPaket: string; unitCuval: string; unitMetre: string;
+    unitViyol: string; unitKasa: string; unitDemet: string; unitSise: string;
     unitDecimalHint: string; markup: string; productCount: string; loadMore: string; outOfStock: string;
     cartIncrease: string; cartDecrease: string; inCart: string; gtsChipRemove: string;
     reconcileHint: string; gtsUnitsCount: string;
@@ -170,7 +172,7 @@ export interface Translations {
     productUnavailable: string; globalDiscount: string;
     insufficientStock: string; expiredUnitsWarn: string; batchShortfallWarn: string;
     confirmSaleTitle: string; confirmSellAnyway: string;
-    units: { adet: string; kg: string; lt: string; paket: string; cuval: string; metre: string };
+    units: { adet: string; kg: string; lt: string; paket: string; cuval: string; metre: string; viyol: string; kasa: string; demet: string; sise: string };
     pageTitle: string; searchLabel: string; searchPlaceholder: string; scannerReady: string; scannerPaused: string;
     noResults: string; moreResults: string;
     inCart: string; stock: string; quantity: string; decrease: string; increase: string; removeItem: string;
@@ -319,6 +321,7 @@ export interface Translations {
     expiryPrefix: string;
     fefoLabel: string; applying: string; errorsTitle: string; retryFailed: string;
     matched: string; movementReason: string;
+    blind: string; blindHint: string; countedTick: string;
   };
   settings: {
     title: string; subtitle: string;
@@ -430,6 +433,8 @@ const TR: Translations = {
     registerTitle: 'Kayıt Ol', registerSubtitle: 'Yeni hesap oluşturun',
     displayName: 'Ad Soyad', displayNamePlaceholder: 'Adınız Soyadınız',
     displayNameRequired: 'Ad soyad gerekli',
+    regBusinessName: 'İşletme adı', regBusinessNamePlaceholder: 'Ör. Karaca Zirai İlaç ve Tohum',
+    regBusinessNameHint: 'Fişte görünür. Bir işletmeye davetle katılıyorsanız boş bırakın.',
     confirmPassword: 'Şifre Tekrar', confirmPasswordPlaceholder: 'Şifrenizi tekrar girin',
     passwordMismatch: 'Şifreler eşleşmiyor', passwordTooShort: 'Şifre en az 6 karakter',
     hasAccount: 'Zaten hesabınız var mı?', goLogin: 'Giriş yap',
@@ -559,6 +564,7 @@ const TR: Translations = {
     formStockEditHint: 'Stok ve partiler ürün detayındaki GTS / parti tablosundan yönetilir.',
     movementsLimitNote: 'Son {n} hareket gösteriliyor',
     unitLabel: 'Birim', unitAdet: 'adet', unitKg: 'kg', unitLt: 'lt', unitPaket: 'paket', unitCuval: 'çuval', unitMetre: 'metre',
+    unitViyol: 'viyol', unitKasa: 'kasa', unitDemet: 'demet', unitSise: 'şişe',
     unitDecimalHint: 'kg, lt ve metrede ondalıklı miktar girilebilir (ör. 12,5)',
     markup: 'Kâr Oranı (maliyete göre)', productCount: 'ürün', loadMore: 'Daha fazla göster', outOfStock: 'Tükendi',
     cartIncrease: 'Sepette artır', cartDecrease: 'Sepette azalt', inCart: 'Sepette',
@@ -587,7 +593,7 @@ const TR: Translations = {
     insufficientStock: 'Yetersiz stok', expiredUnitsWarn: 'Süresi geçmiş birim satılıyor',
     batchShortfallWarn: 'Parti kaydı yetersiz (stok ile parti toplamı uyuşmuyor)',
     confirmSaleTitle: 'Satışı onayla', confirmSellAnyway: 'Yine de sat',
-    units: { adet: 'adet', kg: 'kg', lt: 'lt', paket: 'paket', cuval: 'çuval', metre: 'm' },
+    units: { adet: 'adet', kg: 'kg', lt: 'lt', paket: 'paket', cuval: 'çuval', metre: 'm', viyol: 'viyol', kasa: 'kasa', demet: 'demet', sise: 'şişe' },
     pageTitle: 'Hızlı Satış', searchLabel: 'Ürün ara',
     searchPlaceholder: 'Barkod okutun veya ürün adı / GTS yazın',
     scannerReady: 'Barkod okuyucu hazır', scannerPaused: 'Okuyucu beklemede',
@@ -791,6 +797,7 @@ const TR: Translations = {
     expiryPrefix: 'SKT:',
     fefoLabel: 'FEFO', applying: 'Uygulanıyor', errorsTitle: 'Uygulanamayan ürünler', retryFailed: 'Hatalıları tekrar dene',
     matched: 'Tutuyor', movementReason: 'Stok sayımı',
+    blind: 'Kör sayım', blindHint: 'Sistem miktarı ve farklar sayım bitince (Tamamla) görünür', countedTick: 'Sayıldı',
   },
   settings: {
     title: 'Ayarlar & Profil', subtitle: 'Hesap bilgileri ve uygulama ayarları',
@@ -902,6 +909,8 @@ const EN: Translations = {
     registerTitle: 'Create Account', registerSubtitle: 'Create a new account',
     displayName: 'Full Name', displayNamePlaceholder: 'Your Full Name',
     displayNameRequired: 'Full name is required',
+    regBusinessName: 'Business name', regBusinessNamePlaceholder: 'e.g. Karaca Agro Supplies',
+    regBusinessNameHint: 'Shown on receipts. Leave empty if you are joining a business by invitation.',
     confirmPassword: 'Confirm Password', confirmPasswordPlaceholder: 'Repeat your password',
     passwordMismatch: 'Passwords do not match', passwordTooShort: 'Password must be at least 6 characters',
     hasAccount: 'Already have an account?', goLogin: 'Sign in',
@@ -1031,6 +1040,7 @@ const EN: Translations = {
     formStockEditHint: 'Stock and batches are managed from the GTS / batch table on the product detail page.',
     movementsLimitNote: 'Showing the last {n} movements',
     unitLabel: 'Unit', unitAdet: 'pcs', unitKg: 'kg', unitLt: 'L', unitPaket: 'pack', unitCuval: 'sack', unitMetre: 'm',
+    unitViyol: 'tray', unitKasa: 'crate', unitDemet: 'bunch', unitSise: 'bottle',
     unitDecimalHint: 'Decimal quantities are allowed for kg, L and m (e.g. 12.5)',
     markup: 'Markup (on cost)', productCount: 'products', loadMore: 'Show more', outOfStock: 'Out of stock',
     cartIncrease: 'Increase in cart', cartDecrease: 'Decrease in cart', inCart: 'In cart',
@@ -1059,7 +1069,7 @@ const EN: Translations = {
     insufficientStock: 'Insufficient stock', expiredUnitsWarn: 'Selling expired units',
     batchShortfallWarn: 'Not enough batch records (stock and batch total differ)',
     confirmSaleTitle: 'Confirm sale', confirmSellAnyway: 'Sell anyway',
-    units: { adet: 'pcs', kg: 'kg', lt: 'L', paket: 'pack', cuval: 'sack', metre: 'm' },
+    units: { adet: 'pcs', kg: 'kg', lt: 'L', paket: 'pack', cuval: 'sack', metre: 'm', viyol: 'tray', kasa: 'crate', demet: 'bunch', sise: 'bottle' },
     pageTitle: 'Quick Sale', searchLabel: 'Search products',
     searchPlaceholder: 'Scan a barcode or type product name / GTS',
     scannerReady: 'Barcode scanner ready', scannerPaused: 'Scanner paused',
@@ -1264,6 +1274,7 @@ const EN: Translations = {
     expiryPrefix: 'Exp:',
     fefoLabel: 'FEFO', applying: 'Applying', errorsTitle: 'Products that failed', retryFailed: 'Retry failed',
     matched: 'Matches', movementReason: 'Stock count',
+    blind: 'Blind count', blindHint: 'System quantities and differences are shown when you complete the count', countedTick: 'Counted',
   },
   settings: {
     title: 'Settings & Profile', subtitle: 'Account information and app settings',

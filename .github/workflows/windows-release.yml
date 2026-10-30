@@ -6,6 +6,10 @@ name: Windows Release (EXE + MSI)
 #   Releases sayfasına TASLAK bir sürüm olarak .exe (NSIS kurulum) ve .msi yükler.
 #   Android workflow'u (android-build.yml) aynı taslağa .apk/.aab ekler.
 #   Taslağı kontrol edip "Publish" demen yeterli.
+#
+# Otomatik güncelleme: uygulamalar .../releases/latest/download/latest.json'a bakar. TASLAK ve
+# pre-release "latest" sayılmaz; yani güncelleme bayilere ancak "Publish" basılınca ulaşır.
+# Gerekli secret'lar: TAURI_SIGNING_PRIVATE_KEY, TAURI_SIGNING_PRIVATE_KEY_PASSWORD (README > EXE).
 
 on:
   push:
@@ -76,17 +80,48 @@ jobs:
       - name: Install npm dependencies
         run: npm ci --legacy-peer-deps
 
+      # Otomatik güncelleme imzası: TAURI_SIGNING_PRIVATE_KEY (+ _PASSWORD) secret'ları varsa
+      # tauri-action .sig dosyalarını ve latest.json'u release'e yükler. Secret yoksa derleme yine
+      # başarılı olur ama güncelleme dosyaları üretilmez (createUpdaterArtifacts=false ile ezilir;
+      # aksi halde tauri "public key has been found, but no private key" hatasıyla durur).
+      - name: Check updater signing key
+        id: signing
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "args=" >> "$GITHUB_OUTPUT"
+            echo "Güncelleme imza anahtarı bulundu: latest.json + .sig üretilecek."
+          else
+            # JSON'u dosyaya yaz: tırnaklı satır içi JSON npm/cmd üzerinden bozulabiliyor.
+            F="$RUNNER_TEMP/tauri-no-updater.conf.json"
+            echo '{"bundle":{"createUpdaterArtifacts":false}}' > "$F"
+            echo "args=--config $(cygpath -w "$F")" >> "$GITHUB_OUTPUT"
+            echo "::warning::TAURI_SIGNING_PRIVATE_KEY secret'ı yok: bu sürüm otomatik güncelleme ile DAĞITILMAZ (latest.json üretilmedi)."
+          fi
+
       - name: Build and upload to draft release
         if: needs.ensure-release.outputs.release_id != ''
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.ensure-release.outputs.release_id }}
+          args: ${{ steps.signing.outputs.args }}
+          # latest.json'daki genel "windows-x86_64" girdisi setup.exe'yi (NSIS) göstersin (önerilen kurulum).
+          updaterJsonPreferNsis: true
 
       - name: Build only (no tag)
         if: needs.ensure-release.outputs.release_id == ''
         uses: tauri-apps/tauri-action@v0
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          args: ${{ steps.signing.outputs.args }}
 
       - name: Upload artifact (no tag)
         if: needs.ensure-release.outputs.release_id == ''

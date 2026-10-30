@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, model, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, model, output, signal, viewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -25,8 +25,9 @@ import { DateFieldComponent } from '../../../shared/ui/date-field.component';
   imports: [FormsModule, ButtonModule, DialogModule, DateFieldComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <p-dialog [header]="t().farmer.dealer.recTitle" [(visible)]="visible" [modal]="true" [style]="{ width: 'min(640px, 96vw)' }" [draggable]="false" (onShow)="open()">
-      <form class="flex flex-col gap-3.5" (ngSubmit)="save()">
+    <p-dialog [header]="t().farmer.dealer.recTitle" [visible]="visible()" (visibleChange)="$event ? visible.set(true) : requestClose()"
+      [closeOnEscape]="false" [modal]="true" [style]="{ width: 'min(640px, 96vw)' }" [draggable]="false" (onShow)="open()" (onHide)="closeOverlays()">
+      <form class="flex flex-col gap-3.5" (ngSubmit)="save()" (keydown.escape)="requestClose()">
         <div class="flex items-start gap-3 rounded-token-lg border border-warning-line bg-warning-soft p-3">
           <span class="grid h-9 w-9 shrink-0 place-items-center rounded-token-md bg-warning text-fg-inverse"><i class="pi pi-shield" aria-hidden="true"></i></span>
           <p class="m-0 self-center text-13.5 leading-snug text-warning-text">{{ t().farmer.dealer.prescribersInfo }}</p>
@@ -89,7 +90,7 @@ import { DateFieldComponent } from '../../../shared/ui/date-field.component';
         <p class="m-0 flex items-center gap-1.5 text-xs text-fg-muted"><i class="pi pi-user text-11" aria-hidden="true"></i>{{ prescriber()?.displayName }} · <span class="num">{{ prescriber()?.prescriberLicenseNo }}</span></p>
         @if (error()) { <p class="m-0 rounded-token-md bg-danger-soft px-3 py-2 text-sm font-semibold text-danger-text" role="alert">{{ error() }}</p> }
         <div class="flex justify-end gap-2 border-t border-line pt-3">
-          <p-button severity="secondary" [label]="t().common.cancel" (onClick)="visible.set(false)" />
+          <p-button severity="secondary" [label]="t().common.cancel" (onClick)="requestClose()" />
           <p-button type="submit" icon="pi pi-check" [label]="t().common.save" [loading]="busy()" [disabled]="!confirmed" />
         </div>
       </form>
@@ -119,6 +120,26 @@ export class RecommendationDialogComponent {
   windowEnd = '';
   notes = '';
   confirmed = false;
+
+  private readonly dateFields = viewChildren(DateFieldComponent);
+
+  /** Y19: doldurulmuş formu kapatırken (X, Esc, Vazgeç) onay iste. */
+  requestClose(): void {
+    if (this.busy()) return;
+    if (this.isDirty() && !confirm(this.t().farmer.dealer.recDiscardConfirm)) return;
+    this.closeOverlays();
+    this.visible.set(false);
+  }
+
+  /** Body'ye eklenmiş takvim panelleri dialog kapanınca ekranda asılı kalmasın. */
+  closeOverlays(): void {
+    this.dateFields().forEach(f => f.close());
+  }
+
+  private isDirty(): boolean {
+    return !!(this.target.trim() || this.prescriptionNo.trim() || this.windowStart || this.windowEnd || this.notes.trim() || this.fieldId
+      || this.items().some(i => i.productName.trim() || i.dose.trim()));
+  }
 
   open(): void {
     this.target = ''; this.fieldId = null; this.prescriptionNo = ''; this.windowStart = ''; this.windowEnd = ''; this.notes = '';
@@ -188,6 +209,7 @@ export class RecommendationDialogComponent {
         windowStart: fromInputDate(this.windowStart), windowEnd: fromInputDate(this.windowEnd), notes: this.notes,
         authorUid: pr!.uid, authorName: pr!.displayName, authorLicenseNo: pr!.prescriberLicenseNo ?? '',
       });
+      this.closeOverlays();
       this.visible.set(false);
       this.saved.emit();
     } catch {

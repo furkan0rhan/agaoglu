@@ -23,7 +23,7 @@ const TR = {
     support: { title: 'Destek erişimi', desc: 'Destek ekibinin erişimine siz karar verirsiniz', keys: 'destek erişim kvkk kayıt geçmiş' },
     profile: { title: 'Profilim', desc: 'Ad, e-posta ve rol', keys: 'profil ad soyad isim hesap çıkış' },
     security: { title: 'Güvenlik', desc: 'Şifre ve e-posta değişikliği', keys: 'şifre parola e-posta güvenlik' },
-    about: { title: 'Hakkında', desc: 'Sürüm, destek ve yasal metinler', keys: 'sürüm versiyon lisanslar kvkk aydınlatma destek' },
+    about: { title: 'Hakkında', desc: 'Sürüm, destek ve yasal metinler', keys: 'sürüm versiyon güncelleme güncelle lisanslar kvkk aydınlatma destek' },
   },
   // Kurulum kartı
   setupTitle: (p: number) => `Kurulum %${p} tamamlandı`,
@@ -38,6 +38,9 @@ const TR = {
   // İşletme
   dealerLicenseNo: 'Bitki koruma bayi izin no',
   dealerLicenseHint: 'İlaç satış kayıtlarında ve (isteğe bağlı) fiş başlığında kullanılır',
+  bizPhoneInvalid: 'Telefonu alan koduyla yazın: 0332 444 11 22',
+  bizTaxNoInvalid: 'Vergi no 10 hane olmalı (şahıs firmasında 11 haneli T.C. kimlik no)',
+  bizTaxNoChecksum: 'Kontrol hanesi tutmuyor; numarayı vergi levhasından kontrol edin',
   // Fiş
   paperWidth: 'Kâğıt genişliği', paperWidthDesc: 'Termal yazıcınızın rulo genişliği',
   headerNote: 'Fiş başlık notu', headerNoteDesc: 'İşletme adının altına basılır (ör. "Zirai ilaç · Gübre · Tohum")',
@@ -78,6 +81,10 @@ const TR = {
   // Ekip
   usersCount: (n: number, max: number | null) => (max ? `${n} / ${max} kullanıcı` : `${n} kullanıcı`),
   permTitle: 'Rol yetkileri', permDesc: 'Rollerin uygulamada neleri yapabildiği (salt okunur)',
+  extraPerms: 'Ek yetkiler',
+  permSeeCosts: 'Alış fiyatı ve kârı görür',
+  permCancelAny: 'Geçmiş ve başkasının satışını iptal eder',
+  permSaved: 'Yetki güncellendi',
   permission: 'Yetki',
   perms: [
     { label: 'Ana sayfa ve ürün/stok görüntüleme, ürün ekleme-düzenleme', roles: ['admin', 'cashier', 'staff'] },
@@ -96,7 +103,7 @@ const TR = {
   density: 'Yoğunluk', densityDesc: 'Sıkı: 1366×768 ekranlarda daha çok satır (fare/klavye için)',
   densityNormal: 'Standart', densityCompact: 'Sıkı',
   fontScale: 'Yazı boyutu', fontScaleDesc: 'Gözlükle rahat okuma için büyütün',
-  fontNormal: 'Normal', fontLarge: 'Büyük', fontXLarge: 'Çok büyük',
+  fontNormal: 'Normal', fontLarge: 'Büyük', fontXLarge: 'Çok büyük', fontXXLarge: 'Dev',
   deviceNote: 'Görünüm tercihleri bu cihazda, hesabınıza özel saklanır.',
   // Dil
   language: 'Uygulama dili', languageDesc: 'Menüler, fişler ve raporlar bu dilde',
@@ -136,7 +143,7 @@ const EN: SettingsTexts = {
     support: { title: 'Support access', desc: 'You decide if support can access your data', keys: 'support access gdpr kvkk log history' },
     profile: { title: 'My profile', desc: 'Name, email and role', keys: 'profile name account logout' },
     security: { title: 'Security', desc: 'Password and email change', keys: 'password email security' },
-    about: { title: 'About', desc: 'Version, support and legal', keys: 'version licenses privacy support' },
+    about: { title: 'About', desc: 'Version, support and legal', keys: 'version update updates licenses privacy support' },
   },
   setupTitle: (p: number) => `Setup ${p}% complete`,
   setupMissing: (n: number) => `${n} missing:`,
@@ -149,6 +156,9 @@ const EN: SettingsTexts = {
   setupHint: 'Once done, your receipts and reports are complete.',
   dealerLicenseNo: 'Plant protection dealer license no',
   dealerLicenseHint: 'Used in pesticide sales records and (optionally) on the receipt header',
+  bizPhoneInvalid: 'Enter the phone with area code: 0332 444 11 22',
+  bizTaxNoInvalid: 'Tax no must be 10 digits (or an 11-digit national ID for sole proprietors)',
+  bizTaxNoChecksum: 'Check digit does not match; please verify the number',
   paperWidth: 'Paper width', paperWidthDesc: 'Roll width of your thermal printer',
   headerNote: 'Receipt header note', headerNoteDesc: 'Printed under the business name (e.g. "Pesticides · Fertilizer · Seeds")',
   footerNote: 'Receipt footer', footerNoteDesc: 'Printed at the bottom of every receipt',
@@ -185,6 +195,10 @@ const EN: SettingsTexts = {
   reminderVarLabels: { ad: 'Customer name', borc: 'Total debt', gecikmis: 'Overdue amount', vade: 'Due date', isletme: 'Business', telefon: 'Phone' },
   usersCount: (n: number, max: number | null) => (max ? `${n} / ${max} users` : `${n} users`),
   permTitle: 'Role permissions', permDesc: 'What each role can do in the app (read-only)',
+  extraPerms: 'Extra permissions',
+  permSeeCosts: 'Sees purchase prices and profit',
+  permCancelAny: 'Can cancel past and others\' sales',
+  permSaved: 'Permission updated',
   permission: 'Permission',
   perms: [
     { label: 'Home, view products/stock, add-edit products', roles: ['admin', 'cashier', 'staff'] },
@@ -202,7 +216,7 @@ const EN: SettingsTexts = {
   density: 'Density', densityDesc: 'Compact: more rows on 1366×768 screens (mouse/keyboard)',
   densityNormal: 'Standard', densityCompact: 'Compact',
   fontScale: 'Text size', fontScaleDesc: 'Enlarge for comfortable reading',
-  fontNormal: 'Normal', fontLarge: 'Large', fontXLarge: 'Extra large',
+  fontNormal: 'Normal', fontLarge: 'Large', fontXLarge: 'Extra large', fontXXLarge: 'Huge',
   deviceNote: 'Appearance preferences are stored on this device, for your account.',
   language: 'App language', languageDesc: 'Menus, receipts and reports use this language',
   currency: 'Currency', currencyValue: 'Turkish lira (₺)',

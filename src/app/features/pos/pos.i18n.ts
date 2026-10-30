@@ -90,6 +90,8 @@ export interface PosTexts {
   dueLabel: string;
   downPaymentLabel: string;
   planLabel: string;
+  /** Y18: e-reçete no müşterinin önerisinden getirildi */
+  rxFromRecommendation: string;
 }
 
 export const POS_TR: PosTexts = {
@@ -180,6 +182,7 @@ export const POS_TR: PosTexts = {
   dueLabel: 'Vade',
   downPaymentLabel: 'Peşinat',
   planLabel: 'Taksit planı',
+  rxFromRecommendation: 'Çiftçiye yazılan önerideki e-reçete no getirildi; kontrol edin.',
 };
 
 export const POS_EN: PosTexts = {
@@ -270,4 +273,5 @@ export const POS_EN: PosTexts = {
   dueLabel: 'Due',
   downPaymentLabel: 'Down payment',
   planLabel: 'Installment plan',
+  rxFromRecommendation: 'E-prescription no filled from the farmer recommendation; please check.',
 };

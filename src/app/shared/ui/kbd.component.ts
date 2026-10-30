@@ -21,6 +21,8 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
   template: `<ng-content />`,
   styles: [`
     :host(.kbd-inverse) { background: rgba(255, 255, 255, 0.5); border-color: color-mix(in srgb, currentColor 22%, transparent); color: inherit; }
+    /* Y26: dokunmatik cihazda (fiziksel klavye yok) kısayol rozetleri gizli */
+    @media (hover: none) and (pointer: coarse) { :host { display: none !important; } }
   `],
 })
 export class KbdComponent {

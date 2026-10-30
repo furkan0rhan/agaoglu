@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, input, model } from '@angular/core';
 
 /** Banknot adımları: toplamın üstündeki ilk yuvarlak tutarlar bunlardan üretilir. */
-const STEPS = [50, 100, 200, 500, 1000];
+// Y32: büyük tutarlarda bir üst banknot katı da (2.900 → 3.000 · 5.000 · 10.000)
+const STEPS = [50, 100, 200, 500, 1000, 5000, 10000];
 
 /** Toplamın üstündeki en fazla `count` yuvarlak tutar (artan, tekrarsız). */
 export function quickCashAmounts(total: number, count = 3): number[] {

@@ -22,7 +22,7 @@ import {
 } from '../../shared/ui';
 import { SumStripComponent, SumStripItem } from '../products/components/sum-strip.component';
 import { chipClass, chipCountClass, productIcon } from '../products/inventory-ui';
-import { qtyFractionDigits, qtyWithUnit } from '../products/product-unit';
+import { qtyFractionDigits, qtyWithUnit, unitText } from '../products/product-unit';
 import { userErrorMessage } from '../../core/error/user-error';
 import { findByCode } from '../pos/services/cart-item.utils';
 import {
@@ -120,6 +120,12 @@ interface ApplyError {
               <ui-scan-button continuous [handler]="onCountScan" [label]="sx().scan + ' (+1)'" [title]="sx().titleContinuous" />
             }
             <div class="-mx-3 flex gap-2 overflow-x-auto px-3 [scrollbar-width:none] md:mx-0 md:px-0" role="toolbar" [attr.aria-label]="t().common.filters">
+              <!-- Y27: kör sayım (sistem miktarı sayım bitince görünür) -->
+              @if (!completed()) {
+                <button type="button" [class]="chip(blind())" [attr.aria-pressed]="blind()" [title]="t().stockCount.blindHint" (click)="toggleBlind()">
+                  <i class="pi" [class]="blind() ? 'pi-eye-slash' : 'pi-eye'" aria-hidden="true"></i> {{ t().stockCount.blind }}
+                </button>
+              }
               @for (f of viewFilters(); track f.key) {
                 <button type="button" [class]="chip(view() === f.key, f.key === 'diff')" [attr.aria-pressed]="view() === f.key" (click)="view.set(f.key)">
                   {{ f.label }} <b [class]="chipCount(view() === f.key)">{{ f.count }}</b>
@@ -145,7 +151,11 @@ interface ApplyError {
                         <span>{{ row.product.category }}</span>
                         <span class="text-fg-muted" aria-hidden="true">·</span>
                       }
-                      <span>{{ t().stockCount.system }}: <b class="num text-fg">{{ qtyText(row.product.stock, row.product) }}</b></span>
+                      @if (!blind()) {
+                        <span>{{ t().stockCount.system }}: <b class="num text-fg">{{ qtyText(row.product.stock, row.product) }}</b></span>
+                      } @else {
+                        <span>{{ unitName(row.product) }}</span>
+                      }
                     </p>
                   </div>
 
@@ -158,6 +168,8 @@ interface ApplyError {
                     <span class="flex w-24 justify-center">
                       @if (row.counted === null) {
                         <span class="text-sm text-fg-muted" aria-hidden="true">—</span>
+                      } @else if (blind()) {
+                        <ui-status-badge tone="info" size="sm" icon="pi-check">{{ t().stockCount.countedTick }}</ui-status-badge>
                       } @else if (diff(row) === 0) {
                         <ui-status-badge tone="success" size="sm" icon="pi-check">{{ t().stockCount.matched }}</ui-status-badge>
                       } @else {
@@ -320,8 +332,11 @@ export class StockCountPage implements OnInit {
     const counted = this.rows().filter(r => r.counted !== null).length;
     const sh = this.shortageCount();
     const su = this.surplusCount();
+    const first = { icon: 'pi-check-square', tone: 'brand', label: this.inv().counted, value: `${counted} / ${this.rows().length}` } as SumStripItem;
+    // Y27: kör sayımda farklar sayım bitene kadar gizli
+    if (this.blind() && !this.completed()) return [first];
     return [
-      { icon: 'pi-check-square', tone: 'brand', label: this.inv().counted, value: `${counted} / ${this.rows().length}` },
+      first,
       { icon: 'pi-sliders-h', tone: 'info', label: sc.changesLabel, value: this.changedCount() },
       { icon: 'pi-arrow-down', tone: 'danger', label: sc.shortage, value: sh, valueTone: sh ? 'danger' : null },
       { icon: 'pi-arrow-up', tone: 'warning', label: sc.surplus, value: su, valueTone: su ? 'warning' : null },
@@ -331,11 +346,12 @@ export class StockCountPage implements OnInit {
   readonly viewFilters = computed(() => {
     const i = this.inv();
     const uncounted = this.rows().filter(r => r.counted === null).length;
-    return [
+    const all = [
       { key: 'all' as const, label: this.t().common.all, count: this.rows().length },
       { key: 'diff' as const, label: i.onlyDiff, count: this.changedCount() },
       { key: 'uncounted' as const, label: i.uncounted, count: uncounted },
     ];
+    return this.blind() && !this.completed() ? all.filter(f => f.key !== 'diff') : all;
   });
 
   chip(active: boolean, danger = false): string { return chipClass(active, danger); }
@@ -344,6 +360,24 @@ export class StockCountPage implements OnInit {
 
   ngOnInit(): void {
     this.store.ensureLoaded();
+  }
+
+  /** Y27: kör sayım tercihi (bu cihazda hatırlanır). */
+  readonly blind = signal(StockCountPage.readBlind());
+
+  private static readBlind(): boolean {
+    try { return localStorage.getItem('sc-blind') === '1'; } catch { return false; }
+  }
+
+  toggleBlind(): void {
+    const v = !this.blind();
+    this.blind.set(v);
+    if (v && this.view() === 'diff') this.view.set('all');
+    try { localStorage.setItem('sc-blind', v ? '1' : '0'); } catch { /* depolama yok */ }
+  }
+
+  unitName(p: Product): string {
+    return unitText(productUnit(p), this.t().products);
   }
 
   /**

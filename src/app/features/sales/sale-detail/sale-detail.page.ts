@@ -288,7 +288,7 @@ export class SaleDetailPage {
   readonly cancelDenied = computed(() => {
     const s = this.sale();
     const u = this.auth.currentUser();
-    return s ? cancelDenial(s, u ? { id: this.auth.currentUserId(), role: u.role } : null) : 'role';
+    return s ? cancelDenial(s, u ? { id: this.auth.currentUserId(), role: u.role, cancelAnySale: u.permissions?.cancelAnySale } : null) : 'role';
   });
   readonly deniedText = computed(() => cancelErrorText(this.t(), this.cancelDenied()));
 
@@ -312,8 +312,16 @@ export class SaleDetailPage {
     return qtyWithUnit(this.t(), i.quantity, i.unit, this.lang.lang());
   }
 
-  print(s: Sale): void {
-    this.printer.print(saleToReceipt(s)).catch(err => this.logger.error('Receipt print failed', err));
+  /** Veresiye satışında borç kaydındaki saklı taksit planı kullanılır (2-3 ay aralıklı planlar doğru basılsın). */
+  async print(s: Sale): Promise<void> {
+    let plan: Awaited<ReturnType<SalesQueryService['getCreditPlan']>> = null;
+    if ((s.creditAmount ?? 0) > 0) {
+      plan = await this.query.getCreditPlan(s.id).catch(err => {
+        this.logger.warn('Credit plan could not be read, deriving from sale', err);
+        return null;
+      });
+    }
+    await this.printer.print(saleToReceipt(s, plan)).catch(err => this.logger.error('Receipt print failed', err));
   }
 
   openCancel(): void {

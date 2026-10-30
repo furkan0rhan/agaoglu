@@ -6,6 +6,7 @@ import { UserRole } from '../../../shared/models/user.model';
  *  - Yönetici (admin) ve destek modu: her tamamlanmış satışı iptal edebilir.
  *  - Kasiyer: yalnız KENDİ yaptığı ve AYNI GÜN (Türkiye saati) içindeki satışı iptal edebilir.
  *    Geçmiş günün ya da başkasının satışı için yöneticiye başvurur (nakdi iptal edip cebe koyma kapısı kapanır).
+ *  - Kasiyere yönetici "her satışı iptal eder" yetkisi verdiyse (users/{uid}.permissions.cancelAnySale): her satış.
  *  - Personel (staff): iptal edemez.
  */
 export const CANCEL_REASON_MIN = 3;
@@ -37,12 +38,13 @@ function toDate(v: CancelSubject['createdAt']): Date | null {
 
 /** null = izinli; değilse neden. */
 export function cancelDenial(
-  sale: CancelSubject, user: { id: string; role: UserRole } | null, now: Date = new Date(),
+  sale: CancelSubject, user: { id: string; role: UserRole; cancelAnySale?: boolean } | null, now: Date = new Date(),
 ): CancelDenial | null {
   if (sale.status !== 'completed') return 'not-completed';
   if (!user) return 'role';
   if (user.role === 'admin') return null;
   if (user.role !== 'cashier') return 'role';
+  if (user.cancelAnySale === true) return null;
   if (!sale.createdBy || sale.createdBy !== user.id) return 'not-own';
   const created = toDate(sale.createdAt);
   if (!created || businessDay(created) !== businessDay(now)) return 'not-today';

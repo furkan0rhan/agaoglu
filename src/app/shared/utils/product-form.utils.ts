@@ -48,8 +48,11 @@ export function suggestCategories(all: readonly string[], query: string): string
   const raw = query.trim();
   if (!raw) return [...all];
   const lq = raw.toLocaleLowerCase('tr-TR');
-  const filtered = all.filter(v => v.toLocaleLowerCase('tr-TR').includes(lq));
-  if (!filtered.some(v => v.toLocaleLowerCase('tr-TR') === lq)) filtered.push(raw);
+  const low = (v: string) => v.toLocaleLowerCase('tr-TR');
+  // Y29: yazılanla başlayan mevcut kategori önce (Enter onu seçer); yazılan yeni değer en sonda
+  const filtered = all.filter(v => low(v).includes(lq))
+    .sort((a, b) => Number(low(b).startsWith(lq)) - Number(low(a).startsWith(lq)));
+  if (!filtered.some(v => low(v) === lq)) filtered.push(raw);
   return filtered;
 }
 

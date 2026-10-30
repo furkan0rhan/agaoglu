@@ -50,6 +50,8 @@ import { formatQty } from '../sales/services/sales.helpers';
 import { SalesQueryService } from '../sales/services/sales-query.service';
 import { ReceiptPrinterService } from '../sales/receipt/receipt-printer.service';
 import { ReceiptBusinessService } from '../sales/receipt/receipt-business.service';
+import { DEALER_FARMER_REPOSITORY } from '../farmer/data/repositories';
+import { suggestPrescriptionNo } from './services/rx-suggest';
 
 /** Arama sonucu en fazla bu kadar ürün çizilir (düşük seviye Android için). */
 const RESULT_LIMIT = 40;
@@ -241,6 +243,8 @@ function fromDateInput(v: string): Date | null {
             (keydown.enter)="confirmRx()" maxlength="40" />
           @if (rxNo().trim() && !rxNoValid()) {
             <p class="m-0 text-xs text-danger-text" role="alert">{{ t().compliance.rxNoInvalid }}</p>
+          } @else if (rxSuggested() && rxNo() === rxSuggested()) {
+            <p class="m-0 flex items-center gap-1.5 text-xs text-info-text"><i class="pi pi-sparkles" aria-hidden="true"></i>{{ t().pos2.rxFromRecommendation }}</p>
           }
         </div>
         <div class="flex flex-col gap-1.5">
@@ -498,6 +502,7 @@ function fromDateInput(v: string): Date | null {
         <span class="hidden items-center gap-1.5 lg:inline-flex" aria-hidden="true">
           · <ui-kbd>F1</ui-kbd> {{ t().pos.cash }} <ui-kbd>F2</ui-kbd> {{ t().pos.card }}
           <ui-kbd>F3</ui-kbd> {{ t().pos.creditPayment }} <ui-kbd>F4</ui-kbd> {{ t().pos2.hintSearch }}
+          <ui-kbd>F6</ui-kbd> {{ t().pos2.hold }}
         </span>
         <span class="flex-1"></span>
         <button type="button" (click)="openHeldList()"
@@ -549,7 +554,7 @@ function fromDateInput(v: string): Date | null {
                     @let sel = i === activeIndex();
                     @let inCart = cartQty().get(p.id) ?? 0;
                     <li class="border-b border-line last:border-b-0">
-                      <button type="button" [id]="'pos-opt-' + i" (click)="addProduct(p)" [disabled]="p.stock <= 0"
+                      <button type="button" [id]="'pos-opt-' + i" (click)="addFromResults(p)" [disabled]="p.stock <= 0"
                         [attr.aria-current]="sel ? 'true' : null"
                         class="grid min-h-[64px] w-full cursor-pointer grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-2.5 bg-transparent px-3 py-2.5 text-left transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-55 sm:grid-cols-[44px_minmax(0,1fr)_auto_auto_auto] sm:gap-x-3.5 sm:px-4"
                         [class]="sel ? 'bg-brand-soft shadow-[inset_3px_0_0_var(--brand)]' : ''">
@@ -602,7 +607,7 @@ function fromDateInput(v: string): Date | null {
                   <button type="button" (click)="addProduct(p)" [disabled]="p.stock <= 0"
                     class="flex min-h-[76px] cursor-pointer flex-col justify-between gap-1.5 rounded-token-lg border border-line bg-surface px-3 py-2.5 text-left transition-colors hover:border-brand hover:bg-brand-soft disabled:cursor-not-allowed disabled:opacity-50">
                     <span class="line-clamp-2 text-sm font-semibold leading-tight text-fg">{{ p.name }}</span>
-                    <span class="flex items-baseline justify-between gap-2">
+                    <span class="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
                       <ui-money class="text-15 font-extrabold text-brand-text" [value]="p.salePrice" />
                       @if ((cartQty().get(p.id) ?? 0) > 0) {
                         <span class="num whitespace-nowrap rounded-token-sm bg-brand px-1.5 text-11 font-bold text-brand-contrast">{{ qtyText(cartQty().get(p.id) ?? 0, unitOf(p)) }}</span>
@@ -743,7 +748,7 @@ function fromDateInput(v: string): Date | null {
                         </span>
                       </div>
                       <ui-money class="num-xl text-right text-base text-fg" [value]="item.totalPrice" [symbol]="false" />
-                      <div class="col-span-2 flex items-center gap-2">
+                      <div class="col-span-2 flex flex-wrap items-center gap-2">
                         <div class="flex h-10 shrink-0 items-stretch overflow-hidden rounded-token-md border border-line-strong">
                           <button type="button" (click)="stepQty(item, -1)" [attr.aria-label]="t().pos.decrease + ': ' + item.productName"
                             class="grid w-10 cursor-pointer place-items-center border-0 bg-surface-muted text-fg-secondary hover:text-fg">
@@ -761,7 +766,7 @@ function fromDateInput(v: string): Date | null {
                             <i class="pi pi-plus text-xs" aria-hidden="true"></i>
                           </button>
                         </div>
-                        <div class="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                        <div class="flex min-w-[6.5rem] flex-1 flex-wrap items-center gap-1">
                           @for (pl of pills; track pl.text) {
                             <ui-status-badge size="sm" [tone]="pl.tone"><span class="num whitespace-nowrap">{{ pl.text }}</span></ui-status-badge>
                           }
@@ -837,11 +842,11 @@ function fromDateInput(v: string): Date | null {
               </button>
             </div>
             <div class="grid shrink-0 grid-cols-3 gap-2 px-4 pb-3.5 pt-2">
-              <p-button styleClass="w-full !h-10 !text-13.5" severity="secondary" icon="pi pi-percentage" [label]="t().pos2.discountBtn"
+              <p-button styleClass="w-full !h-10 !gap-1.5 !px-2 !text-13.5" severity="secondary" icon="pi pi-percentage" [label]="t().pos2.discountBtn"
                 [disabled]="!cart.items().length" (onClick)="openDiscount()" />
-              <p-button styleClass="w-full !h-10 !text-13.5" severity="secondary" icon="pi pi-clock" [label]="t().pos2.hold"
-                [disabled]="!cart.items().length" (onClick)="openHold()" />
-              <p-button styleClass="w-full !h-10 !text-13.5" severity="secondary" icon="pi pi-users" [label]="t().pos2.customer"
+              <p-button styleClass="w-full !h-10 !gap-1.5 !px-2 !text-13.5" severity="secondary" icon="pi pi-clock" [label]="t().pos2.hold"
+                [disabled]="!cart.items().length" (onClick)="openHold()" aria-keyshortcuts="F6" />
+              <p-button styleClass="w-full !h-10 !gap-1.5 !px-2 !text-13.5" severity="secondary" icon="pi pi-users" [label]="t().pos2.customer"
                 (onClick)="openCustomerDialog(false)" />
             </div>
           }
@@ -883,6 +888,7 @@ export class PosPage implements OnInit, AfterViewInit {
   private readonly lang = inject(LangService);
   private readonly route = inject(ActivatedRoute);
   private readonly auth = inject(AuthService);
+  private readonly farmerRepo = inject(DEALER_FARMER_REPOSITORY);
   readonly settings = inject(TenantSettingsService);
   readonly t = this.lang.t;
 
@@ -939,6 +945,8 @@ export class PosPage implements OnInit, AfterViewInit {
   // ---- E-reçete ----
   readonly rxNo = signal('');
   readonly rxPrescriber = signal('');
+  /** Y18: müşterinin (bağlı çiftçi) önerisinden getirilen e-reçete no. */
+  readonly rxSuggested = signal<string | null>(null);
   /** E-reçete sonrası açılacak ödeme. */
   private pendingPayment: 'cash' | 'card' | 'credit' | null = null;
   /** 'warn' modunda kullanıcı "reçetesiz devam" dedi (sepet temizlenince sıfırlanır). */
@@ -1199,7 +1207,7 @@ export class PosPage implements OnInit, AfterViewInit {
   @HostListener('document:focusout')
   onFocusOut(): void { this.otherFieldFocused.set(false); }
 
-  /** F1 nakit · F2 kart · F3 veresiye · F4 arama; satış özetinde Enter fiş, Esc yeni satış (dialog açıkken çalışmaz). */
+  /** F1 nakit · F2 kart · F3 veresiye · F4 arama · F6 beklet; satış özetinde Enter fiş, Esc yeni satış (dialog açıkken çalışmaz). */
   @HostListener('document:keydown', ['$event'])
   onHotkey(e: KeyboardEvent): void {
     if (this.anyDialog() || e.ctrlKey || e.altKey || e.metaKey) return;
@@ -1209,6 +1217,8 @@ export class PosPage implements OnInit, AfterViewInit {
       F2: () => this.pay('card'),
       F3: () => this.payCredit(),
       F4: () => this.searchInput()?.nativeElement.focus(),
+      // Y32: sepeti beklet
+      F6: () => this.openHold(),
     };
     if (this.showDone() && !this.query().trim()) {
       const target = e.target as HTMLElement | null;
@@ -1355,7 +1365,21 @@ export class PosPage implements OnInit, AfterViewInit {
    * Ürünü sepete ekle. `gtsNo` verilirse (GTS/karekod okutuldu) o birim kaleme yazılır ve satışta o parti düşer.
    * Bitki koruma ürününde SKT'si geçmiş birim eklenemez (engel).
    */
-  addProduct(product: Product, gtsNo: string | null = null): void {
+  /**
+   * Y26: dokunmatik ekranda arama sonucundan eklemede liste açık kalır (alttaki ızgara parmağın altında kaymasın,
+   * çift dokunuş yanlış ürün eklemesin); klavye açılmasın diye arama kutusuna odak verilmez.
+   */
+  addFromResults(product: Product): void {
+    if (this.touchInput && !this.isDesktop()) this.addProduct(product, null, true);
+    else this.addProduct(product);
+  }
+
+  /** Kaba işaretçi (parmak) — dokunmatik cihaz. */
+  private readonly touchInput = (() => {
+    try { return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches; } catch { return false; }
+  })();
+
+  addProduct(product: Product, gtsNo: string | null = null, keepResults = false): void {
     if (product.stock <= 0) {
       this.toast(`${product.name}: ${this.t().pos.outOfStock}`, 'warn');
       this.focusSearch();
@@ -1381,7 +1405,7 @@ export class PosPage implements OnInit, AfterViewInit {
       return;
     }
     const result = this.cart.addItem(draft);
-    this.onQuery('');
+    if (!keepResults) this.onQuery('');
     if (result === 'added') {
       this.lastSale.set(null);
       const item = this.cart.items().find(i => i.productId === product.id);
@@ -1399,7 +1423,7 @@ export class PosPage implements OnInit, AfterViewInit {
     } else {
       this.toast(`${product.name}: ${this.t().pos.outOfStock}`, 'warn');
     }
-    this.focusSearch();
+    if (!keepResults) this.focusSearch();
   }
 
   onBarcodeDetected(barcode: string): void {
@@ -1633,7 +1657,26 @@ export class PosPage implements OnInit, AfterViewInit {
     this.pendingPayment = method;
     this.rxNo.set(this.cart.prescriptionNo() ?? '');
     this.rxPrescriber.set(this.cart.prescriberName() ?? '');
+    this.rxSuggested.set(null);
     this.showRx.set(true);
+    if (!this.rxNo().trim()) void this.suggestRxFromRecommendation();
+  }
+
+  /** Y18: müşteri bağlı çiftçiyse geçerli önerisindeki e-reçete no'yu öner (alan hâlâ boşsa doldurur). */
+  private async suggestRxFromRecommendation(): Promise<void> {
+    const farmerId = this.selectedCustomer()?.farmerId;
+    if (!farmerId) return;
+    try {
+      const recs = await this.farmerRepo.listRecommendations(this.auth.currentTenantId(), farmerId);
+      const rxIds = this.cart.items().filter(i => i.requiresPrescription).map(i => i.productId);
+      const hit = suggestPrescriptionNo(recs, rxIds);
+      if (!hit || !this.showRx() || this.rxNo().trim()) return;
+      this.rxNo.set(hit.prescriptionNo);
+      this.rxSuggested.set(hit.prescriptionNo);
+      if (!this.rxPrescriber().trim() && hit.prescriber) this.rxPrescriber.set(hit.prescriber);
+    } catch (err) {
+      this.logger.warn('Recommendation lookup for e-prescription failed', err);
+    }
   }
 
   confirmRx(): void {
@@ -1784,6 +1827,7 @@ export class PosPage implements OnInit, AfterViewInit {
         dueDate: calc.plan.dueDate,
         installments: calc.plan.installments,
         downPayment: calc.downPayment,
+        intervalMonths: this.creditInterval(),
       },
     });
     if (ok) this.showCredit.set(false);

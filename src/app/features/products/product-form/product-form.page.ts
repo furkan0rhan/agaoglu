@@ -109,7 +109,16 @@ import {
                                 (ngModelChange)="onCategoryChange($event)" (onSelect)="onCategoryChange($event.value)"
                                 [suggestions]="categorySuggestions" (completeMethod)="searchCategory($event)"
                                 [forceSelection]="false" [dropdown]="true" [placeholder]="t().products.formCategoryPlaceholder"
-                                styleClass="w-full" appendTo="body" />
+                                [autoOptionFocus]="true" styleClass="w-full" appendTo="body">
+                  <!-- Y29: yeni kategori ayrı satır ("+ 'Güb' ekle"); eşleşen mevcut kategori ilk sırada ve vurgulu -->
+                  <ng-template #item let-c>
+                    @if (isNewCategory(c)) {
+                      <span class="flex items-center gap-1.5 text-brand-text"><i class="pi pi-plus text-xs" aria-hidden="true"></i>{{ newCategoryLabel(c) }}</span>
+                    } @else {
+                      <span>{{ c }}</span>
+                    }
+                  </ng-template>
+                </p-autocomplete>
                 @if (submitted() && !categoryStr.trim()) {
                   <p class="m-0 text-xs text-danger-text" role="alert">{{ t().products.categoryRequired }}</p>
                 }
@@ -488,8 +497,20 @@ export class ProductFormPage implements OnInit {
     return this.decimal() ? roundQty(v) : Math.floor(v);
   }
 
+  private knownCategories: string[] = [];
+
   searchCategory(event: { query: string }): void {
-    this.categorySuggestions = suggestCategories(collectCategories(this.store.products()), event.query);
+    this.knownCategories = collectCategories(this.store.products());
+    this.categorySuggestions = suggestCategories(this.knownCategories, event.query);
+  }
+
+  isNewCategory(c: string): boolean {
+    const l = (c ?? '').toLocaleLowerCase('tr-TR');
+    return !this.knownCategories.some(k => k.toLocaleLowerCase('tr-TR') === l);
+  }
+
+  newCategoryLabel(c: string): string {
+    return this.lang.lang() === 'tr' ? `"${c}" yeni kategori olarak ekle` : `Add "${c}" as a new category`;
   }
 
   searchVat(event: { query: string }): void {
