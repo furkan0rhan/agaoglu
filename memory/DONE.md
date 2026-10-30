@@ -54,3 +54,15 @@
 
 ## Veri Modeli
 - [x] Ürün kategorilerine Hırdavat, Çiçek, Fide eklendi (`product.model.ts`)
+
+## Ürünler & GTS (2026-07-06) — detay için `URUNLER-GTS.md`
+- [x] Ürün listesi kart → **tablo** (`p-table`): sütun sıralama + açılır-kapanır sütun filtresi ("Filtreler" butonu)
+- [x] Ürün **Aktif/Pasif** durumu + durum etiketi (detay başlığında)
+- [x] Ürün **Sil = soft-delete** (isActive:false, veri korunur); kalıcı silme yok
+- [x] Listede **"Pasif Ürünler"** filtresi + satırdan "Aktif Et" ile geri getirme (`getPassive$`)
+- [x] **GTS birim-bazlı takip:** her GTS = qty:1 batch, benzersiz. Barkod ürüne (tek), GTS birime ait.
+- [x] Detayda **GTS / Karekod Tablosu** (tam genişlik): satır düzenle (`updateBatch`) / sil (`removeBatch`)
+- [x] **"+ GTS Ekle" paneli:** SKT+tedarikçi bir kez, GTS'leri arka arkaya okut (dup uyarısı), Ekle
+- [x] "Adet" sütunu tablodan kaldırıldı (her GTS zaten 1 birim)
+- [x] Stok Ekle/Çıkar dialogları GTS'siz basit işlemlere sadeleştirildi
+- [x] i18n: TR+EN'e ürün durum/silme/GTS anahtarları + `common.filters` eklendi

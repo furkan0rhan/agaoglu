@@ -1,0 +1,1472 @@
+<!doctype html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Net Profesyonel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/primeicons/7.0.0/primeicons.min.css">
+<style>
+/* =====================================================================
+   Tarım Market Pro — Yön A: "Net Profesyonel"
+   Düz yüzeyler, 1px kenarlık, gölge yalnızca açılır katmanlarda.
+   ===================================================================== */
+:root{
+  --font: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  /* ölçü */
+  --r-sm:4px; --r:6px; --r-lg:8px; --r-xl:12px;
+  --ctl:40px;            /* min dokunma/tık hedefi */
+  --row:44px;            /* tablo satırı */
+  --pad:16px;            /* kart iç boşluğu */
+  --fs:14px;             /* gövde */
+  --fs-sm:13px; --fs-xs:12px; --fs-lg:16px; --fs-h1:22px; --fs-kpi:28px;
+}
+:root[data-density="compact"]{ --row:38px; --pad:12px; }
+:root[data-fontsize="lg"]{ --fs:15px; --fs-sm:14px; --fs-xs:13px; --fs-lg:17px; --fs-h1:24px; --fs-kpi:30px; }
+:root[data-fontsize="xl"]{ --fs:16px; --fs-sm:15px; --fs-xs:14px; --fs-lg:18px; --fs-h1:26px; --fs-kpi:32px; }
+
+/* ---------- AÇIK ---------- */
+:root, :root[data-theme="light"]{
+  color-scheme: light;
+  --bg:#f6f7f7;          /* uygulama zemini */
+  --panel:#ffffff;       /* kart, tablo */
+  --panel-2:#fafbfa;     /* tablo başlığı, ikincil */
+  --muted:#f1f3f2;       /* input grubu, çip */
+  --hover:#f3f5f4;
+  --line:#e4e8e6;        /* 1px kenarlık */
+  --line-2:#d3d9d6;      /* input kenarı, ayırıcı güçlü */
+  --fg:#101815;          /* 17:1 */
+  --fg-2:#46534e;        /* 7.6:1 */
+  --fg-3:#5f6d67;        /* 5.3:1 */
+  --brand:#047857; --brand-hover:#065f46; --brand-fg:#ffffff;
+  --brand-text:#047857; --brand-soft:#ecfdf5; --brand-line:#a7f3d0;
+  --brand-grad: linear-gradient(135deg,#10b981 0%,#047857 100%);
+  --accent:#c2410c; --accent-soft:#fff7ed; --accent-line:#fed7aa;
+  --danger:#dc2626; --danger-text:#b91c1c; --danger-soft:#fef2f2; --danger-line:#fecaca;
+  --warn:#b45309;  --warn-soft:#fffbeb; --warn-line:#fde68a;
+  --info:#1d4ed8;  --info-soft:#eff6ff; --info-line:#bfdbfe;
+  --pop: 0 1px 2px rgba(16,24,20,.06), 0 12px 32px -8px rgba(16,24,20,.18);
+  --focus: 0 0 0 3px rgba(4,120,87,.22);
+  --bar-past:#a7c9bb;
+}
+/* ---------- KOYU (katmanlı, saf siyah değil) ---------- */
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#0b0f0e;
+  --panel:#111715;
+  --panel-2:#141b18;
+  --muted:#19211e;
+  --hover:#182120;
+  --line:#222b28;
+  --line-2:#303b37;
+  --fg:#e7ecea;          /* 15:1 */
+  --fg-2:#a9b4b0;        /* 8.4:1 */
+  --fg-3:#8b9792;        /* 5.8:1 */
+  --brand:#34d399; --brand-hover:#6ee7b7; --brand-fg:#03281c;
+  --brand-text:#34d399; --brand-soft:rgba(52,211,153,.10); --brand-line:rgba(52,211,153,.28);
+  --accent:#fb923c; --accent-soft:rgba(251,146,60,.10); --accent-line:rgba(251,146,60,.30);
+  --danger:#f87171; --danger-text:#fca5a5; --danger-soft:rgba(248,113,113,.10); --danger-line:rgba(248,113,113,.30);
+  --warn:#fbbf24;  --warn-soft:rgba(251,191,36,.10); --warn-line:rgba(251,191,36,.28);
+  --info:#60a5fa;  --info-soft:rgba(96,165,250,.10); --info-line:rgba(96,165,250,.28);
+  --pop: 0 0 0 1px #2b3532, 0 16px 40px -8px rgba(0,0,0,.6);
+  --focus: 0 0 0 3px rgba(52,211,153,.28);
+  --bar-past:#2f5446;
+}
+
+*{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+html,body{margin:0}
+body{font-family:var(--font);font-size:var(--fs);line-height:1.45;color:var(--fg);background:var(--bg);
+  -webkit-font-smoothing:antialiased;}
+.num,td.r,.money{font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--brand-text);text-decoration:none}
+a:hover{text-decoration:underline}
+:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r)}
+.pi{font-size:1em}
+
+/* =============== Prototip çubuğu (uygulamanın parçası değil) =============== */
+.proto{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}
+.proto-title{font-weight:600;font-size:13px;color:var(--fg-2);margin-right:8px;white-space:nowrap}
+.proto-title b{color:var(--fg)}
+.seg{display:inline-flex;padding:3px;background:var(--muted);border:1px solid var(--line);border-radius:var(--r-lg);gap:2px}
+.seg button{border:0;background:transparent;height:34px;padding:0 12px;border-radius:var(--r);cursor:pointer;
+  font-size:13px;font-weight:500;color:var(--fg-2);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.seg button:hover{color:var(--fg)}
+.seg button[aria-pressed="true"]{background:var(--panel);color:var(--fg);box-shadow:0 0 0 1px var(--line-2)}
+.proto .spacer{flex:1}
+.stage{padding:24px;display:flex;justify-content:center;overflow-x:auto}
+.frame{container:app/inline-size;width:1366px;flex:none;height:768px;border:1px solid var(--line-2);border-radius:var(--r-lg);
+  overflow:hidden;background:var(--bg);position:relative}
+.stage.phone .frame{width:390px;height:844px;border-radius:28px;border:8px solid #1d2422}
+:root[data-theme="dark"] .stage.phone .frame{border-color:#2a3330}
+.stage-note{text-align:center;color:var(--fg-3);font-size:12px;margin-top:-12px;padding-bottom:24px}
+
+/* =============== Uygulama kabuğu =============== */
+.app{display:grid;grid-template-columns:224px 1fr;height:100%}
+.hidden{display:none !important}
+.side{border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.org{display:flex;align-items:center;gap:10px;padding:12px 12px;height:60px;border-bottom:1px solid var(--line)}
+.logo{width:32px;height:32px;border-radius:var(--r-lg);background:var(--brand-grad);display:grid;place-items:center;color:#fff;flex:none}
+.logo .pi{font-size:15px}
+.org-name{font-weight:600;font-size:14px;line-height:1.2}
+.org-sub{font-size:12px;color:var(--fg-3)}
+.org .pi-chevron-down{margin-left:auto;color:var(--fg-3);font-size:12px}
+.nav{padding:8px;overflow:auto;flex:1}
+.nav-group{font-size:12px;font-weight:500;color:var(--fg-3);padding:14px 10px 6px}
+.nav a{display:flex;align-items:center;gap:10px;height:40px;padding:0 10px;border-radius:var(--r);color:var(--fg-2);
+  font-weight:500;font-size:14px;text-decoration:none;cursor:pointer;position:relative}
+.nav a .pi{font-size:16px;width:18px;text-align:center;color:var(--fg-3)}
+.nav a:hover{background:var(--hover);color:var(--fg)}
+.nav a.active{background:var(--muted);color:var(--fg)}
+.nav a.active .pi{color:var(--brand-text)}
+.nav a.active::before{content:"";position:absolute;left:-8px;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;background:var(--brand)}
+.nav a kbd,.kbd{margin-left:auto;font-family:var(--font);font-size:11px;font-weight:600;color:var(--fg-3);border:1px solid var(--line-2);
+  border-bottom-width:2px;border-radius:var(--r-sm);padding:0 5px;line-height:17px;background:var(--panel)}
+.nav .count{margin-left:auto;font-size:12px;color:var(--danger-text);font-weight:600}
+.side-foot{border-top:1px solid var(--line);padding:10px 12px;display:flex;align-items:center;gap:10px}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--muted);border:1px solid var(--line);display:grid;place-items:center;
+  font-size:12px;font-weight:600;color:var(--fg-2);flex:none}
+.avatar.lg{width:48px;height:48px;font-size:16px}
+.who{font-size:13px;font-weight:600;line-height:1.2}
+.who small{display:block;font-weight:400;color:var(--fg-3);font-size:12px}
+.sync{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--fg-3)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--brand);display:inline-block;flex:none}
+.dot.warn{background:var(--warn)} .dot.danger{background:var(--danger)} .dot.info{background:var(--info)} .dot.mute{background:var(--line-2)}
+
+.main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.top{height:60px;flex:none;display:flex;align-items:center;gap:12px;padding:0 24px;border-bottom:1px solid var(--line);background:var(--panel)}
+.crumb{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--fg-3);min-width:0}
+.crumb b{color:var(--fg);font-weight:600}
+.crumb .pi{font-size:11px}
+.top .search{margin-left:auto;width:300px}
+.top .mobile-only{display:none}
+.content{flex:1;overflow:auto;padding:24px}
+.content.flush{padding:0}
+.bnav{display:none}
+
+/* =============== Ortak bileşenler =============== */
+.btn{height:var(--ctl);min-width:var(--ctl);padding:0 14px;border-radius:var(--r);border:1px solid var(--line-2);background:var(--panel);
+  color:var(--fg);font-weight:500;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;white-space:nowrap;text-decoration:none}
+.btn:hover{background:var(--hover);text-decoration:none}
+.btn .pi{font-size:14px;color:var(--fg-2)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-fg)}
+.btn.primary .pi{color:inherit}
+.btn.primary:hover{background:var(--brand-hover);border-color:var(--brand-hover)}
+.btn.accent{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .btn.accent{color:#2a1205}
+.btn.accent .pi{color:inherit}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.ghost:hover{background:var(--hover)}
+.btn.danger{color:var(--danger-text)}
+.btn.danger .pi{color:var(--danger-text)}
+.btn.icon{padding:0;width:var(--ctl)}
+.btn.sm{height:32px;min-width:32px;padding:0 10px;font-size:13px}
+.btn .kbd{margin-left:4px}
+.btn.primary .kbd{background:transparent;color:inherit;border-color:currentColor;opacity:.75}
+.btn.block{width:100%}
+
+.input{height:var(--ctl);border:1px solid var(--line-2);border-radius:var(--r);background:var(--panel);padding:0 12px;width:100%;font-size:14px;color:var(--fg)}
+.input::placeholder{color:var(--fg-3)}
+.input:focus{outline:none;border-color:var(--brand);box-shadow:var(--focus)}
+textarea.input{height:auto;padding:10px 12px;line-height:1.5;resize:vertical}
+select.input{appearance:none;padding-right:34px;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23839089' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label,.lbl{font-size:13px;font-weight:500;color:var(--fg-2)}
+.field .hint{font-size:12px;color:var(--fg-3)}
+.search{position:relative}
+.search .pi-search{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--fg-3);font-size:14px}
+.search .input{padding-left:36px}
+.search .kbd{position:absolute;right:10px;top:50%;transform:translateY(-50%)}
+.affix{display:flex;align-items:stretch;border:1px solid var(--line-2);border-radius:var(--r);background:var(--panel);height:var(--ctl);overflow:hidden}
+.affix input{border:0;background:transparent;padding:0 12px;width:100%;min-width:0;font-variant-numeric:tabular-nums}
+.affix input:focus{outline:none}
+.affix:focus-within{border-color:var(--brand);box-shadow:var(--focus)}
+.affix span{display:flex;align-items:center;padding:0 12px;background:var(--panel-2);color:var(--fg-3);font-size:13px;border-left:1px solid var(--line)}
+.affix span.pre{border-left:0;border-right:1px solid var(--line)}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg)}
+.card-h{display:flex;align-items:center;gap:12px;padding:14px var(--pad);border-bottom:1px solid var(--line);min-height:52px}
+.card-h h3{margin:0;font-size:14px;font-weight:600}
+.card-h p{margin:2px 0 0;color:var(--fg-3);font-size:13px}
+.card-h .act{margin-left:auto;display:flex;gap:8px;align-items:center}
+.card-b{padding:var(--pad)}
+.card-f{padding:10px var(--pad);border-top:1px solid var(--line);display:flex;align-items:center;gap:8px;color:var(--fg-3);font-size:13px}
+
+.badge{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:var(--r-sm);font-size:12px;font-weight:500;
+  border:1px solid var(--line);background:var(--panel-2);color:var(--fg-2);white-space:nowrap}
+.badge.ok{color:var(--brand-text);background:var(--brand-soft);border-color:var(--brand-line)}
+.badge.danger{color:var(--danger-text);background:var(--danger-soft);border-color:var(--danger-line)}
+.badge.warn{color:var(--warn);background:var(--warn-soft);border-color:var(--warn-line)}
+.badge.info{color:var(--info);background:var(--info-soft);border-color:var(--info-line)}
+.badge.accent{color:var(--accent);background:var(--accent-soft);border-color:var(--accent-line)}
+.badge .pi{font-size:11px}
+
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line-2);background:var(--panel);font-size:13px;font-weight:500;
+  color:var(--fg-2);display:inline-flex;align-items:center;gap:8px;cursor:pointer;white-space:nowrap}
+.chip:hover{color:var(--fg);background:var(--hover)}
+.chip .n{font-size:12px;color:var(--fg-3);font-variant-numeric:tabular-nums}
+.chip[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--panel)}
+.chip[aria-pressed="true"] .n{color:inherit;opacity:.7}
+
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{height:38px;text-align:left;font-size:12px;font-weight:500;color:var(--fg-3);padding:0 12px;background:var(--panel-2);border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{height:var(--row);padding:0 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tbody tr:hover td{background:var(--hover)}
+.tbl th.r,.tbl td.r{text-align:right}
+.tbl .sub{display:block;font-size:12px;color:var(--fg-3)}
+.tbl .strong{font-weight:600}
+.tbl td:first-child,.tbl th:first-child{padding-left:var(--pad)}
+.tbl td:last-child,.tbl th:last-child{padding-right:var(--pad)}
+.muted{color:var(--fg-3)} .fg2{color:var(--fg-2)}
+.t-danger{color:var(--danger-text)} .t-warn{color:var(--warn)} .t-brand{color:var(--brand-text)} .t-info{color:var(--info)} .t-accent{color:var(--accent)}
+
+.page-h{display:flex;align-items:flex-end;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+.page-h h1{margin:0;font-size:var(--fs-h1);font-weight:600;letter-spacing:-.015em;line-height:1.2}
+.page-h p{margin:4px 0 0;color:var(--fg-3);font-size:14px}
+.page-h .act{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+
+.sw{position:relative;display:inline-flex;width:40px;height:24px;flex:none;cursor:pointer}
+.sw input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.sw span{position:absolute;inset:0;border-radius:999px;background:var(--line-2);transition:background .15s}
+.sw span::after{content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.sw input:checked + span{background:var(--brand)}
+:root[data-theme="dark"] .sw input:checked + span::after{background:#03281c}
+.sw input:checked + span::after{transform:translateX(16px)}
+.sw input:focus-visible + span{box-shadow:var(--focus)}
+.sw-hit{display:inline-flex;align-items:center;min-height:40px}
+
+.chk{width:18px;height:18px;accent-color:var(--brand);cursor:pointer}
+
+.grid{display:grid;gap:16px}
+.g-kpi{grid-template-columns:repeat(4,1fr)}
+.g-dash{grid-template-columns:minmax(0,1.7fr) minmax(0,1fr)}
+.stack{display:flex;flex-direction:column;gap:16px}
+.row{display:flex;align-items:center;gap:8px}
+.between{justify-content:space-between}
+.hr{height:1px;background:var(--line);margin:12px 0}
+
+/* =============== Dashboard =============== */
+.kpi{padding:16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.kpi .k-l{font-size:13px;color:var(--fg-2);font-weight:500;display:flex;align-items:center;gap:8px}
+.kpi .k-l .pi{color:var(--fg-3);font-size:13px}
+.kpi .k-v{font-size:var(--fs-kpi);font-weight:600;letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums}
+.kpi .k-v small{font-size:.6em;color:var(--fg-3);font-weight:500;margin-left:2px}
+.kpi .k-s{font-size:12.5px;color:var(--fg-3);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.delta{font-weight:600;font-size:12px;display:inline-flex;align-items:center;gap:2px}
+.delta.up{color:var(--brand-text)} .delta.down{color:var(--danger-text)}
+.kpi.alert{border-color:var(--danger-line)}
+.chart-wrap{position:relative;padding:8px var(--pad) 12px}
+.chart-wrap svg{display:block;width:100%;height:auto;overflow:visible}
+.chart-wrap .ax{font-size:11px;fill:var(--fg-3);font-family:var(--font)}
+.chart-wrap .grid-l{stroke:var(--line);stroke-width:1}
+.chart-wrap .b{fill:var(--bar-past);transition:opacity .1s}
+.chart-wrap .b.today{fill:var(--brand)}
+.chart-wrap .hit{fill:transparent;cursor:pointer}
+.chart-wrap .hit:hover + .b{opacity:.75}
+.tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--line);box-shadow:var(--pop);border-radius:var(--r);
+  padding:8px 10px;font-size:12px;opacity:0;transform:translate(-50%,-100%);white-space:nowrap;transition:opacity .08s}
+.tip b{display:block;font-size:14px;font-variant-numeric:tabular-nums}
+.legend-inline{display:flex;gap:14px;font-size:12px;color:var(--fg-3);align-items:center}
+.legend-inline i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;align-items:center;gap:12px;padding:10px var(--pad);border-bottom:1px solid var(--line);min-height:56px}
+.list li:last-child{border-bottom:0}
+.list .ic{width:32px;height:32px;border-radius:var(--r);display:grid;place-items:center;flex:none;border:1px solid var(--line);background:var(--panel-2);color:var(--fg-2)}
+.list .ic.danger{color:var(--danger-text);background:var(--danger-soft);border-color:var(--danger-line)}
+.list .ic.warn{color:var(--warn);background:var(--warn-soft);border-color:var(--warn-line)}
+.list .t{font-weight:500;font-size:14px;line-height:1.3}
+.list .s{font-size:12.5px;color:var(--fg-3)}
+.list .end{margin-left:auto;text-align:right;flex:none}
+.quick{display:grid;grid-template-columns:repeat(3,1fr);gap:0}
+.quick a{display:flex;flex-direction:column;gap:6px;padding:14px var(--pad);color:var(--fg);text-decoration:none;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-height:84px}
+.quick a:nth-child(3n){border-right:0}
+.quick a:nth-last-child(-n+3){border-bottom:0}
+.quick a:hover{background:var(--hover)}
+.quick a .pi{font-size:16px;color:var(--brand-text)}
+.quick a b{font-weight:500;font-size:14px}
+.quick a span{font-size:12px;color:var(--fg-3);display:flex;justify-content:space-between}
+.split-kasa{display:flex;height:6px;border-radius:3px;overflow:hidden;gap:2px;margin-top:6px}
+.split-kasa i{display:block;height:100%}
+
+/* =============== POS =============== */
+.pos{display:grid;grid-template-columns:minmax(0,1fr) 400px;height:100%}
+.pos-left{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line)}
+.pos-search{padding:16px 20px 12px;border-bottom:1px solid var(--line);background:var(--panel)}
+.bigsearch{position:relative}
+.bigsearch .input{height:52px;font-size:17px;padding-left:48px;padding-right:160px;border-width:1.5px;border-color:var(--brand);box-shadow:var(--focus)}
+.bigsearch .pi-barcode{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--brand-text)}
+.bigsearch .hint{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--fg-3);display:flex;gap:6px;align-items:center}
+.pos-quick{display:flex;gap:8px;margin-top:12px;overflow-x:auto;scrollbar-width:none}
+.pos-quick .chip{flex:none}
+.pos-results{flex:1;overflow:auto;padding:12px 20px 20px}
+.res-h{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--fg-3);margin:4px 0 8px}
+.res{display:grid;grid-template-columns:40px minmax(0,1fr) 110px 120px 44px;align-items:center;gap:14px;padding:10px 12px;border:1px solid var(--line);
+  border-radius:var(--r-lg);background:var(--panel);margin-bottom:8px;cursor:pointer}
+.res:hover{border-color:var(--line-2);background:var(--hover)}
+.res.sel{border-color:var(--brand);box-shadow:inset 3px 0 0 var(--brand)}
+.res .thumb{width:40px;height:40px;border-radius:var(--r);background:var(--muted);display:grid;place-items:center;color:var(--fg-3)}
+.res .nm{font-weight:600;font-size:15px;line-height:1.3}
+.res .meta{font-size:12.5px;color:var(--fg-3)}
+.res .stk{font-size:13px;text-align:right}
+.res .pr{font-size:16px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.res .pr small{display:block;font-size:12px;font-weight:400;color:var(--fg-3)}
+.res .add{width:40px;height:40px;border-radius:var(--r);border:1px solid var(--line-2);display:grid;place-items:center;background:var(--panel);color:var(--brand-text)}
+.res.sel .add{background:var(--brand);border-color:var(--brand);color:var(--brand-fg)}
+.res.out{opacity:.7}
+.cart{display:flex;flex-direction:column;min-height:0;background:var(--panel)}
+.cart-cust{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.cart-cust .who small{color:var(--warn)}
+.cart-lines{flex:1;overflow:auto}
+.cl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.cl .nm{font-weight:500;font-size:14px;line-height:1.3}
+.cl .unit{font-size:12.5px;color:var(--fg-3)}
+.cl .tot{font-weight:600;text-align:right;font-variant-numeric:tabular-nums;font-size:15px}
+.qty{display:flex;align-items:center;gap:0;border:1px solid var(--line-2);border-radius:var(--r);height:40px;width:max-content;background:var(--panel)}
+.qty button{width:40px;height:38px;border:0;background:transparent;cursor:pointer;color:var(--fg-2)}
+.qty button:hover{background:var(--hover)}
+.qty input{width:64px;height:38px;border:0;border-left:1px solid var(--line);border-right:1px solid var(--line);text-align:center;font-weight:600;font-variant-numeric:tabular-nums;background:transparent}
+.qty input:focus{outline:none;background:var(--brand-soft)}
+.qty-u{font-size:13px;color:var(--fg-3);margin-left:8px}
+.cl-row2{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between}
+.cart-sum{padding:12px 16px;border-top:1px solid var(--line);background:var(--panel-2)}
+.sum-r{display:flex;justify-content:space-between;font-size:13px;color:var(--fg-2);padding:2px 0;font-variant-numeric:tabular-nums}
+.sum-t{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px;padding-top:10px;border-top:1px solid var(--line)}
+.sum-t span{font-size:14px;font-weight:600}
+.sum-t b{font-size:30px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.pay{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 16px 16px;background:var(--panel-2)}
+.pay .btn{height:64px;flex-direction:column;gap:2px;font-size:15px;font-weight:600}
+.pay .btn .kbd{margin:0;font-size:11px}
+.pay .btn small{font-weight:400;font-size:12px;opacity:.85;display:flex;align-items:center;gap:6px}
+.pos-mob-bar{display:none}
+.done{max-width:520px;margin:32px auto;padding:0 20px}
+.done .card{overflow:hidden}
+.done-top{padding:24px;text-align:center;border-bottom:1px solid var(--line)}
+.done-ic{width:48px;height:48px;border-radius:50%;background:var(--brand-soft);border:1px solid var(--brand-line);color:var(--brand-text);display:grid;place-items:center;margin:0 auto 12px;font-size:20px}
+.done-top h2{margin:0;font-size:20px;font-weight:600}
+.done-top p{margin:4px 0 0;color:var(--fg-3);font-size:13px}
+.change{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--line)}
+.change div{padding:16px;text-align:center;border-right:1px solid var(--line)}
+.change div:last-child{border-right:0;background:var(--accent-soft)}
+.change span{display:block;font-size:12px;color:var(--fg-3);margin-bottom:4px}
+.change b{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.change div:last-child b{font-size:28px;color:var(--accent)}
+.done-acts{padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.done-acts .btn{height:48px}
+.done-acts .full{grid-column:1/-1}
+.pos-state{position:absolute;left:16px;bottom:16px;z-index:5;box-shadow:var(--pop)}
+
+/* =============== Ürünler =============== */
+.toolbar{display:flex;gap:12px;align-items:center;padding:12px var(--pad);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.toolbar .search{width:320px}
+.stock{display:inline-flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}
+.pcards{display:none}
+.pager{display:flex;align-items:center;gap:8px;margin-left:auto}
+
+/* =============== Veresiye =============== */
+.cust-h{display:flex;gap:16px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
+.cust-h h1{margin:0;font-size:var(--fs-h1);font-weight:600;letter-spacing:-.015em}
+.cust-h .meta{display:flex;gap:14px;color:var(--fg-3);font-size:13px;flex-wrap:wrap;margin-top:4px}
+.cust-h .meta span{display:inline-flex;align-items:center;gap:6px}
+.cust-h .act{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.g-cust{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
+.meter{height:8px;border-radius:4px;background:var(--muted);overflow:hidden;margin-top:8px;border:1px solid var(--line)}
+.meter i{display:block;height:100%;background:var(--warn);border-radius:4px}
+.tl{list-style:none;margin:0;padding:8px var(--pad) 8px}
+.tl li{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:12px;position:relative;padding:10px 0}
+.tl li::before{content:"";position:absolute;left:15.5px;top:42px;bottom:-10px;width:1px;background:var(--line)}
+.tl li:last-child::before{display:none}
+.tl .ic{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);background:var(--panel);color:var(--fg-2);font-size:13px;z-index:1}
+.tl .ic.pay{color:var(--brand-text);border-color:var(--brand-line);background:var(--brand-soft)}
+.tl .ic.sale{color:var(--accent);border-color:var(--accent-line);background:var(--accent-soft)}
+.tl .ic.late{color:var(--danger-text);border-color:var(--danger-line);background:var(--danger-soft)}
+.tl .ttl{font-weight:500;font-size:14px}
+.tl .d{font-size:12.5px;color:var(--fg-3)}
+.tl .amt{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.tl .amt small{display:block;font-size:12px;color:var(--fg-3);font-weight:400}
+.tl .items{margin-top:6px;font-size:12.5px;color:var(--fg-2);background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);padding:6px 10px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:10px 16px;font-size:13.5px}
+.kv dt{color:var(--fg-3)} .kv dd{margin:0;text-align:right;font-weight:500}
+
+/* =============== Ayarlar =============== */
+.set{display:grid;grid-template-columns:236px minmax(0,1fr);height:100%}
+.set-nav{border-right:1px solid var(--line);background:var(--panel);overflow:auto;padding:12px 8px 20px}
+.set-nav .search{margin:0 4px 6px}
+.set-nav .search .input{height:36px}
+.set-nav .nav-group{padding:14px 10px 4px}
+.set-nav a{display:flex;align-items:center;gap:10px;height:40px;padding:0 10px;border-radius:var(--r);color:var(--fg-2);font-size:14px;font-weight:500;cursor:pointer;text-decoration:none}
+.set-nav a .pi{color:var(--fg-3);width:18px;text-align:center}
+.set-nav a:hover{background:var(--hover);color:var(--fg)}
+.set-nav a.active{background:var(--muted);color:var(--fg)}
+.set-nav a.active .pi{color:var(--brand-text)}
+.set-nav a .pi-angle-right{display:none;margin-left:auto}
+.set-nav a .badge{margin-left:auto;height:20px;font-size:11px}
+.set-body{overflow:auto;padding:28px 32px 24px;position:relative}
+.set-sec{max-width:760px}
+.set-sec.hidden{display:none}
+.set-h{margin-bottom:20px}
+.set-h h2{margin:0;font-size:20px;font-weight:600;letter-spacing:-.01em}
+.set-h p{margin:4px 0 0;color:var(--fg-3);font-size:14px}
+.set-back{display:none}
+.set-sec .card{margin-bottom:16px}
+.srow{display:flex;gap:24px;align-items:center;padding:14px var(--pad);border-bottom:1px solid var(--line);min-height:64px}
+.srow:last-child{border-bottom:0}
+.srow-l{flex:1;min-width:0}
+.srow-t{font-weight:500;font-size:14px}
+.srow-d{font-size:13px;color:var(--fg-3);margin-top:2px;line-height:1.45}
+.srow-c{flex:none;display:flex;align-items:center;gap:8px}
+.srow-c .input,.srow-c .affix{width:220px}
+.srow.stack-c{flex-direction:column;align-items:stretch;gap:10px}
+.srow.stack-c .srow-c{width:100%}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px;padding:var(--pad)}
+.fgrid .span2{grid-column:1/-1}
+.savebar{position:sticky;bottom:16px;max-width:760px;display:flex;align-items:center;gap:12px;padding:10px 12px 10px 16px;background:var(--fg);color:var(--panel);border-radius:var(--r-lg);
+  box-shadow:var(--pop);margin-top:8px;transform:translateY(20px);opacity:0;pointer-events:none;transition:all .15s}
+.savebar.show{transform:none;opacity:1;pointer-events:auto}
+.savebar .btn{height:36px;border-color:transparent}
+.savebar .btn.ghost{color:var(--panel)}
+.savebar .btn.ghost:hover{background:rgba(127,127,127,.2)}
+.savebar span{flex:1;font-size:14px;font-weight:500}
+.perm th:not(:first-child),.perm td:not(:first-child){text-align:center;width:96px}
+.receipt{width:240px;background:#fff;color:#111;border:1px solid var(--line);border-radius:var(--r-sm);padding:16px 14px;font-family:'Consolas','Courier New',monospace;font-size:11.5px;line-height:1.5;flex:none}
+.receipt .c{text-align:center}
+.receipt hr{border:0;border-top:1px dashed #999;margin:6px 0}
+.receipt .r{display:flex;justify-content:space-between}
+.plan{display:flex;gap:16px;align-items:center;padding:var(--pad)}
+.usage{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line)}
+.usage div{padding:14px var(--pad);border-right:1px solid var(--line)}
+.usage div:last-child{border-right:0}
+.usage span{font-size:12px;color:var(--fg-3)}
+.usage b{display:block;font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
+.callout{display:flex;gap:12px;padding:12px 14px;border:1px solid var(--info-line);background:var(--info-soft);border-radius:var(--r-lg);font-size:13.5px;color:var(--fg);margin-bottom:16px}
+.callout .pi{color:var(--info);margin-top:2px}
+.callout.ok{border-color:var(--brand-line);background:var(--brand-soft)}
+.callout.ok .pi{color:var(--brand-text)}
+.radio-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.rc{border:1px solid var(--line-2);border-radius:var(--r-lg);padding:12px;cursor:pointer;background:var(--panel);text-align:left}
+.rc:hover{background:var(--hover)}
+.rc[aria-pressed="true"]{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.rc b{display:block;font-size:14px;font-weight:600}
+.rc span{font-size:12.5px;color:var(--fg-3)}
+.theme-prev{height:56px;border-radius:var(--r);border:1px solid var(--line);margin-bottom:10px;display:flex;overflow:hidden}
+.theme-prev i{display:block;width:28%;border-right:1px solid rgba(127,127,127,.25)}
+.vars{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.vars code{font-size:12px;background:var(--muted);border:1px solid var(--line);border-radius:var(--r-sm);padding:2px 6px;color:var(--fg-2)}
+
+/* =============== Giriş =============== */
+.login{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);height:100%;background:var(--panel)}
+.login-form{display:flex;flex-direction:column;padding:32px 48px}
+.login-form .brandrow{display:flex;align-items:center;gap:10px;font-weight:600}
+.login-box{width:100%;max-width:380px;margin:auto}
+.login-box h1{font-size:26px;font-weight:600;letter-spacing:-.02em;margin:0 0 6px}
+.login-box > p{color:var(--fg-3);margin:0 0 28px}
+.login-box .field{margin-bottom:16px}
+.login-box .btn.primary{height:48px;font-size:15px;width:100%}
+.or{display:flex;align-items:center;gap:12px;color:var(--fg-3);font-size:12px;margin:20px 0}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+.login-foot{display:flex;justify-content:space-between;color:var(--fg-3);font-size:12px;flex-wrap:wrap;gap:8px}
+.login-side{background:var(--panel-2);border-left:1px solid var(--line);padding:48px;display:flex;flex-direction:column;justify-content:center;gap:28px;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:32px 32px;background-position:-1px -1px}
+.login-side .card{max-width:440px;box-shadow:var(--pop)}
+.feat{display:grid;gap:14px;max-width:440px}
+.feat div{display:flex;gap:12px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:12px 14px}
+.feat .pi{color:var(--brand-text);margin-top:3px}
+.feat b{display:block;font-size:14px;font-weight:600}
+.feat span{font-size:13px;color:var(--fg-3)}
+.pw{position:relative}
+.pw .btn{position:absolute;right:0;top:0;border-color:transparent;background:transparent}
+
+/* =============== Orta genişlik =============== */
+@container app (max-width: 1100px){
+  .g-kpi{grid-template-columns:repeat(2,1fr)}
+}
+
+/* =============== TELEFON (konteyner sorgusu: çerçeve 390px) =============== */
+@container app (max-width: 640px){
+  .app{grid-template-columns:minmax(0,1fr);grid-template-rows:1fr}
+  .side{display:none}
+  .top{height:56px;padding:0 12px 0 16px}
+  .top .search,.top .desk-only{display:none}
+  .top .mobile-only{display:inline-flex}
+  .crumb{font-size:16px}
+  .crumb .lvl{display:none}
+  .content{padding:16px 16px 88px}
+  .bnav{display:grid;grid-template-columns:repeat(5,1fr);position:absolute;left:0;right:0;bottom:0;height:68px;background:var(--panel);border-top:1px solid var(--line);z-index:10}
+  .bnav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11.5px;font-weight:500;color:var(--fg-3);text-decoration:none;cursor:pointer}
+  .bnav a .pi{font-size:19px}
+  .bnav a.active{color:var(--brand-text)}
+  .bnav a.sell .pi{width:44px;height:44px;border-radius:50%;background:var(--brand);color:var(--brand-fg);display:grid;place-items:center;margin-top:-18px;border:4px solid var(--panel);box-sizing:content-box;font-size:18px}
+  .page-h{margin-bottom:16px}
+  .page-h .act{margin-left:0;width:100%}
+  .page-h .act .btn{flex:1}
+  .g-kpi{grid-template-columns:1fr 1fr;gap:10px}
+  .kpi{padding:12px}
+  .kpi .k-v{font-size:22px}
+  .kpi .k-s .hide-m{display:none}
+  .g-dash,.g-cust{grid-template-columns:minmax(0,1fr)}
+  .top .bell{margin-left:auto}
+  .quick{grid-template-columns:repeat(2,1fr)}
+  .quick a:nth-child(3n){border-right:1px solid var(--line)}
+  .quick a:nth-child(2n){border-right:0}
+  .quick a:nth-last-child(-n+3){border-bottom:1px solid var(--line)}
+  .quick a:nth-last-child(-n+2){border-bottom:0}
+  .hide-m{display:none !important}
+  /* POS */
+  .pos{grid-template-columns:minmax(0,1fr)}
+  .pos-left{border-right:0}
+  .cart{display:none}
+  .pos-search{padding:12px}
+  .bigsearch .input{padding-right:12px;font-size:16px}
+  .bigsearch .hint{display:none}
+  .pos-results{padding:10px 12px 150px}
+  .res{grid-template-columns:minmax(0,1fr) auto 44px;gap:10px}
+  .res .thumb{display:none}
+  .res .stk{grid-column:1;grid-row:2;text-align:left;margin-top:-6px;font-size:12.5px}
+  .res .pr,.res .add{grid-row:1/span 2}
+  .pos-mob-bar{display:flex;position:absolute;left:12px;right:12px;bottom:80px;height:56px;border-radius:var(--r-lg);background:var(--brand);color:var(--brand-fg);align-items:center;padding:0 16px;gap:12px;font-weight:600;z-index:9;box-shadow:var(--pop)}
+  .pos-mob-bar .n{background:rgba(255,255,255,.2);border-radius:999px;padding:2px 8px;font-size:13px}
+  .pos-mob-bar b{margin-left:auto;font-size:18px;font-variant-numeric:tabular-nums}
+  .done{margin:16px auto}
+  .change b{font-size:18px} .change div:last-child b{font-size:22px}
+  .pos-state{bottom:146px;left:12px}
+  /* Ürünler */
+  .ptable{display:none}
+  .pcards{display:block}
+  .toolbar .search{width:100%}
+  .pc{display:flex;gap:12px;padding:12px var(--pad);border-bottom:1px solid var(--line);align-items:center}
+  .pc:last-child{border-bottom:0}
+  .pc .nm{font-weight:600;font-size:15px}
+  .pc .meta{font-size:12.5px;color:var(--fg-3);margin-top:2px}
+  .pc .end{margin-left:auto;text-align:right;flex:none}
+  .pc .end b{font-size:15px;font-variant-numeric:tabular-nums;display:block}
+  /* Veresiye */
+  .cust-h .act{margin-left:0;width:100%;display:grid;grid-template-columns:1fr 1fr}
+  .tbl.inst th:nth-child(3),.tbl.inst td:nth-child(3){display:none}
+  /* Ayarlar */
+  .set{grid-template-columns:minmax(0,1fr)}
+  .set-nav{border-right:0;padding:12px 8px 96px}
+  .set-nav a{height:48px;border-bottom:1px solid var(--line);border-radius:0}
+  .set-nav a .pi-angle-right{display:inline-block}
+  .set-nav a .badge + .pi-angle-right{margin-left:8px}
+  .set-nav a.active{background:transparent}
+  .set-body{display:none;padding:16px 16px 0}
+  .set.detail .set-nav{display:none}
+  .set.detail .set-body{display:block}
+  .set-back{display:inline-flex;margin:0 0 8px -10px}
+  .srow{flex-direction:column;align-items:stretch;gap:10px}
+  .srow-c .input,.srow-c .affix,.srow-c select{width:100%}
+  .srow.inline-m{flex-direction:row;align-items:center}
+  .fgrid{grid-template-columns:1fr}
+  .radio-cards{grid-template-columns:1fr}
+  .usage{grid-template-columns:1fr}
+  .usage div{border-right:0;border-bottom:1px solid var(--line)}
+  .receipt-wrap{flex-direction:column}
+  .savebar{bottom:80px}
+  .set-sec{padding-bottom:84px}
+  /* Giriş */
+  .login{grid-template-columns:minmax(0,1fr)}
+  .login-side{display:none}
+  .login-form{padding:24px 20px}
+}
+</style>
+</head>
+<body>
+
+<!-- ======================= PROTOTİP ÇUBUĞU ======================= -->
+<div class="proto" role="toolbar" aria-label="Prototip kontrolleri">
+  <div class="proto-title"><b>Tarım Market Pro</b> · Yön A — Net Profesyonel</div>
+  <div class="seg" id="screenTabs" role="tablist" aria-label="Ekran">
+    <button aria-pressed="true" data-screen="dashboard"><i class="pi pi-home"></i>Dashboard</button>
+    <button aria-pressed="false" data-screen="pos"><i class="pi pi-shopping-cart"></i>Hızlı Satış</button>
+    <button aria-pressed="false" data-screen="products"><i class="pi pi-box"></i>Ürünler</button>
+    <button aria-pressed="false" data-screen="credit"><i class="pi pi-credit-card"></i>Veresiye</button>
+    <button aria-pressed="false" data-screen="settings"><i class="pi pi-cog"></i>Ayarlar</button>
+    <button aria-pressed="false" data-screen="login"><i class="pi pi-sign-in"></i>Giriş</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="seg" aria-label="Cihaz">
+    <button aria-pressed="true" data-device="desk"><i class="pi pi-desktop"></i>Masaüstü</button>
+    <button aria-pressed="false" data-device="phone"><i class="pi pi-mobile"></i>Telefon</button>
+  </div>
+  <div class="seg" aria-label="Tema">
+    <button aria-pressed="true" data-theme-btn="light"><i class="pi pi-sun"></i>Açık</button>
+    <button aria-pressed="false" data-theme-btn="dark"><i class="pi pi-moon"></i>Koyu</button>
+  </div>
+</div>
+
+<div class="stage" id="stage">
+<div class="frame" id="frame">
+
+<!-- ======================= UYGULAMA KABUĞU ======================= -->
+<div class="app" id="app">
+  <aside class="side" aria-label="Ana menü">
+    <div class="org">
+      <div class="logo"><i class="pi pi-sparkles"></i></div>
+      <div><div class="org-name">Yılmaz Tarım</div><div class="org-sub">Kulu · Konya</div></div>
+      <i class="pi pi-chevron-down"></i>
+    </div>
+    <nav class="nav">
+      <a data-go="dashboard" class="active"><i class="pi pi-home"></i>Ana sayfa</a>
+      <a data-go="pos"><i class="pi pi-shopping-cart"></i>Hızlı satış<kbd>F2</kbd></a>
+      <a><i class="pi pi-receipt"></i>Satışlar</a>
+      <div class="nav-group">Stok</div>
+      <a data-go="products"><i class="pi pi-box"></i>Ürünler</a>
+      <a><i class="pi pi-barcode"></i>Stok sayımı</a>
+      <a><i class="pi pi-truck"></i>Tedarikçiler</a>
+      <div class="nav-group">Cari</div>
+      <a><i class="pi pi-users"></i>Müşteriler</a>
+      <a data-go="credit"><i class="pi pi-credit-card"></i>Veresiye<span class="count">12</span></a>
+      <div class="nav-group">Yönetim</div>
+      <a><i class="pi pi-chart-bar"></i>Raporlar</a>
+      <a><i class="pi pi-wallet"></i>Giderler</a>
+      <a data-go="settings"><i class="pi pi-cog"></i>Ayarlar</a>
+    </nav>
+    <div class="side-foot">
+      <div class="avatar">MY</div>
+      <div class="who">Mehmet Yılmaz<small>Yönetici</small></div>
+      <div class="sync" title="Çevrimiçi, tüm veriler eşitlendi"><span class="dot"></span>Eşitli</div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <button class="btn ghost icon mobile-only" aria-label="Menü"><i class="pi pi-bars"></i></button>
+      <div class="crumb" id="crumb"><b>Ana sayfa</b></div>
+      <div class="search"><i class="pi pi-search"></i><input class="input" placeholder="Ürün, müşteri, fiş ara" aria-label="Genel arama"><span class="kbd">Ctrl K</span></div>
+      <button class="btn ghost icon bell" aria-label="Bildirimler (3)" style="position:relative"><i class="pi pi-bell"></i><span class="dot danger" style="position:absolute;top:9px;right:10px"></span></button>
+      <button class="btn primary desk-only" data-go="pos"><i class="pi pi-plus"></i>Yeni satış<span class="kbd">F2</span></button>
+    </header>
+
+    <!-- ===================== 1. DASHBOARD ===================== -->
+    <div class="content screen" data-screen="dashboard">
+      <div class="page-h">
+        <div><h1>Günaydın, Mehmet Bey</h1><p>Salı, 27 Ekim 2026 · Kasa açık, 09:00'dan beri</p></div>
+        <div class="act">
+          <button class="btn"><i class="pi pi-wallet"></i>Tahsilat al</button>
+          <button class="btn"><i class="pi pi-print"></i>Gün sonu</button>
+        </div>
+      </div>
+
+      <div class="grid g-kpi" style="margin-bottom:16px">
+        <div class="card kpi">
+          <div class="k-l"><i class="pi pi-chart-line"></i>Bugünkü ciro</div>
+          <div class="k-v">₺18.420<small>,00</small></div>
+          <div class="k-s"><span class="delta up"><i class="pi pi-arrow-up-right" style="font-size:10px"></i>%12</span>düne göre</div>
+          <div class="k-s hide-m">Satış 18.263 + vade farkı 157</div>
+        </div>
+        <div class="card kpi">
+          <div class="k-l"><i class="pi pi-money-bill"></i>Kasaya giren</div>
+          <div class="k-v">₺11.230<small>,00</small></div>
+          <div class="split-kasa" aria-hidden="true"><i style="width:60%;background:var(--brand)"></i><i style="width:26%;background:var(--info)"></i><i style="width:14%;background:var(--accent)"></i></div>
+          <div class="k-s" style="column-gap:10px"><span><i class="dot" style="width:6px;height:6px"></i> Nakit 6.780</span><span><i class="dot info" style="width:6px;height:6px"></i> Kart 2.950</span><span><i class="dot" style="width:6px;height:6px;background:var(--accent)"></i> Tahsilat 1.500</span></div>
+        </div>
+        <div class="card kpi alert">
+          <div class="k-l"><i class="pi pi-credit-card"></i>Açık veresiye</div>
+          <div class="k-v">₺284.650</div>
+          <div class="k-s"><span class="t-danger" style="font-weight:600"><i class="pi pi-exclamation-circle" style="font-size:11px"></i> 12 müşteri vadesi geçti</span></div>
+        </div>
+        <div class="card kpi">
+          <div class="k-l"><i class="pi pi-receipt"></i>Satış</div>
+          <div class="k-v">47 <small>fiş</small></div>
+          <div class="k-s">Ortalama sepet ₺392</div>
+          <div class="k-s hide-m">En yoğun saat 10–11</div>
+        </div>
+      </div>
+
+      <div class="grid g-dash">
+        <div class="stack">
+          <section class="card">
+            <div class="card-h">
+              <div><h3>Günlük ciro</h3><p>Son 14 gün · bugün ₺18.420</p></div>
+              <div class="act">
+                <div class="seg"><button aria-pressed="false">7 gün</button><button aria-pressed="true">14 gün</button><button aria-pressed="false" class="hide-m">30 gün</button></div>
+              </div>
+            </div>
+            <div class="chart-wrap" id="chart"><div class="tip" id="tip"></div></div>
+          </section>
+
+          <section class="card">
+            <div class="card-h"><h3>Son satışlar</h3><div class="act"><a href="#" class="btn ghost sm">Tümü<i class="pi pi-arrow-right"></i></a></div></div>
+            <table class="tbl">
+              <thead><tr><th class="hide-m">Saat</th><th>Müşteri</th><th class="hide-m">Fiş</th><th>Ödeme</th><th class="r">Tutar</th></tr></thead>
+              <tbody>
+                <tr><td class="num muted hide-m">14:35</td><td>Perakende</td><td class="hide-m muted num">S-1027-143512</td><td><span class="badge"><i class="pi pi-money-bill"></i>Nakit</span></td><td class="r strong">₺2.150,00</td></tr>
+                <tr><td class="num muted hide-m">14:12</td><td>Hasan Kaya</td><td class="hide-m muted num">S-1027-141208</td><td><span class="badge accent"><i class="pi pi-calendar"></i>Veresiye</span></td><td class="r strong">₺6.840,00</td></tr>
+                <tr><td class="num muted hide-m">13:58</td><td>Ali Demir</td><td class="hide-m muted num">S-1027-135844</td><td><span class="badge info"><i class="pi pi-credit-card"></i>Kart</span></td><td class="r strong">₺1.320,00</td></tr>
+                <tr><td class="num muted hide-m">13:40</td><td>Perakende</td><td class="hide-m muted num">S-1027-134017</td><td><span class="badge"><i class="pi pi-money-bill"></i>Nakit</span></td><td class="r strong">₺480,00</td></tr>
+                <tr><td class="num muted hide-m">13:21</td><td>Fatma Şahin</td><td class="hide-m muted num">S-1027-132150</td><td><span class="badge accent"><i class="pi pi-calendar"></i>Veresiye</span></td><td class="r strong">₺3.215,00</td></tr>
+              </tbody>
+            </table>
+          </section>
+        </div>
+
+        <div class="stack">
+          <section class="card">
+            <div class="card-h"><h3>Hızlı işlemler</h3></div>
+            <div class="quick">
+              <a data-go="pos"><i class="pi pi-shopping-cart"></i><b>Hızlı satış</b><span>Barkod / ad <span class="kbd">F2</span></span></a>
+              <a><i class="pi pi-wallet"></i><b>Tahsilat al</b><span>Veresiye ödemesi</span></a>
+              <a><i class="pi pi-plus-circle"></i><b>Ürün ekle</b><span>Yeni kart</span></a>
+              <a><i class="pi pi-barcode"></i><b>Stok sayımı</b><span>Raf sayımı</span></a>
+              <a><i class="pi pi-minus-circle"></i><b>Gider ekle</b><span>Kira, nakliye</span></a>
+              <a><i class="pi pi-whatsapp"></i><b>Hatırlatma</b><span>12 geciken</span></a>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-h"><div><h3>Dikkat gerektirenler</h3><p>Kritik stok ve son kullanma</p></div><div class="act"><span class="badge danger">7</span></div></div>
+            <ul class="list">
+              <li><div class="ic danger"><i class="pi pi-box"></i></div><div><div class="t">Roundup Max 1 lt</div><div class="s">Min. 10 · tedarikçi: Bayer Konya</div></div><div class="end"><span class="badge danger">3 şişe</span></div></li>
+              <li><div class="ic danger"><i class="pi pi-box"></i></div><div><div class="t">Amonyum Sülfat %21 · 25 kg</div><div class="s">Min. 20 · son satış bugün</div></div><div class="end"><span class="badge danger">6 çuval</span></div></li>
+              <li><div class="ic warn"><i class="pi pi-clock"></i></div><div><div class="t">Decis EC 25 · 250 ml</div><div class="s">24 şişe · SKT 12.11.2026</div></div><div class="end"><span class="badge warn">16 gün</span></div></li>
+              <li><div class="ic warn"><i class="pi pi-clock"></i></div><div><div class="t">Score 250 EC · 100 ml</div><div class="s">8 şişe · parti P-2291 · SKT 30.11.2026</div></div><div class="end"><span class="badge warn">34 gün</span></div></li>
+            </ul>
+            <div class="card-f"><a href="#">Sipariş listesi oluştur</a><span style="margin-left:auto">+3 ürün daha</span></div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 2. POS ===================== -->
+    <div class="content flush screen hidden" data-screen="pos" style="position:relative">
+      <div class="pos" id="posSell">
+        <div class="pos-left">
+          <div class="pos-search">
+            <div class="bigsearch">
+              <i class="pi pi-barcode"></i>
+              <input class="input" value="üre" aria-label="Barkod okut veya ürün adı yaz" placeholder="Barkod okut veya ürün adı yaz">
+              <div class="hint"><span class="kbd">↑↓</span> seç <span class="kbd">Enter</span> ekle</div>
+            </div>
+            <div class="pos-quick" aria-label="Sık satılanlar">
+              <button class="chip"><i class="pi pi-bolt t-accent"></i>Domates fidesi</button>
+              <button class="chip">Üre %46 · 50 kg</button>
+              <button class="chip">DAP 18-46</button>
+              <button class="chip">Biber fidesi</button>
+              <button class="chip">Buğday tohumu</button>
+              <button class="chip">Damla boru 16 mm</button>
+            </div>
+          </div>
+          <div class="pos-results">
+            <div class="res-h"><span>“üre” için 4 sonuç</span><span class="hide-m">Stok · Fiyat KDV dahil</span></div>
+            <div class="res sel">
+              <div class="thumb"><i class="pi pi-box"></i></div>
+              <div><div class="nm">Üre %46 Azotlu Gübre · 50 kg</div><div class="meta">Gübre · 8690123400017 · Toros</div></div>
+              <div class="stk"><span class="stock"><span class="dot"></span>142 çuval</span></div>
+              <div class="pr">₺1.240,00<small>/ çuval</small></div>
+              <div class="add"><i class="pi pi-plus"></i></div>
+            </div>
+            <div class="res">
+              <div class="thumb"><i class="pi pi-box"></i></div>
+              <div><div class="nm">Üre %46 Azotlu Gübre · 25 kg</div><div class="meta">Gübre · 8690123400024 · Toros</div></div>
+              <div class="stk"><span class="stock"><span class="dot"></span>58 çuval</span></div>
+              <div class="pr">₺655,00<small>/ çuval</small></div>
+              <div class="add"><i class="pi pi-plus"></i></div>
+            </div>
+            <div class="res">
+              <div class="thumb"><i class="pi pi-box"></i></div>
+              <div><div class="nm">Üre dökme (kg ile)</div><div class="meta">Gübre · barkodsuz · ondalıklı satış</div></div>
+              <div class="stk"><span class="stock"><span class="dot"></span>812,5 kg</span></div>
+              <div class="pr">₺25,50<small>/ kg</small></div>
+              <div class="add"><i class="pi pi-plus"></i></div>
+            </div>
+            <div class="res out">
+              <div class="thumb"><i class="pi pi-box"></i></div>
+              <div><div class="nm">Üre Fosfat 17-44 · 25 kg</div><div class="meta">Gübre · 8690123400109</div></div>
+              <div class="stk"><span class="stock t-danger"><span class="dot danger"></span>Stok yok</span></div>
+              <div class="pr">₺2.180,00<small>/ torba</small></div>
+              <div class="add"><i class="pi pi-plus"></i></div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="cart" aria-label="Sepet">
+          <div class="cart-cust">
+            <div class="avatar">HK</div>
+            <div class="who">Hasan Kaya<small><i class="pi pi-exclamation-triangle" style="font-size:11px"></i> Limitin %71'i kullanılmış</small></div>
+            <button class="btn sm" style="margin-left:auto">Değiştir</button>
+          </div>
+          <div class="cart-lines">
+            <div class="cl">
+              <div><div class="nm">Domates fidesi · Viyol (45'li)</div><div class="unit">₺85,00 / viyol</div></div>
+              <div class="tot">₺8.500,00</div>
+              <div class="cl-row2"><div class="row"><div class="qty"><button aria-label="Azalt"><i class="pi pi-minus"></i></button><input value="100" aria-label="Miktar"><button aria-label="Artır"><i class="pi pi-plus"></i></button></div><span class="qty-u">viyol</span></div><button class="btn ghost icon sm" aria-label="Kaldır" style="width:40px;height:40px"><i class="pi pi-trash"></i></button></div>
+            </div>
+            <div class="cl">
+              <div><div class="nm">Üre dökme</div><div class="unit">₺25,50 / kg</div></div>
+              <div class="tot">₺318,75</div>
+              <div class="cl-row2"><div class="row"><div class="qty"><button aria-label="Azalt"><i class="pi pi-minus"></i></button><input value="12,5" aria-label="Miktar"><button aria-label="Artır"><i class="pi pi-plus"></i></button></div><span class="qty-u">kg</span></div><button class="btn ghost icon sm" aria-label="Kaldır" style="width:40px;height:40px"><i class="pi pi-trash"></i></button></div>
+            </div>
+            <div class="cl">
+              <div><div class="nm">Decis EC 25 · 250 ml</div><div class="unit">₺420,00 / şişe · <span class="t-warn">SKT 16 gün</span></div></div>
+              <div class="tot">₺840,00</div>
+              <div class="cl-row2"><div class="row"><div class="qty"><button aria-label="Azalt"><i class="pi pi-minus"></i></button><input value="2" aria-label="Miktar"><button aria-label="Artır"><i class="pi pi-plus"></i></button></div><span class="qty-u">şişe</span></div><button class="btn ghost icon sm" aria-label="Kaldır" style="width:40px;height:40px"><i class="pi pi-trash"></i></button></div>
+            </div>
+          </div>
+          <div class="cart-sum">
+            <div class="sum-r"><span>Ara toplam (3 kalem)</span><span>₺9.658,75</span></div>
+            <div class="sum-r"><span>İndirim</span><span><a href="#">Ekle</a></span></div>
+            <div class="sum-r"><span>KDV dahil (%1 · %20)</span><span>₺215,48</span></div>
+            <div class="sum-t"><span>Toplam</span><b>₺9.658,75</b></div>
+          </div>
+          <div class="pay">
+            <button class="btn primary"><span class="kbd">F1</span>Nakit</button>
+            <button class="btn"><span class="kbd">F2</span>Kart<small>onaylı</small></button>
+            <button class="btn accent"><span class="kbd">F3</span>Veresiye</button>
+          </div>
+        </aside>
+      </div>
+      <div class="pos-mob-bar"><i class="pi pi-shopping-cart"></i><span>Sepet</span><span class="n">3</span><b>₺9.658,75</b><i class="pi pi-angle-up"></i></div>
+
+      <!-- Satış sonrası özet -->
+      <div class="done hidden" id="posDone">
+        <div class="card">
+          <div class="done-top">
+            <div class="done-ic"><i class="pi pi-check"></i></div>
+            <h2>Satış tamamlandı</h2>
+            <p>S-20261027-143512 · Nakit · 14:35 · Kasiyer: Ayşe</p>
+          </div>
+          <div class="change">
+            <div><span>Toplam</span><b>₺2.150</b></div>
+            <div><span>Alınan</span><b>₺2.200</b></div>
+            <div><span>Para üstü</span><b>₺50</b></div>
+          </div>
+          <div class="done-acts">
+            <button class="btn"><i class="pi pi-print"></i>Fiş yazdır<span class="kbd">P</span></button>
+            <button class="btn"><i class="pi pi-whatsapp"></i>WhatsApp'la gönder</button>
+            <button class="btn primary full"><i class="pi pi-plus"></i>Yeni satış<span class="kbd">Enter</span></button>
+            <button class="btn ghost danger full"><i class="pi pi-undo"></i>Satışı iptal et (stok geri alınır)</button>
+          </div>
+        </div>
+        <p class="muted" style="text-align:center;font-size:12px;margin-top:12px">Raporlara kasaya giren ₺2.150 yazılır; para üstü düşülür.</p>
+      </div>
+      <div class="pos-state seg" aria-label="POS durumu (prototip)">
+        <button aria-pressed="true" data-pos="sell">Sepet</button>
+        <button aria-pressed="false" data-pos="done">Satış sonrası</button>
+      </div>
+    </div>
+
+    <!-- ===================== 3. ÜRÜNLER ===================== -->
+    <div class="content screen hidden" data-screen="products">
+      <div class="page-h">
+        <div><h1>Ürünler</h1><p>248 ürün · stok değeri ₺1.284.300 (alış)</p></div>
+        <div class="act">
+          <button class="btn hide-m"><i class="pi pi-upload"></i>Excel'den al</button>
+          <button class="btn"><i class="pi pi-download"></i>Dışa aktar</button>
+          <button class="btn primary"><i class="pi pi-plus"></i>Yeni ürün</button>
+        </div>
+      </div>
+      <section class="card">
+        <div class="toolbar">
+          <div class="search"><i class="pi pi-search"></i><input class="input" placeholder="Ad, barkod veya GTS no" aria-label="Ürün ara"></div>
+          <div class="chips" style="flex-wrap:nowrap;overflow-x:auto;max-width:100%">
+            <button class="chip" aria-pressed="true">Tümü <span class="n">248</span></button>
+            <button class="chip"><span class="dot danger"></span>Kritik stok <span class="n">7</span></button>
+            <button class="chip"><span class="dot warn"></span>SKT yaklaşan <span class="n">4</span></button>
+            <button class="chip">Gübre <span class="n">46</span></button>
+            <button class="chip">İlaç <span class="n">92</span></button>
+            <button class="chip">Tohum <span class="n">38</span></button>
+            <button class="chip">Fide <span class="n">21</span></button>
+            <button class="chip">Hırdavat <span class="n">51</span></button>
+          </div>
+        </div>
+        <table class="tbl ptable">
+          <thead><tr><th style="width:36px"><input type="checkbox" class="chk" aria-label="Tümünü seç"></th><th>Ürün</th><th>Kategori</th><th class="r">Stok</th><th>SKT</th><th class="r">Alış</th><th class="r">Satış</th><th class="r">Kâr oranı</th><th></th></tr></thead>
+          <tbody id="ptbody"></tbody>
+        </table>
+        <div class="pcards" id="pcards"></div>
+        <div class="card-f"><span>1–12 / 248</span><div class="pager"><button class="btn sm icon" aria-label="Önceki"><i class="pi pi-angle-left"></i></button><button class="btn sm icon" aria-label="Sonraki"><i class="pi pi-angle-right"></i></button></div></div>
+      </section>
+    </div>
+
+    <!-- ===================== 4. VERESİYE DETAY ===================== -->
+    <div class="content screen hidden" data-screen="credit">
+      <div class="cust-h">
+        <div class="avatar lg">HK</div>
+        <div>
+          <h1>Hasan Kaya</h1>
+          <div class="meta"><span><i class="pi pi-map-marker"></i>Karaağaç Köyü, Kulu</span><span><i class="pi pi-phone"></i>0532 412 88 19</span><span class="hide-m"><i class="pi pi-id-card"></i>ÇKS 4206 1187</span></div>
+        </div>
+        <div class="act">
+          <button class="btn"><i class="pi pi-whatsapp"></i>Hatırlat</button>
+          <button class="btn"><i class="pi pi-file-pdf"></i>Ekstre</button>
+          <button class="btn"><i class="pi pi-shopping-cart"></i>Satış yap</button>
+          <button class="btn primary"><i class="pi pi-wallet"></i>Tahsilat al</button>
+        </div>
+      </div>
+
+      <div class="grid g-kpi" style="margin-bottom:16px">
+        <div class="card kpi"><div class="k-l">Toplam borç</div><div class="k-v">₺42.380<small>,00</small></div><div class="k-s">4 açık işlem</div></div>
+        <div class="card kpi alert"><div class="k-l t-danger"><i class="pi pi-exclamation-circle" style="color:inherit"></i>Vadesi geçen</div><div class="k-v t-danger">₺11.900<small>,00</small></div><div class="k-s">2 taksit · en eski 42 gün</div></div>
+        <div class="card kpi"><div class="k-l">Veresiye limiti</div><div class="k-v">%71 <small>/ ₺60.000</small></div><div class="meter"><i style="width:71%"></i></div></div>
+        <div class="card kpi"><div class="k-l">Sonraki vade</div><div class="k-v">15 Kas</div><div class="k-s">₺8.450 · 19 gün sonra</div></div>
+      </div>
+
+      <div class="grid g-cust">
+        <div class="stack">
+          <section class="card">
+            <div class="card-h"><div><h3>Taksit planı</h3><p>S-20260812-101532 · 4 taksit · aylık %1,5 vade farkı</p></div></div>
+            <table class="tbl inst">
+              <thead><tr><th>Taksit</th><th>Vade</th><th class="r">Tutar</th><th class="r">Kalan</th><th>Durum</th></tr></thead>
+              <tbody>
+                <tr><td class="num">1 / 4</td><td class="num">15.08.2026</td><td class="r">₺8.450,00</td><td class="r muted">₺0,00</td><td><span class="badge ok"><i class="pi pi-check"></i>Ödendi</span></td></tr>
+                <tr><td class="num">2 / 4</td><td class="num">15.09.2026</td><td class="r">₺8.450,00</td><td class="r strong">₺8.450,00</td><td><span class="badge danger">42 gün gecikti</span></td></tr>
+                <tr><td class="num">3 / 4</td><td class="num">15.10.2026</td><td class="r">₺8.450,00</td><td class="r strong">₺3.450,00</td><td><span class="badge danger">12 gün · kısmi</span></td></tr>
+                <tr><td class="num">4 / 4</td><td class="num">15.11.2026<span class="sub">Hasat sonu</span></td><td class="r">₺8.450,03</td><td class="r strong">₺8.450,03</td><td><span class="badge">Bekliyor</span></td></tr>
+              </tbody>
+            </table>
+            <div class="card-f">Kuruş farkı (₺0,03) son taksite eklendi.</div>
+          </section>
+
+          <section class="card">
+            <div class="card-h"><h3>Hesap hareketleri</h3><div class="act"><div class="seg"><button aria-pressed="true">Tümü</button><button aria-pressed="false">Satış</button><button aria-pressed="false">Tahsilat</button></div></div></div>
+            <ul class="tl">
+              <li><div class="ic pay"><i class="pi pi-arrow-down-left"></i></div><div><div class="ttl">Tahsilat · Nakit</div><div class="d">27.10.2026 09:42 · Makbuz T-1027-01 · Ayşe</div></div><div class="amt t-brand">−₺5.000,00<small>Bakiye ₺42.380</small></div></li>
+              <li><div class="ic"><i class="pi pi-whatsapp"></i></div><div><div class="ttl">Hatırlatma gönderildi</div><div class="d">14.10.2026 10:00 · WhatsApp · otomatik</div></div><div class="amt muted" style="font-weight:400">—</div></li>
+              <li><div class="ic late"><i class="pi pi-percentage"></i></div><div><div class="ttl">Vade farkı işlendi</div><div class="d">30.09.2026 · 2/4 taksit · %1,5</div></div><div class="amt">+₺157,00<small>Bakiye ₺47.380</small></div></li>
+              <li><div class="ic sale"><i class="pi pi-shopping-cart"></i></div><div><div class="ttl">Veresiye satış · 4 taksit</div><div class="d">12.08.2026 10:15 · S-20260812-101532</div><div class="items">DAP 18-46 × 10 çuval · Üre %46 × 12 çuval · Buğday tohumu × 2</div></div><div class="amt">+₺33.800,00<small>Bakiye ₺47.223</small></div></li>
+              <li><div class="ic pay"><i class="pi pi-arrow-down-left"></i></div><div><div class="ttl">Tahsilat · Havale</div><div class="d">20.07.2026 · Ziraat Bankası</div></div><div class="amt t-brand">−₺6.000,00<small>Bakiye ₺13.423</small></div></li>
+            </ul>
+          </section>
+        </div>
+
+        <div class="stack">
+          <section class="card">
+            <div class="card-h"><h3>Müşteri bilgileri</h3><div class="act"><button class="btn sm"><i class="pi pi-pencil"></i>Düzenle</button></div></div>
+            <div class="card-b">
+              <dl class="kv" style="margin:0">
+                <dt>Müşteri no</dt><dd class="num">C-0142</dd>
+                <dt>TC kimlik</dt><dd class="num">••••••• 418</dd>
+                <dt>ÇKS kayıt no</dt><dd class="num">4206 1187</dd>
+                <dt>Ekili alan</dt><dd>180 dekar · buğday, şeker pancarı</dd>
+                <dt>Vade tercihi</dt><dd>Hasat sonu</dd>
+                <dt>Müşteri olduğu</dt><dd>Mart 2019</dd>
+                <dt>Toplam alışveriş</dt><dd class="num">₺412.900</dd>
+              </dl>
+            </div>
+          </section>
+          <section class="card">
+            <div class="card-h"><h3>Not</h3></div>
+            <div class="card-b" style="font-size:13.5px;color:var(--fg-2)">Pancar parası kasımda yatıyor; 3. ve 4. taksiti birlikte ödeyecek. Oğlu Murat (0533 …) de alım yapabilir.<div class="muted" style="font-size:12px;margin-top:8px">Mehmet Y. · 14.10.2026</div></div>
+          </section>
+          <section class="card">
+            <div class="card-h"><h3>Hatırlatmalar</h3><div class="act"><span class="sw-hit"><label class="sw"><input type="checkbox" checked aria-label="Otomatik hatırlatma"><span></span></label></span></div></div>
+            <ul class="list">
+              <li><div class="ic"><i class="pi pi-calendar"></i></div><div><div class="t">12.11.2026</div><div class="s">Vadeden 3 gün önce · WhatsApp</div></div></li>
+              <li><div class="ic"><i class="pi pi-calendar"></i></div><div><div class="t">Her 7 günde</div><div class="s">Geciken taksit için · SMS</div></div></li>
+            </ul>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 5. AYARLAR ===================== -->
+    <div class="content flush screen hidden" data-screen="settings">
+      <div class="set" id="set">
+        <nav class="set-nav" aria-label="Ayar bölümleri">
+          <div class="search"><i class="pi pi-search"></i><input class="input" placeholder="Ayarlarda ara" aria-label="Ayarlarda ara"></div>
+          <div class="nav-group">İşletme</div>
+          <a data-sec="isletme" class="active"><i class="pi pi-building"></i>İşletme bilgileri<i class="pi pi-angle-right"></i></a>
+          <a data-sec="fis"><i class="pi pi-print"></i>Fiş & yazıcı<i class="pi pi-angle-right"></i></a>
+          <a data-sec="satis"><i class="pi pi-shopping-cart"></i>Satış ayarları<i class="pi pi-angle-right"></i></a>
+          <a data-sec="veresiye"><i class="pi pi-credit-card"></i>Veresiye kuralları<i class="pi pi-angle-right"></i></a>
+          <div class="nav-group">Ekip & güvenlik</div>
+          <a data-sec="kullanici"><i class="pi pi-users"></i>Kullanıcılar & roller<i class="pi pi-angle-right"></i></a>
+          <a data-sec="destek"><i class="pi pi-shield"></i>Destek erişimi<span class="badge">Kapalı</span><i class="pi pi-angle-right"></i></a>
+          <a data-sec="guvenlik"><i class="pi pi-lock"></i>Güvenlik<i class="pi pi-angle-right"></i></a>
+          <div class="nav-group">Tercihler</div>
+          <a data-sec="bildirim"><i class="pi pi-bell"></i>Bildirimler<i class="pi pi-angle-right"></i></a>
+          <a data-sec="gorunum"><i class="pi pi-palette"></i>Görünüm<i class="pi pi-angle-right"></i></a>
+          <a data-sec="dil"><i class="pi pi-globe"></i>Dil & bölge<i class="pi pi-angle-right"></i></a>
+          <div class="nav-group">Sistem</div>
+          <a data-sec="yedek"><i class="pi pi-database"></i>Yedek & dışa aktarma<i class="pi pi-angle-right"></i></a>
+          <a data-sec="abonelik"><i class="pi pi-star"></i>Abonelik & lisans<i class="pi pi-angle-right"></i></a>
+          <a data-sec="hakkinda"><i class="pi pi-info-circle"></i>Hakkında<i class="pi pi-angle-right"></i></a>
+        </nav>
+
+        <div class="set-body" id="setBody">
+          <button class="btn ghost set-back" id="setBack"><i class="pi pi-arrow-left"></i>Ayarlar</button>
+
+          <!-- İşletme -->
+          <section class="set-sec" data-sec="isletme">
+            <div class="set-h"><h2>İşletme bilgileri</h2><p>Fişte, ekstrede ve faturada görünen bilgiler.</p></div>
+            <div class="card">
+              <div class="srow inline-m">
+                <div class="logo" style="width:56px;height:56px;border-radius:var(--r-lg)"><i class="pi pi-sparkles" style="font-size:22px"></i></div>
+                <div class="srow-l"><div class="srow-t">Logo</div><div class="srow-d">PNG veya JPG, en az 256 px. Fişte siyah-beyaz basılır.</div></div>
+                <div class="srow-c"><button class="btn">Değiştir</button></div>
+              </div>
+              <div class="fgrid">
+                <div class="field"><label>İşletme adı</label><input class="input" value="Yılmaz Tarım"></div>
+                <div class="field"><label>Ticari unvan</label><input class="input" value="Yılmaz Tarım Ürünleri Ltd. Şti."></div>
+                <div class="field"><label>Vergi dairesi</label><input class="input" value="Kulu"></div>
+                <div class="field"><label>Vergi no</label><input class="input num" value="9480 213 557"></div>
+                <div class="field"><label>Telefon</label><input class="input num" value="0332 812 44 10"></div>
+                <div class="field"><label>E-posta</label><input class="input" value="info@yilmaztarim.com.tr"></div>
+                <div class="field span2"><label>Adres</label><input class="input" value="Cumhuriyet Mah. Atatürk Cad. No: 42, Kulu / Konya"></div>
+                <div class="field"><label>Bitki koruma bayi izin no</label><input class="input num" value="42.12.0381"><span class="hint">Zirai ilaç satış belgesinde yazar.</span></div>
+                <div class="field"><label>Çalışma saatleri</label><input class="input" value="Hafta içi 08:00–19:00"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Fiş -->
+          <section class="set-sec hidden" data-sec="fis">
+            <div class="set-h"><h2>Fiş & yazıcı</h2><p>Satış fişi, tahsilat makbuzu ve ekstre çıktıları.</p></div>
+            <div class="card">
+              <div class="card-h"><div><h3>Yazıcı</h3></div><div class="act"><span class="badge ok"><span class="dot"></span>Bağlı</span></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Termal yazıcı</div><div class="srow-d">Xprinter XP-80C · USB001</div></div><div class="srow-c"><button class="btn">Test fişi</button><button class="btn">Değiştir</button></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Kâğıt genişliği</div></div><div class="srow-c"><div class="seg"><button aria-pressed="false">58 mm</button><button aria-pressed="true">80 mm</button><button aria-pressed="false">A4</button></div></div></div>
+              <div class="srow inline-m"><div class="srow-l"><div class="srow-t">Satıştan sonra otomatik yazdır</div><div class="srow-d">Kapalıysa özet ekranında “Fiş yazdır” çıkar.</div></div><div class="srow-c"><label class="sw"><input type="checkbox"><span></span></label></div></div>
+              <div class="srow inline-m"><div class="srow-l"><div class="srow-t">Veresiye satışta 2 nüsha</div><div class="srow-d">Bir nüshayı müşteri imzalar.</div></div><div class="srow-c"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+            </div>
+            <div class="card">
+              <div class="card-h"><h3>Fiş içeriği</h3></div>
+              <div class="card-b receipt-wrap" style="display:flex;gap:20px">
+                <div class="stack" style="flex:1;gap:14px">
+                  <div class="field"><label>Üst bilgi</label><input class="input" value="YILMAZ TARIM · Kulu"></div>
+                  <div class="field"><label>Alt bilgi</label><textarea class="input" rows="2">Bizi tercih ettiğiniz için teşekkürler. İlaçları etiketine uygun kullanınız.</textarea></div>
+                  <label class="row"><input type="checkbox" class="chk" checked> Logoyu yazdır</label>
+                  <label class="row"><input type="checkbox" class="chk" checked> Veresiye bakiyesini göster</label>
+                  <label class="row"><input type="checkbox" class="chk"> GTS / parti numarasını yazdır</label>
+                </div>
+                <div class="receipt" aria-label="Fiş önizlemesi">
+                  <div class="c"><b>YILMAZ TARIM · Kulu</b><br>0332 812 44 10</div><hr>
+                  <div>27.10.2026 14:35  S-143512</div><hr>
+                  <div class="r"><span>Üre %46 50kg x2</span><span>2.480,00</span></div>
+                  <div class="r"><span>Decis EC 25 x1</span><span>420,00</span></div><hr>
+                  <div class="r"><b>TOPLAM</b><b>2.900,00</b></div>
+                  <div class="r"><span>Nakit</span><span>3.000,00</span></div>
+                  <div class="r"><span>Para üstü</span><span>100,00</span></div><hr>
+                  <div class="c" style="font-size:10.5px">Bizi tercih ettiğiniz için teşekkürler.</div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Satış -->
+          <section class="set-sec hidden" data-sec="satis">
+            <div class="set-h"><h2>Satış ayarları</h2><p>Hızlı satış ekranının davranışı.</p></div>
+            <div class="card">
+              <div class="srow"><div class="srow-l"><div class="srow-t">Varsayılan KDV oranı</div><div class="srow-d">Yeni ürünlerde önerilir. Gübre ve tohumda %1, ilaçta %20 yaygındır.</div></div><div class="srow-c"><div class="seg"><button aria-pressed="false">%1</button><button aria-pressed="false">%10</button><button aria-pressed="true">%20</button></div></div></div>
+              <div class="srow inline-m"><div class="srow-l"><div class="srow-t">Fiyatlar KDV dahil</div></div><div class="srow-c"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Varsayılan ödeme</div><div class="srow-d">Enter'a basınca bu yöntemle ödeme açılır.</div></div><div class="srow-c"><div class="seg"><button aria-pressed="true">Nakit</button><button aria-pressed="false">Kart</button><button aria-pressed="false">Veresiye</button></div></div></div>
+              <div class="srow inline-m"><div class="srow-l"><div class="srow-t">Kart ödemesinde onay iste</div><div class="srow-d">Yanlış tuşla satış kapanmasın.</div></div><div class="srow-c"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+            </div>
+            <div class="card">
+              <div class="card-h"><h3>Stok</h3></div>
+              <div class="srow inline-m"><div class="srow-l"><div class="srow-t">Negatif stoğa izin ver</div><div class="srow-d">Kapalıyken stokta olmayan ürün sepete eklenmez.</div></div><div class="srow-c"><label class="sw"><input type="checkbox"><span></span></label></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">SKT uyarısı</div><div class="srow-d">Son kullanma tarihine bu kadar gün kala uyar.</div></div><div class="srow-c"><div class="affix" style="width:140px"><input value="30" aria-label="Gün"><span>gün</span></div></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Varsayılan kritik stok</div><div class="srow-d">Üründe ayrı belirtilmediyse kullanılır.</div></div><div class="srow-c"><div class="affix" style="width:140px"><input value="10" aria-label="Adet"><span>adet</span></div></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Karekodlu ürünlerde GTS seçimi</div></div><div class="srow-c"><select class="input"><option>İlk SKT önce (FEFO)</option><option>Her satışta okut</option></select></div></div>
+            </div>
+            <div class="card">
+              <div class="card-h"><h3>Kasa</h3></div>
+              <div class="srow inline-m"><div class="srow-l"><div class="srow-t">Hızlı para butonları</div><div class="srow-d">Nakitte toplamın üstündeki yuvarlak tutarları göster (2.200 · 2.500 · 3.000).</div></div><div class="srow-c"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Kısayollar</div><div class="srow-d"><span class="kbd">F1</span> Nakit · <span class="kbd">F2</span> Kart · <span class="kbd">F3</span> Veresiye · <span class="kbd">F4</span> Müşteri seç · <span class="kbd">F8</span> Beklet</div></div><div class="srow-c"><button class="btn">Düzenle</button></div></div>
+            </div>
+          </section>
+
+          <!-- Veresiye -->
+          <section class="set-sec hidden" data-sec="veresiye">
+            <div class="set-h"><h2>Veresiye kuralları</h2><p>Vade, limit ve hatırlatma varsayılanları. Müşteri bazında değiştirilebilir.</p></div>
+            <div class="card">
+              <div class="card-h"><h3>Vade</h3></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Varsayılan vade</div></div><div class="srow-c"><select class="input"><option>30 gün</option><option>60 gün</option><option selected>Hasat sonu (15 Kasım)</option><option>Özel tarih</option></select></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Vade farkı</div><div class="srow-d">Taksitli satışta ve gecikmede uygulanır.</div></div><div class="srow-c"><div class="affix" style="width:180px"><span class="pre">%</span><input value="1,5"><span>aylık</span></div></div></div>
+              <div class="srow inline-m"><div class="srow-l"><div class="srow-t">Gecikmede vade farkını otomatik işle</div><div class="srow-d">Ayın son günü hareket olarak eklenir.</div></div><div class="srow-c"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+              <div class="srow inline-m"><div class="srow-l"><div class="srow-t">Peşinat iste</div></div><div class="srow-c"><label class="sw"><input type="checkbox"><span></span></label></div></div>
+            </div>
+            <div class="card">
+              <div class="card-h"><h3>Limit</h3></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Yeni müşteri limiti</div></div><div class="srow-c"><div class="affix"><span class="pre">₺</span><input value="25.000"></div></div></div>
+              <div class="srow stack-c"><div class="srow-l"><div class="srow-t">Limit aşılınca</div></div>
+                <div class="srow-c radio-cards">
+                  <button class="rc"><b>Uyar</b><span>Satış devam eder</span></button>
+                  <button class="rc" aria-pressed="true"><b>Yönetici onayı</b><span>PIN ile açılır</span></button>
+                  <button class="rc"><b>Engelle</b><span>Veresiye kapanır</span></button>
+                </div></div>
+            </div>
+            <div class="card">
+              <div class="card-h"><h3>Hatırlatma</h3></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Vadeden önce</div></div><div class="srow-c"><div class="affix" style="width:140px"><input value="3"><span>gün</span></div></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Gecikmede tekrar</div></div><div class="srow-c"><div class="affix" style="width:180px"><span class="pre">her</span><input value="7"><span>gün</span></div></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Kanal</div></div><div class="srow-c"><div class="seg"><button aria-pressed="true">WhatsApp</button><button aria-pressed="false">SMS</button><button aria-pressed="false">İkisi</button></div></div></div>
+              <div class="srow stack-c"><div class="srow-l"><div class="srow-t">Mesaj şablonu</div></div><div class="srow-c" style="display:block"><textarea class="input" rows="3">Sayın {ad}, {vade} tarihli {tutar} tutarındaki ödemenizi hatırlatırız. Yılmaz Tarım · 0332 812 44 10</textarea><div class="vars"><code>{ad}</code><code>{tutar}</code><code>{vade}</code><code>{bakiye}</code></div></div></div>
+            </div>
+          </section>
+
+          <!-- Kullanıcılar -->
+          <section class="set-sec hidden" data-sec="kullanici">
+            <div class="set-h row between"><div><h2>Kullanıcılar & roller</h2><p>3 / 5 kullanıcı · Pro plan</p></div><button class="btn primary"><i class="pi pi-user-plus"></i>Davet et</button></div>
+            <div class="card">
+              <table class="tbl">
+                <thead><tr><th>Kişi</th><th>Rol</th><th class="hide-m">Son giriş</th><th></th></tr></thead>
+                <tbody>
+                  <tr><td><div class="row" style="gap:10px"><div class="avatar">MY</div><div>Mehmet Yılmaz<span class="sub">mehmet@yilmaztarim.com.tr</span></div></div></td><td><span class="badge ok">Yönetici</span></td><td class="hide-m muted">Şimdi</td><td class="r"><button class="btn ghost icon" aria-label="Seçenekler"><i class="pi pi-ellipsis-h"></i></button></td></tr>
+                  <tr><td><div class="row" style="gap:10px"><div class="avatar">AY</div><div>Ayşe Yılmaz<span class="sub">PIN ile giriş</span></div></div></td><td><span class="badge">Kasiyer</span></td><td class="hide-m muted">14:35</td><td class="r"><button class="btn ghost icon" aria-label="Seçenekler"><i class="pi pi-ellipsis-h"></i></button></td></tr>
+                  <tr><td><div class="row" style="gap:10px"><div class="avatar">EÇ</div><div>Emre Çelik<span class="sub">emre.celik@gmail.com</span></div></div></td><td><span class="badge">Personel</span></td><td class="hide-m"><span class="badge warn">Davet bekliyor</span></td><td class="r"><button class="btn ghost icon" aria-label="Seçenekler"><i class="pi pi-ellipsis-h"></i></button></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card">
+              <div class="card-h"><div><h3>Rol izinleri</h3><p>Yönetici her şeyi yapabilir.</p></div></div>
+              <table class="tbl perm">
+                <thead><tr><th>İzin</th><th>Kasiyer</th><th>Personel</th></tr></thead>
+                <tbody>
+                  <tr><td>Satış yapma</td><td><input type="checkbox" class="chk" checked aria-label="Kasiyer"></td><td><input type="checkbox" class="chk" checked aria-label="Personel"></td></tr>
+                  <tr><td>İndirim yapma <span class="sub">En fazla %5</span></td><td><input type="checkbox" class="chk" checked aria-label="Kasiyer"></td><td><input type="checkbox" class="chk" aria-label="Personel"></td></tr>
+                  <tr><td>Veresiye verme</td><td><input type="checkbox" class="chk" checked aria-label="Kasiyer"></td><td><input type="checkbox" class="chk" aria-label="Personel"></td></tr>
+                  <tr><td>Satış iptali</td><td><input type="checkbox" class="chk" aria-label="Kasiyer"></td><td><input type="checkbox" class="chk" aria-label="Personel"></td></tr>
+                  <tr><td>Fiyat ve stok düzenleme</td><td><input type="checkbox" class="chk" aria-label="Kasiyer"></td><td><input type="checkbox" class="chk" checked aria-label="Personel"></td></tr>
+                  <tr><td>Raporları görme</td><td><input type="checkbox" class="chk" aria-label="Kasiyer"></td><td><input type="checkbox" class="chk" aria-label="Personel"></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- Destek erişimi -->
+          <section class="set-sec hidden" data-sec="destek">
+            <div class="set-h"><h2>Destek erişimi</h2><p>Destek ekibimiz hesabınızı yalnızca siz izin verdiğinizde ve izin verdiğiniz süre boyunca görebilir.</p></div>
+            <div class="callout"><i class="pi pi-info-circle"></i><div>KVKK gereği her erişim kayıt altına alınır: kim, ne zaman, ne kadar süre, hangi ekranlar. Erişimi istediğiniz an kapatabilirsiniz.</div></div>
+            <div class="card">
+              <div class="srow inline-m"><div class="srow-l"><div class="srow-t">Destek ekibine erişim izni</div><div class="srow-d">Şu an kapalı. Destek talebinde istenirse açın.</div></div><div class="srow-c"><label class="sw"><input type="checkbox"><span></span></label></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Süre</div><div class="srow-d">Süre dolunca erişim kendiliğinden kapanır.</div></div><div class="srow-c"><div class="seg"><button aria-pressed="true">1 saat</button><button aria-pressed="false">24 saat</button><button aria-pressed="false">7 gün</button></div></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Kapsam</div></div><div class="srow-c"><div class="seg"><button aria-pressed="true">Yalnızca görüntüleme</button><button aria-pressed="false">Düzenleme</button></div></div></div>
+              <div class="srow inline-m"><div class="srow-l"><div class="srow-t">Müşteri kişisel verilerini gizle</div><div class="srow-d">TC, telefon ve adres maskelenir.</div></div><div class="srow-c"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+            </div>
+            <div class="card">
+              <div class="card-h"><h3>Erişim geçmişi</h3><div class="act"><button class="btn sm"><i class="pi pi-download"></i>Kaydı indir</button></div></div>
+              <table class="tbl">
+                <thead><tr><th>Tarih</th><th>Destek personeli</th><th class="hide-m">Süre · kapsam</th><th>Ne yaptı</th></tr></thead>
+                <tbody>
+                  <tr><td class="num">18.10.2026<span class="sub">11:02–11:31</span></td><td>Zeynep A.<span class="sub">Talep #4821</span></td><td class="hide-m">1 saat · görüntüleme</td><td>Raporlar, Ödeme tipleri<span class="sub">Değişiklik yok</span></td></tr>
+                  <tr><td class="num">02.09.2026<span class="sub">15:40–16:55</span></td><td>Burak T.<span class="sub">Talep #4410</span></td><td class="hide-m">24 saat · düzenleme</td><td>Stok düzeltme<span class="sub">3 ürün güncellendi</span></td></tr>
+                  <tr><td class="num">11.06.2026<span class="sub">09:15–09:22</span></td><td>Zeynep A.<span class="sub">Talep #3902</span></td><td class="hide-m">1 saat · görüntüleme</td><td>Yazıcı ayarı<span class="sub">Değişiklik yok</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- Güvenlik -->
+          <section class="set-sec hidden" data-sec="guvenlik">
+            <div class="set-h"><h2>Güvenlik</h2><p>Hesabınızı ve kasayı koruyun.</p></div>
+            <div class="card">
+              <div class="srow"><div class="srow-l"><div class="srow-t">Şifre</div><div class="srow-d">En son 3 ay önce değiştirildi.</div></div><div class="srow-c"><button class="btn">Şifreyi değiştir</button></div></div>
+              <div class="srow inline-m"><div class="srow-l"><div class="srow-t">İki adımlı doğrulama</div><div class="srow-d">Yeni cihazdan girişte SMS kodu ister.</div></div><div class="srow-c"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+              <div class="srow inline-m"><div class="srow-l"><div class="srow-t">Kasiyerler PIN ile girsin</div><div class="srow-d">4 haneli PIN; tezgâhta hızlı geçiş.</div></div><div class="srow-c"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Otomatik kilit</div></div><div class="srow-c"><select class="input"><option>5 dakika</option><option selected>15 dakika</option><option>1 saat</option><option>Kapalı</option></select></div></div>
+            </div>
+            <div class="card">
+              <div class="card-h"><h3>Açık oturumlar</h3><div class="act"><button class="btn sm danger">Diğerlerini kapat</button></div></div>
+              <ul class="list">
+                <li><div class="ic"><i class="pi pi-desktop"></i></div><div><div class="t">Windows · Masaüstü uygulaması <span class="badge ok" style="margin-left:6px">Bu cihaz</span></div><div class="s">Kulu, Konya · şimdi</div></div></li>
+                <li><div class="ic"><i class="pi pi-mobile"></i></div><div><div class="t">Android · Redmi 9A</div><div class="s">Kulu, Konya · 2 saat önce</div></div><div class="end"><button class="btn sm">Kapat</button></div></li>
+                <li><div class="ic"><i class="pi pi-globe"></i></div><div><div class="t">Chrome · Windows</div><div class="s">Konya · 3 gün önce</div></div><div class="end"><button class="btn sm">Kapat</button></div></li>
+              </ul>
+            </div>
+          </section>
+
+          <!-- Bildirimler -->
+          <section class="set-sec hidden" data-sec="bildirim">
+            <div class="set-h"><h2>Bildirimler</h2><p>Neyi, nereden öğrenmek istediğinizi seçin.</p></div>
+            <div class="card">
+              <table class="tbl perm">
+                <thead><tr><th>Olay</th><th>Uygulama</th><th>E-posta</th><th>WhatsApp</th></tr></thead>
+                <tbody>
+                  <tr><td>Kritik stok<span class="sub">Ürün minimumun altına düşünce</span></td><td><input type="checkbox" class="chk" checked aria-label="Uygulama"></td><td><input type="checkbox" class="chk" aria-label="E-posta"></td><td><input type="checkbox" class="chk" checked aria-label="WhatsApp"></td></tr>
+                  <tr><td>SKT yaklaşıyor</td><td><input type="checkbox" class="chk" checked aria-label="Uygulama"></td><td><input type="checkbox" class="chk" checked aria-label="E-posta"></td><td><input type="checkbox" class="chk" aria-label="WhatsApp"></td></tr>
+                  <tr><td>Taksit vadesi geldi</td><td><input type="checkbox" class="chk" checked aria-label="Uygulama"></td><td><input type="checkbox" class="chk" aria-label="E-posta"></td><td><input type="checkbox" class="chk" checked aria-label="WhatsApp"></td></tr>
+                  <tr><td>Satış iptal edildi</td><td><input type="checkbox" class="chk" checked aria-label="Uygulama"></td><td><input type="checkbox" class="chk" checked aria-label="E-posta"></td><td><input type="checkbox" class="chk" aria-label="WhatsApp"></td></tr>
+                  <tr><td>Gün sonu özeti</td><td><input type="checkbox" class="chk" aria-label="Uygulama"></td><td><input type="checkbox" class="chk" checked aria-label="E-posta"></td><td><input type="checkbox" class="chk" checked aria-label="WhatsApp"></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card">
+              <div class="srow"><div class="srow-l"><div class="srow-t">Gün sonu özeti saati</div></div><div class="srow-c"><select class="input"><option>19:30</option><option>20:00</option></select></div></div>
+              <div class="srow inline-m"><div class="srow-l"><div class="srow-t">Satış sesi</div><div class="srow-d">Barkod okununca kısa bip.</div></div><div class="srow-c"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+            </div>
+          </section>
+
+          <!-- Görünüm -->
+          <section class="set-sec hidden" data-sec="gorunum">
+            <div class="set-h"><h2>Görünüm</h2><p>Değişiklikler hemen uygulanır; bu cihaza kaydedilir.</p></div>
+            <div class="card">
+              <div class="srow stack-c"><div class="srow-l"><div class="srow-t">Tema</div></div>
+                <div class="srow-c radio-cards" id="themeCards">
+                  <button class="rc" data-t="light"><div class="theme-prev" style="background:#f6f7f7"><i style="background:#fff"></i></div><b>Açık</b><span>Gündüz, aydınlık dükkân</span></button>
+                  <button class="rc" data-t="dark"><div class="theme-prev" style="background:#0b0f0e"><i style="background:#111715"></i></div><b>Koyu</b><span>Akşam, göz yormaz</span></button>
+                  <button class="rc" data-t="system"><div class="theme-prev" style="background:linear-gradient(90deg,#f6f7f7 50%,#0b0f0e 50%)"><i style="background:#fff"></i></div><b>Sistem</b><span>Windows'a uyar</span></button>
+                </div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Yoğunluk</div><div class="srow-d">Sıkı: tabloda daha çok satır görünür.</div></div><div class="srow-c"><div class="seg" id="densitySeg"><button aria-pressed="true" data-v="comfortable">Rahat</button><button aria-pressed="false" data-v="compact">Sıkı</button></div></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Yazı boyutu</div><div class="srow-d">Gözlükle okumayı kolaylaştırır.</div></div><div class="srow-c"><div class="seg" id="fontSeg"><button aria-pressed="true" data-v="md">Normal</button><button aria-pressed="false" data-v="lg">Büyük</button><button aria-pressed="false" data-v="xl">Çok büyük</button></div></div></div>
+              <div class="srow inline-m"><div class="srow-l"><div class="srow-t">Kenar menüsünü daralt</div><div class="srow-d">Yalnızca ikonlar; küçük ekranda yer açar.</div></div><div class="srow-c"><label class="sw"><input type="checkbox"><span></span></label></div></div>
+            </div>
+            <div class="card">
+              <div class="card-h"><h3>Ana sayfa kartları</h3></div>
+              <div class="card-b stack" style="gap:12px">
+                <label class="row"><input type="checkbox" class="chk" checked> Günlük ciro grafiği</label>
+                <label class="row"><input type="checkbox" class="chk" checked> Son satışlar</label>
+                <label class="row"><input type="checkbox" class="chk" checked> Kritik stok ve SKT</label>
+                <label class="row"><input type="checkbox" class="chk"> Tedarikçi borçları</label>
+              </div>
+            </div>
+          </section>
+
+          <!-- Dil -->
+          <section class="set-sec hidden" data-sec="dil">
+            <div class="set-h"><h2>Dil & bölge</h2><p>Tarih, para ve sayı biçimleri.</p></div>
+            <div class="card">
+              <div class="srow"><div class="srow-l"><div class="srow-t">Dil</div></div><div class="srow-c"><select class="input"><option>Türkçe</option><option>English</option></select></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Para birimi</div></div><div class="srow-c"><select class="input"><option>Türk lirası (₺)</option></select></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Tarih biçimi</div><div class="srow-d">Örnek: 27.10.2026</div></div><div class="srow-c"><select class="input"><option>GG.AA.YYYY</option><option>27 Ekim 2026</option></select></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Haftanın ilk günü</div></div><div class="srow-c"><div class="seg"><button aria-pressed="true">Pazartesi</button><button aria-pressed="false">Pazar</button></div></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Sayı biçimi</div><div class="srow-d">1.234,56</div></div><div class="srow-c"><select class="input"><option>Türkiye (1.234,56)</option></select></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Saat dilimi</div></div><div class="srow-c"><select class="input"><option>İstanbul (UTC+3)</option></select></div></div>
+            </div>
+          </section>
+
+          <!-- Yedek -->
+          <section class="set-sec hidden" data-sec="yedek">
+            <div class="set-h"><h2>Yedekleme & dışa aktarma</h2><p>Verileriniz bulutta tutulur; yine de kendi kopyanızı alabilirsiniz.</p></div>
+            <div class="callout ok"><i class="pi pi-check-circle"></i><div><b>Son yedek bugün 03:00.</b> Çevrimdışı bekleyen işlem yok · cihazdaki veri 1,2 MB.</div></div>
+            <div class="card">
+              <div class="srow inline-m"><div class="srow-l"><div class="srow-t">Otomatik günlük yedek</div><div class="srow-d">30 gün saklanır.</div></div><div class="srow-c"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Şimdi yedekle</div><div class="srow-d">Tüm veriler tek ZIP dosyası olarak bilgisayara iner.</div></div><div class="srow-c"><button class="btn"><i class="pi pi-download"></i>ZIP indir</button></div></div>
+            </div>
+            <div class="card">
+              <div class="card-h"><h3>Dışa aktar</h3></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Ürünler ve stok</div><div class="srow-d">248 ürün · Excel</div></div><div class="srow-c"><button class="btn">Excel</button></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Müşteriler ve cari bakiyeler</div><div class="srow-d">186 müşteri · Excel / PDF</div></div><div class="srow-c"><button class="btn">Excel</button><button class="btn">PDF</button></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Satışlar</div><div class="srow-d">Tarih aralığı seçin</div></div><div class="srow-c"><select class="input" style="width:160px"><option>Bu ay</option><option>Geçen ay</option><option>Bu yıl</option></select><button class="btn">Excel</button></div></div>
+            </div>
+            <div class="card">
+              <div class="srow"><div class="srow-l"><div class="srow-t">Excel'den içe aktar</div><div class="srow-d">Eski programdan ürün ve müşteri listesi. Şablonu indirip doldurun.</div></div><div class="srow-c"><button class="btn">Şablon</button><button class="btn"><i class="pi pi-upload"></i>Yükle</button></div></div>
+            </div>
+          </section>
+
+          <!-- Abonelik -->
+          <section class="set-sec hidden" data-sec="abonelik">
+            <div class="set-h"><h2>Abonelik & lisans</h2><p>Planınız ve faturalarınız.</p></div>
+            <div class="card">
+              <div class="plan">
+                <div class="logo" style="width:44px;height:44px"><i class="pi pi-star-fill"></i></div>
+                <div style="flex:1"><div style="font-weight:600;font-size:16px">Pro · Yıllık <span class="badge ok" style="margin-left:6px">Aktif</span></div><div class="muted" style="font-size:13px">₺2.990 / yıl · 12.03.2027'de yenilenir</div></div>
+                <button class="btn">Planı değiştir</button>
+              </div>
+              <div class="usage">
+                <div><span>Kullanıcı</span><b>3 / 5</b></div>
+                <div><span>Cihaz</span><b>2 / 3</b></div>
+                <div><span>Ürün</span><b>248 / sınırsız</b></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-h"><h3>Faturalar</h3></div>
+              <table class="tbl">
+                <thead><tr><th>Tarih</th><th>Açıklama</th><th class="r">Tutar</th><th></th></tr></thead>
+                <tbody>
+                  <tr><td class="num">12.03.2026</td><td>Pro yıllık</td><td class="r">₺2.990,00</td><td class="r"><button class="btn sm"><i class="pi pi-file-pdf"></i>PDF</button></td></tr>
+                  <tr><td class="num">12.03.2025</td><td>Pro yıllık</td><td class="r">₺2.490,00</td><td class="r"><button class="btn sm"><i class="pi pi-file-pdf"></i>PDF</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- Hakkında -->
+          <section class="set-sec hidden" data-sec="hakkinda">
+            <div class="set-h"><h2>Hakkında</h2></div>
+            <div class="card">
+              <div class="plan"><div class="logo" style="width:44px;height:44px"><i class="pi pi-sparkles"></i></div><div style="flex:1"><div style="font-weight:600;font-size:16px">Tarım Market Pro</div><div class="muted num" style="font-size:13px">Sürüm 1.8.0 · 24.10.2026 · Windows</div></div><button class="btn">Güncellemeleri denetle</button></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Bu sürümde</div><div class="srow-d">Hızlı satışta arama kutusu · ondalıklı miktar (kg, lt) · taksitte kuruş farkı düzeltmesi</div></div><div class="srow-c"><a href="#">Tüm notlar</a></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Destek hattı</div><div class="srow-d num">0850 333 42 42 · hafta içi 08:00–20:00 · destek@tarimmarket.pro</div></div><div class="srow-c"><button class="btn"><i class="pi pi-whatsapp"></i>Yaz</button></div></div>
+              <div class="srow"><div class="srow-l"><div class="srow-t">Yasal</div><div class="srow-d"><a href="#">KVKK aydınlatma metni</a> · <a href="#">Kullanım koşulları</a> · <a href="#">Açık kaynak lisansları</a></div></div></div>
+            </div>
+          </section>
+
+          <div class="savebar" id="savebar"><span>Kaydedilmemiş değişiklikler var</span><button class="btn ghost" id="discard">Vazgeç</button><button class="btn primary" id="save">Kaydet</button></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+
+  <nav class="bnav" aria-label="Alt menü">
+    <a data-go="dashboard" class="active"><i class="pi pi-home"></i>Ana sayfa</a>
+    <a data-go="products"><i class="pi pi-box"></i>Ürünler</a>
+    <a data-go="pos" class="sell"><i class="pi pi-shopping-cart"></i>Satış</a>
+    <a data-go="credit"><i class="pi pi-credit-card"></i>Veresiye</a>
+    <a data-go="settings"><i class="pi pi-ellipsis-h"></i>Diğer</a>
+  </nav>
+</div><!-- /app -->
+
+<!-- ===================== 6. GİRİŞ ===================== -->
+<div class="login screen hidden" data-screen="login">
+  <div class="login-form">
+    <div class="brandrow"><div class="logo"><i class="pi pi-sparkles"></i></div>Tarım Market Pro</div>
+    <div class="login-box">
+      <h1>Tekrar hoş geldiniz</h1>
+      <p>Dükkânınızın hesabına giriş yapın.</p>
+      <div class="field"><label for="em">E-posta veya telefon</label><input id="em" class="input" value="mehmet@yilmaztarim.com.tr" autocomplete="username"></div>
+      <div class="field">
+        <div class="row between"><label for="pw">Şifre</label><a href="#" style="font-size:13px">Şifremi unuttum</a></div>
+        <div class="pw"><input id="pw" type="password" class="input" value="••••••••••" autocomplete="current-password"><button class="btn icon" aria-label="Şifreyi göster"><i class="pi pi-eye"></i></button></div>
+      </div>
+      <label class="row" style="margin:4px 0 20px;font-size:14px;min-height:40px"><input type="checkbox" class="chk" checked> Bu bilgisayarda oturumum açık kalsın</label>
+      <button class="btn primary">Giriş yap</button>
+      <div class="or">veya</div>
+      <button class="btn block" style="height:48px"><i class="pi pi-th-large"></i>Kasiyer PIN ile giriş</button>
+      <p class="muted" style="text-align:center;font-size:13px;margin-top:24px">Hesabınız yok mu? <a href="#">30 gün ücretsiz deneyin</a></p>
+    </div>
+    <div class="login-foot"><span>© 2026 Tarım Market Pro</span><span><span class="dot" style="vertical-align:0"></span> Tüm sistemler çalışıyor · 0850 333 42 42</span></div>
+  </div>
+  <div class="login-side">
+    <div style="max-width:440px">
+      <div class="badge ok" style="margin-bottom:14px"><i class="pi pi-sparkles"></i>Sezon 2026 sürümü</div>
+      <div style="font-size:28px;font-weight:600;letter-spacing:-.02em;line-height:1.2">Zirai bayinin kasası,<br>deposu ve veresiye defteri.</div>
+      <p class="fg2" style="margin:10px 0 0">Windows bilgisayarda ve Android telefonda aynı hesap, aynı veri.</p>
+    </div>
+    <div class="feat">
+      <div><i class="pi pi-bolt"></i><span><b>Sezonda hızlı satış</b>Barkodu okut, miktarı yaz, F1 ile kapat. Kuyruk beklemesin.</span></div>
+      <div><i class="pi pi-calendar"></i><span><b>Hasat vadeli veresiye</b>Taksit planı, vade farkı, WhatsApp hatırlatma tek yerde.</span></div>
+      <div><i class="pi pi-clock"></i><span><b>SKT ve GTS takibi</b>Son kullanması yaklaşan ilacı önce sat; parti numarası kayıtlı.</span></div>
+      <div><i class="pi pi-wifi"></i><span><b>İnternet gitse de satış durmaz</b>Çevrimdışı satış, bağlantı gelince eşitlenir.</span></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /frame -->
+</div>
+<div class="stage-note" id="stageNote">1366 × 768 çerçeve · eski laptop hedefi</div>
+
+<script>
+(function(){
+  const $ = (s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const root = document.documentElement;
+  const crumbs = {dashboard:'<b>Ana sayfa</b>', pos:'<span class="lvl">Satış</span><i class="pi pi-angle-right lvl"></i><b>Hızlı satış</b>',
+    products:'<span class="lvl">Stok</span><i class="pi pi-angle-right lvl"></i><b>Ürünler</b>',
+    credit:'<span class="lvl">Veresiye</span><i class="pi pi-angle-right lvl"></i><b>Hasan Kaya</b>', settings:'<b>Ayarlar</b>'};
+
+  function show(name){
+    $$('#screenTabs button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.screen===name));
+    const isLogin = name==='login';
+    $('#app').classList.toggle('hidden', isLogin);
+    $('.login').classList.toggle('hidden', !isLogin);
+    $$('.main > .screen').forEach(s=>s.classList.toggle('hidden', s.dataset.screen!==name));
+    $$('.nav a, .bnav a').forEach(a=>a.classList.toggle('active', a.dataset.go===name));
+    if(crumbs[name]) $('#crumb').innerHTML = crumbs[name];
+    try{localStorage.setItem('a-screen',name)}catch(e){}
+  }
+  $$('#screenTabs button').forEach(b=>b.addEventListener('click',()=>show(b.dataset.screen)));
+  $$('[data-go]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();show(a.dataset.go)}));
+
+  function setTheme(t){
+    const eff = t==='system' ? (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light') : t;
+    root.dataset.theme = eff;
+    $$('[data-theme-btn]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.themeBtn===eff));
+    $$('#themeCards .rc').forEach(b=>b.setAttribute('aria-pressed', b.dataset.t===t));
+    try{localStorage.setItem('a-theme',t)}catch(e){}
+  }
+  $$('[data-theme-btn]').forEach(b=>b.addEventListener('click',()=>setTheme(b.dataset.themeBtn)));
+  $$('#themeCards .rc').forEach(b=>b.addEventListener('click',()=>setTheme(b.dataset.t)));
+
+  function setDevice(d){
+    $('#stage').classList.toggle('phone', d==='phone');
+    $$('[data-device]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.device===d));
+    $('#stageNote').textContent = d==='phone' ? '390 × 844 çerçeve · ucuz Android hedefi' : '1366 × 768 çerçeve · eski laptop hedefi';
+    try{localStorage.setItem('a-device',d)}catch(e){}
+  }
+  $$('[data-device]').forEach(b=>b.addEventListener('click',()=>setDevice(b.dataset.device)));
+
+  // Genel segment davranışı (prototip kontrolleri hariç)
+  $$('.frame .seg').forEach(seg=>{ if(seg.id==='densitySeg'||seg.id==='fontSeg'||seg.classList.contains('pos-state')) return;
+    seg.addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return; $$('button',seg).forEach(x=>x.setAttribute('aria-pressed',x===b)); markDirty(seg);});});
+  $$('.radio-cards:not(#themeCards)').forEach(g=>g.addEventListener('click',e=>{const b=e.target.closest('.rc'); if(!b) return; $$('.rc',g).forEach(x=>x.setAttribute('aria-pressed',x===b)); markDirty(g);}));
+  $$('.chips').forEach(g=>g.addEventListener('click',e=>{const b=e.target.closest('.chip'); if(!b) return; $$('.chip',g).forEach(x=>x.setAttribute('aria-pressed',x===b));}));
+
+  $('#densitySeg').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return; $$('#densitySeg button').forEach(x=>x.setAttribute('aria-pressed',x===b)); root.dataset.density=b.dataset.v;});
+  $('#fontSeg').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return; $$('#fontSeg button').forEach(x=>x.setAttribute('aria-pressed',x===b)); root.dataset.fontsize=b.dataset.v;});
+
+  // POS durumu
+  $$('[data-pos]').forEach(b=>b.addEventListener('click',()=>{
+    const done = b.dataset.pos==='done';
+    $$('[data-pos]').forEach(x=>x.setAttribute('aria-pressed',x===b));
+    $('#posSell').classList.toggle('hidden',done); $('#posDone').classList.toggle('hidden',!done);
+    $('.pos-mob-bar').style.visibility = done?'hidden':'';
+  }));
+
+  // Ayarlar gezinme
+  $$('.set-nav a').forEach(a=>a.addEventListener('click',()=>{
+    $$('.set-nav a').forEach(x=>x.classList.toggle('active',x===a));
+    $$('.set-sec').forEach(s=>s.classList.toggle('hidden', s.dataset.sec!==a.dataset.sec));
+    $('#set').classList.add('detail'); $('#setBody').scrollTop=0;
+  }));
+  $('#setBack').addEventListener('click',()=>$('#set').classList.remove('detail'));
+  function markDirty(el){ if(el.closest && el.closest('.set-body')) $('#savebar').classList.add('show'); }
+  $('#setBody').addEventListener('input',e=>markDirty(e.target));
+  $('#setBody').addEventListener('change',e=>markDirty(e.target));
+  $('#save').addEventListener('click',()=>$('#savebar').classList.remove('show'));
+  $('#discard').addEventListener('click',()=>$('#savebar').classList.remove('show'));
+
+  // Ürün verisi
+  const P = [
+    ['Üre %46 Azotlu Gübre · 50 kg','8690123400017','Gübre',142,'çuval',20,'—',1050,1240],
+    ['DAP 18-46-0 · 50 kg','8690123400048','Gübre',38,'çuval',15,'—',1780,2050],
+    ['Amonyum Sülfat %21 · 25 kg','8690123400062','Gübre',6,'çuval',20,'—',390,465],
+    ['Decis EC 25 · 250 ml','8699876500113','İlaç',24,'şişe',10,'12.11.2026',330,420],
+    ['Roundup Max · 1 lt','8699876500212','İlaç',3,'şişe',10,'08.2027',540,690],
+    ['Score 250 EC · 100 ml','8699876500311','İlaç',41,'şişe',10,'30.11.2026',265,340],
+    ['Domates fidesi · Viyol 45\'li','Barkodsuz · F-001','Fide',500,'viyol',50,'—',62,85],
+    ['Biber fidesi Çarliston · Viyol','Barkodsuz · F-004','Fide',180,'viyol',40,'—',58,80],
+    ['Buğday tohumu Bezostaja · 50 kg','8691112200019','Tohum',64,'çuval',20,'06.2027',980,1150],
+    ['Mısır tohumu P1921 · 25.000 dane','8691112200118','Tohum',12,'torba',5,'09.2027',4100,4850],
+    ['Damla sulama borusu 16 mm · 400 m','8693330100011','Hırdavat',9,'top',4,'—',1450,1890],
+    ['Bahçe hortumu ½" · 25 m','8693330100219','Hırdavat',3,'adet',5,'—',310,420],
+  ];
+  const tl = n=>'₺'+n.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const sktBadge = s=> s==='12.11.2026'?'<span class="badge warn">'+s+' · 16 gün</span>': s==='30.11.2026'?'<span class="badge warn">'+s+' · 34 gün</span>' : '<span class="'+(s==='—'?'muted':'fg2')+' num">'+s+'</span>';
+  const stockCell = (q,u,min)=>{const c=q<=min/2?'danger':q<min?'warn':''; return '<span class="stock '+(c?'t-'+c:'')+'" style="font-weight:'+(c?600:400)+'"><span class="dot '+(c||'')+'"></span>'+q.toLocaleString('tr-TR')+' '+u+'</span>';};
+  $('#ptbody').innerHTML = P.map(p=>{const m=((p[8]-p[7])/p[7]*100).toFixed(0);
+    return '<tr><td><input type="checkbox" class="chk" aria-label="Seç"></td><td><span class="strong">'+p[0]+'</span><span class="sub num">'+p[1]+'</span></td><td class="fg2">'+p[2]+'</td><td class="r">'+stockCell(p[3],p[4],p[5])+'</td><td>'+sktBadge(p[6])+'</td><td class="r muted num">'+tl(p[7])+'</td><td class="r strong num">'+tl(p[8])+'</td><td class="r num fg2">%'+m+'</td><td class="r"><button class="btn ghost icon sm" aria-label="Seçenekler" style="width:36px;height:36px"><i class="pi pi-ellipsis-h"></i></button></td></tr>';}).join('');
+  $('#pcards').innerHTML = P.map(p=>'<div class="pc"><div style="min-width:0"><div class="nm">'+p[0]+'</div><div class="meta">'+p[2]+' · '+stockCell(p[3],p[4],p[5])+'</div>'+(p[6].includes('2026')?'<div style="margin-top:6px">'+sktBadge(p[6])+'</div>':'')+'</div><div class="end"><b>'+tl(p[8])+'</b><span class="muted" style="font-size:12px">/ '+p[4]+'</span></div></div>').join('');
+
+  // Ciro grafiği (tek seri: geçmiş günler sakin, bugün marka rengi)
+  const days=['14','15','16','17','18','19','20','21','22','23','24','25','26','27'];
+  const wd=['Sa','Ça','Pe','Cu','Ct','Pz','Pt','Sa','Ça','Pe','Cu','Ct','Pz','Pt'];
+  const wdFull=['Salı','Çarşamba','Perşembe','Cuma','Cumartesi','Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi','Pazar','Pazartesi'];
+  const vals=[9.8,12.4,11.1,14.6,16.2,7.4,13.0,15.8,17.1,12.9,19.6,21.4,8.2,18.42];
+  wd[13]='Bugün'; wdFull[13]='Bugün';
+  const cw=$('#chart'); const tip=$('#tip');
+  function drawChart(){
+  const old=cw.querySelector('svg'); if(old) old.remove();
+  const W=Math.max(280,cw.clientWidth-32),H=W<500?170:200,pl=32,pr=2,pt=10,pb=26, max=25;
+  const bw=(W-pl-pr)/vals.length, gap=Math.max(2,bw*0.28), narrow=W<500;
+  let s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Son 14 günün ciro grafiği">';
+  [0,5,10,15,20,25].forEach(v=>{const y=pt+(H-pt-pb)*(1-v/max); s+='<line class="grid-l" x1="'+pl+'" x2="'+(W-pr)+'" y1="'+y+'" y2="'+y+'"/><text class="ax" x="'+(pl-8)+'" y="'+(y+4)+'" text-anchor="end">'+(v?v+'b':'0')+'</text>';});
+  vals.forEach((v,i)=>{const x=pl+i*bw+gap/2, w=bw-gap, h=(H-pt-pb)*(v/max), y=H-pb-h;
+    s+='<rect class="hit" data-i="'+i+'" x="'+(pl+i*bw)+'" y="'+pt+'" width="'+bw+'" height="'+(H-pt-pb)+'"/>';
+    s+='<path class="b'+(i===13?' today':'')+'" d="M'+x+','+(H-pb)+' V'+(y+4)+' q0,-4 4,-4 h'+(w-8)+' q4,0 4,4 V'+(H-pb)+' Z"/>';
+    if(!narrow||i%2===1||i===13) s+='<text class="ax" x="'+(x+w/2)+'" y="'+(H-8)+'" text-anchor="'+(i===13&&narrow?'end':'middle')+'"'+(i===13?' style="fill:var(--fg);font-weight:600"':'')+(i===13&&narrow?' dx="'+(w/2)+'"':'')+'>'+(i===13?'Bugün':days[i])+'</text>';});
+  s+='</svg>';
+  cw.insertAdjacentHTML('beforeend',s);
+  window.__H={H,pt,pb,max};
+  }
+  drawChart(); new ResizeObserver(()=>{ if(cw.clientWidth) drawChart(); }).observe(cw);
+  cw.addEventListener('mousemove',e=>{const r=e.target.closest('.hit'); if(!r){tip.style.opacity=0;return;}
+    const i=+r.dataset.i, bb=r.getBoundingClientRect(), cb=cw.getBoundingClientRect(), svgH=cw.querySelector('svg').getBoundingClientRect().height;
+    tip.innerHTML='<span class="muted">'+(i===13?'Bugün, 27 Eki':days[i]+' Eki '+wdFull[i])+'</span><b>₺'+(vals[i]*1000).toLocaleString('tr-TR')+'</b>';
+    tip.style.left=(bb.left-cb.left+bb.width/2)+'px'; const {H,pt,pb,max}=window.__H; tip.style.top=(8+(svgH*(pt+(H-pt-pb)*(1-vals[i]/max))/H)-6)+'px'; tip.style.opacity=1;});
+  cw.addEventListener('mouseleave',()=>tip.style.opacity=0);
+
+  // Durumu geri yükle
+  let st={}; try{st={t:localStorage.getItem('a-theme'),d:localStorage.getItem('a-device'),s:localStorage.getItem('a-screen')}}catch(e){}
+  const q=new URLSearchParams(location.search);
+  setTheme(q.get('theme')||st.t||'light'); setDevice(q.get('device')||st.d||'desk'); show(q.get('screen')||st.s||'dashboard');
+})();
+</script>
+</body>
+</html>

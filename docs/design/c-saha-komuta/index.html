@@ -1,0 +1,1349 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saha Komuta Merkezi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+/* =====================================================================
+   Yön C — Saha / Komuta Merkezi
+   Kalıcı koyu sidebar + kâğıt tonlu içerik. Düz kartlar, başlık şeritleri.
+   ===================================================================== */
+:root{
+  color-scheme: light;
+  --bg:#f6f4ee; --stage:#e6e2d7;
+  --surface:#fffefb; --surface-2:#f1eee6; --surface-3:#e8e4d9;
+  --line:#e2ddd1; --line-strong:#c9c2b2;
+  --text:#1b1e19; --text-2:#454a41; --text-3:#62685c;
+  --brand:#047857; --brand-hover:#065f46; --brand-ink:#ffffff; --brand-soft:#e2f2e9; --brand-text:#03644a;
+  --brand-grad:linear-gradient(135deg,#10b981 0%,#047857 100%);
+  --accent:#c2410c; --accent-hover:#9a3412; --accent-ink:#ffffff; --accent-soft:#fbeadc; --accent-text:#9f350a;
+  --danger:#dc2626; --danger-soft:#fbe6e2; --danger-text:#b42318;
+  --warn:#b45309; --warn-soft:#faeed6; --warn-text:#8a3f0a;
+  --info:#1d4ed8; --info-soft:#e5ebfa; --info-text:#1d4ed8;
+  --side-bg:#16211c; --side-2:#1f2c26; --side-line:#2b3b33; --side-text:#e7ede9; --side-muted:#a3b2a9; --side-hi:#34d399;
+  --furrow:rgba(4,120,87,.07);
+  --focus:0 0 0 3px rgba(4,120,87,.32);
+  --chart-grid:#e4dfd3;
+}
+html[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#121412; --stage:#080908;
+  --surface:#1a1d1a; --surface-2:#212521; --surface-3:#2a2f2a;
+  --line:#2f342f; --line-strong:#454b44;
+  --text:#ecebe4; --text-2:#c3c4b9; --text-3:#9fa296;
+  --brand:#34d399; --brand-hover:#6ee7b7; --brand-ink:#04281d; --brand-soft:rgba(52,211,153,.12); --brand-text:#5fe0ae;
+  --accent:#fb923c; --accent-hover:#fdba74; --accent-ink:#2b1204; --accent-soft:rgba(251,146,60,.13); --accent-text:#fdac70;
+  --danger:#f87171; --danger-soft:rgba(239,68,68,.15); --danger-text:#fb8f8f;
+  --warn:#fbbf24; --warn-soft:rgba(245,158,11,.14); --warn-text:#fcc94d;
+  --info:#93b4fb; --info-soft:rgba(96,140,250,.15); --info-text:#a5c0fc;
+  --side-bg:#0b0e0c; --side-2:#161b18; --side-line:#222a25; --side-text:#e7ede9; --side-muted:#9aa89f;
+  --furrow:rgba(52,211,153,.045);
+  --focus:0 0 0 3px rgba(52,211,153,.35);
+  --chart-grid:#2c312c;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--stage);color:var(--text);font:15px/1.45 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+h1,h2,h3,h4{font-family:Manrope,Inter,sans-serif;margin:0;letter-spacing:-.01em}
+.num{font-family:Manrope,Inter,sans-serif;font-variant-numeric:tabular-nums}
+.ic{width:1.25em;height:1.25em;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle}
+:focus-visible{outline:none;box-shadow:var(--focus)}
+.muted{color:var(--text-3)} .sub{color:var(--text-2)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ---------------- Prototip araç çubuğu (uygulamanın parçası değil) ---- */
+.proto{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:12px;padding:8px 16px;background:#0e110f;color:#e8ece9;border-bottom:1px solid #222a25;flex-wrap:wrap}
+.proto .tag{font:700 12px Manrope;letter-spacing:.06em;text-transform:uppercase;color:#7fe3bb;padding-right:8px;border-right:1px solid #2a332d;margin-right:4px}
+.proto .tabs{display:flex;gap:4px;flex-wrap:wrap}
+.proto button{height:40px;padding:0 14px;border-radius:8px;border:1px solid transparent;background:transparent;color:#cdd6d0;font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:8px}
+.proto button:hover{background:#1b211d}
+.proto button[aria-pressed="true"]{background:#1f2c26;color:#fff;border-color:#2f4a3d}
+.proto .sp{flex:1}
+.proto .grp{display:flex;gap:2px;background:#151a17;border:1px solid #232b26;border-radius:10px;padding:2px}
+
+.stage{padding:16px;display:flex;justify-content:center;align-items:flex-start;overflow:auto;min-height:calc(100vh - 57px)}
+.device{background:var(--bg);border:1px solid var(--line-strong);border-radius:12px;overflow:hidden;width:100%;height:calc(100vh - 90px);min-height:640px;position:relative}
+.device.d1366{width:1366px;height:768px;min-height:0;flex:none}
+.device.phone{width:410px;height:min(864px,calc(100vh - 76px));min-height:0;border:10px solid #0d0f0e;border-radius:46px;flex:none;box-shadow:0 0 0 1px #3a3f3b}
+.app{container-type:inline-size;container-name:app;height:100%;width:100%;}
+
+/* ---------------- Uygulama kabuğu ------------------------------------ */
+.shell{display:grid;grid-template-columns:236px 1fr;height:100%;}
+.side{background:var(--side-bg);color:var(--side-text);display:flex;flex-direction:column;padding:14px 12px 12px;gap:4px;border-right:1px solid var(--side-line);overflow:auto;
+  background-image:repeating-linear-gradient(168deg,transparent 0 11px,rgba(255,255,255,.018) 11px 12px)}
+.brandrow{display:flex;align-items:center;gap:11px;padding:2px 6px 10px}
+.logo{width:40px;height:40px;border-radius:10px;background:var(--brand-grad);display:grid;place-items:center;color:#fff;flex:none;box-shadow:inset 0 -2px 0 rgba(0,0,0,.18)}
+.logo .ic{width:22px;height:22px}
+.brandrow b{display:block;font:800 15.5px/1.15 Manrope;letter-spacing:-.01em}
+.brandrow small{display:block;font-size:12.5px;color:var(--side-muted)}
+.salebtn{display:flex;align-items:center;gap:10px;height:48px;border-radius:9px;border:0;background:#c2410c;color:#fff;font:700 15px Manrope;padding:0 14px;margin:2px 0 6px;box-shadow:inset 0 -2px 0 rgba(0,0,0,.2)}
+html[data-theme="dark"] .salebtn{background:#ea6a22;color:#1d0b02}
+.salebtn .kbd{margin-left:auto;background:rgba(0,0,0,.22);border-color:rgba(255,255,255,.25);color:inherit}
+.navlabel{font:700 11px Manrope;letter-spacing:.1em;text-transform:uppercase;color:var(--side-muted);padding:10px 10px 4px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:12px;height:40px;padding:0 10px 0 12px;border-radius:8px;color:var(--side-text);text-decoration:none;font-weight:500;font-size:14.5px;cursor:pointer}
+.nav a .ic{color:var(--side-muted)}
+.nav a:hover{background:var(--side-2)}
+.nav a.active{background:rgba(52,211,153,.13);color:#c4f7df;font-weight:600;box-shadow:inset 3px 0 0 var(--side-hi)}
+.nav a.active .ic{color:var(--side-hi)}
+.nav .cnt{margin-left:auto;font:700 11.5px Manrope;min-width:22px;height:22px;padding:0 6px;border-radius:6px;display:grid;place-items:center;background:#b91c1c;color:#fff}
+.nav .cnt.o{background:#c2410c}
+.sidefoot{margin-top:auto;padding-top:12px;display:flex;flex-direction:column;gap:8px}
+.sync{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--side-muted);padding:6px 10px;border:1px solid var(--side-line);border-radius:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,.18);flex:none}
+.me{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;background:var(--side-2)}
+.av{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;font:800 13px Manrope;background:#2c4a3c;color:#c4f7df;flex:none}
+.me b{font-size:13.5px;display:block;line-height:1.2} .me small{font-size:12px;color:var(--side-muted)}
+.me button{margin-left:auto;width:40px;height:40px;border:0;border-radius:8px;background:transparent;color:var(--side-muted);display:grid;place-items:center}
+.me button:hover{background:var(--side-line);color:#fff}
+
+.main{display:flex;flex-direction:column;min-width:0;height:100%;overflow:hidden}
+.top{display:flex;align-items:center;gap:14px;padding:0 24px;height:64px;border-bottom:1px solid var(--line);background:var(--surface);flex:none}
+.top h1{font:800 21px Manrope}
+.top .crumb{font-size:13px;color:var(--text-3)}
+.search{display:flex;align-items:center;gap:8px;height:42px;border:1px solid var(--line-strong);border-radius:9px;background:var(--bg);padding:0 8px 0 12px;width:340px;color:var(--text-3);margin-left:auto}
+.search input{border:0;background:transparent;outline:0;flex:1;min-width:0;color:var(--text)}
+.search input::placeholder{color:var(--text-3)}
+.iconbtn{width:42px;height:42px;border-radius:9px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--text-2);position:relative;flex:none}
+.iconbtn:hover{background:var(--surface-2)}
+.iconbtn .badge{position:absolute;top:-5px;right:-5px;min-width:19px;height:19px;border-radius:6px;background:var(--danger);color:#fff;font:700 11px Manrope;display:grid;place-items:center;padding:0 4px}
+html[data-theme="dark"] .iconbtn .badge{background:#dc2626}
+.kasa{display:flex;align-items:center;gap:8px;height:42px;padding:0 12px;border-radius:9px;background:var(--brand-soft);color:var(--brand-text);font-weight:600;font-size:13.5px;flex:none}
+.content{flex:1;overflow:auto;padding:20px 24px 32px}
+.mtop,.mnav,.mcart{display:none}
+
+/* ---------------- Ortak bileşenler ----------------------------------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;min-width:0}
+.ch{display:flex;align-items:center;gap:10px;min-height:48px;padding:6px 16px;border-bottom:1px solid var(--line);
+  background-color:var(--surface-2);background-image:repeating-linear-gradient(-14deg,transparent 0 9px,var(--furrow) 9px 10px)}
+.ch h3{font:700 15px Manrope}
+.ch .hi{width:30px;height:30px;border-radius:7px;background:var(--brand-soft);color:var(--brand-text);display:grid;place-items:center;flex:none}
+.ch .hi.o{background:var(--accent-soft);color:var(--accent-text)}
+.ch .hi.r{background:var(--danger-soft);color:var(--danger-text)}
+.ch .hi .ic{width:17px;height:17px}
+.ch .end{margin-left:auto;display:flex;gap:8px;align-items:center}
+.ch .meta{font-size:13px;color:var(--text-3)}
+.cb{padding:16px}
+.link{color:var(--brand-text);font-weight:600;font-size:13.5px;text-decoration:none;display:inline-flex;align-items:center;gap:4px;min-height:40px;background:none;border:0;padding:0 4px}
+.link:hover{text-decoration:underline}
+
+.btn{height:42px;padding:0 16px;border-radius:8px;border:1px solid var(--line-strong);background:var(--surface);color:var(--text);font-weight:600;font-size:14.5px;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap}
+.btn:hover{background:var(--surface-2)}
+.btn.pri{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.btn.pri:hover{background:var(--brand-hover)}
+.btn.acc{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.acc:hover{background:var(--accent-hover)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.dangerline{color:var(--danger-text);border-color:var(--danger)}
+.btn.lg{height:52px;font-size:15.5px;padding:0 20px}
+.btn.sq{width:42px;padding:0}
+.kbd{display:inline-grid;place-items:center;min-width:24px;height:22px;padding:0 6px;border-radius:5px;border:1px solid var(--line-strong);background:var(--surface-2);font:700 11.5px ui-monospace,Consolas,monospace;color:var(--text-2)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:6px;font-weight:600;font-size:12.5px;white-space:nowrap}
+.pill .ic{width:14px;height:14px}
+.p-ok{background:var(--brand-soft);color:var(--brand-text)}
+.p-warn{background:var(--warn-soft);color:var(--warn-text)}
+.p-danger{background:var(--danger-soft);color:var(--danger-text)}
+.p-info{background:var(--info-soft);color:var(--info-text)}
+.p-acc{background:var(--accent-soft);color:var(--accent-text)}
+.p-neu{background:var(--surface-3);color:var(--text-2)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{height:40px;padding:0 14px;border-radius:8px;border:1px solid var(--line-strong);background:var(--surface);font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:8px;color:var(--text-2);white-space:nowrap}
+.chip b{font:700 12px Manrope;color:var(--text-3)}
+.chip[aria-pressed="true"]{background:var(--text);border-color:var(--text);color:var(--surface)}
+.chip[aria-pressed="true"] b{color:inherit;opacity:.75}
+.chip.st[aria-pressed="true"]{background:var(--danger-soft);border-color:var(--danger);color:var(--danger-text)}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field label,.lbl{font-weight:600;font-size:13.5px;color:var(--text-2)}
+.input{height:44px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);padding:0 12px;width:100%;min-width:0;color:var(--text)}
+.input:focus{border-color:var(--brand);box-shadow:var(--focus);outline:0}
+textarea.input{height:auto;padding:10px 12px;resize:vertical;line-height:1.5}
+select.input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--text-3) 50%),linear-gradient(135deg,var(--text-3) 50%,transparent 50%);background-position:calc(100% - 17px) 19px,calc(100% - 12px) 19px;background-size:5px 5px;background-repeat:no-repeat;padding-right:32px}
+.hint{font-size:12.5px;color:var(--text-3)}
+.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:9px;padding:3px;gap:3px;background:var(--surface-2)}
+.seg button{height:36px;min-width:44px;padding:0 12px;border:0;border-radius:6px;background:transparent;font-weight:600;font-size:13.5px;color:var(--text-2);display:inline-flex;align-items:center;gap:6px}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:0 0 0 1px var(--line-strong)}
+.sw{position:relative;display:inline-flex;align-items:center;min-height:40px;cursor:pointer;flex:none}
+.sw input{position:absolute;opacity:0;width:1px;height:1px}
+.sw span{width:46px;height:26px;border-radius:999px;background:var(--line-strong);position:relative;transition:.15s}
+.sw span::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.sw input:checked+span{background:var(--brand)}
+.sw input:checked+span::after{left:23px;background:#fff}
+html[data-theme="dark"] .sw input:checked+span::after{background:#04281d}
+.sw input:focus-visible+span{box-shadow:var(--focus)}
+.meter{height:6px;border-radius:3px;background:var(--surface-3);overflow:hidden}
+.meter i{display:block;height:100%;border-radius:3px;background:var(--brand)}
+
+.tbl{width:100%;border-collapse:collapse;font-size:14.5px}
+.tbl th{text-align:left;font-weight:600;font-size:12.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--text-3);background:var(--surface-2);height:40px;padding:0 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:9px 14px;border-bottom:1px solid var(--line);height:52px;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tbody tr:hover td{background:var(--surface-2)}
+.tbl .r{text-align:right}
+.tbl .name{font-weight:600;color:var(--text)}
+.tbl .sm{font-size:12.5px;color:var(--text-3)}
+
+.screen{display:none}
+.screen.on{display:block}
+.grid{display:grid;gap:16px}
+.pagehead{display:flex;align-items:flex-end;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.pagehead .t{font:800 22px Manrope}
+.pagehead .end{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+
+/* ---------------- Dashboard ------------------------------------------ */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.kpi .kh{display:flex;align-items:center;gap:8px;height:40px;padding:0 14px;font-weight:600;font-size:13.5px;color:var(--text-2);border-bottom:1px solid var(--line);background-color:var(--surface-2);background-image:repeating-linear-gradient(-14deg,transparent 0 9px,var(--furrow) 9px 10px)}
+.kpi .kh .ic{color:var(--brand-text);width:18px;height:18px}
+.kpi .kb{padding:12px 14px 14px;display:flex;flex-direction:column;gap:6px;flex:1}
+.kpi .v{font:800 30px/1.1 Manrope;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.kpi .v small{font-size:18px;font-weight:700;color:var(--text-2);margin-left:2px}
+.kpi .s{font-size:13px;color:var(--text-2);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.kpi.acc{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.kpi.acc .kh{background-color:var(--accent-soft);color:var(--accent-text)} .kpi.acc .kh .ic{color:var(--accent-text)}
+.kpi.alert{background:var(--danger-soft);border-color:color-mix(in srgb,var(--danger) 45%,transparent)}
+.kpi.alert .kh{background-color:transparent;color:var(--danger-text);border-color:color-mix(in srgb,var(--danger) 30%,transparent)} .kpi.alert .kh .ic{color:var(--danger-text)}
+.kpi.alert .v{color:var(--danger-text)}
+.kpi .pill{white-space:normal;height:auto;min-height:24px;padding:3px 8px}
+.kpi .split{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}
+.spark{height:30px;width:100%;margin-top:auto}
+.d-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:16px;margin-bottom:16px}
+.d-row2{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px}
+.chartwrap{position:relative;padding:8px 12px 6px}
+.chartwrap svg{display:block}
+.chartwrap .bar{fill:var(--brand);opacity:.88}
+.chartwrap .bar.wk{fill:var(--brand);opacity:.45}
+.chartwrap .bar.today{fill:var(--accent);opacity:1}
+.chartwrap .hit:hover + .bar,.chartwrap .bar.hov{opacity:1}
+.chartwrap .gl{stroke:var(--chart-grid);stroke-width:1}
+.chartwrap .ax{fill:var(--text-3);font:500 11.5px Inter}
+.chartwrap .avg{stroke:var(--text-2);stroke-width:1.5;stroke-dasharray:4 4}
+.chartwrap .dl{fill:var(--text);font:700 12px Manrope}
+.tip{position:absolute;pointer-events:none;background:var(--text);color:var(--surface);border-radius:8px;padding:8px 10px;font-size:12.5px;line-height:1.35;transform:translate(-50%,-110%);white-space:nowrap;display:none;z-index:3}
+.tip b{font:800 14px Manrope;display:block}
+.chartsum{display:flex;gap:22px;padding:4px 16px 14px;flex-wrap:wrap}
+.chartsum div{font-size:12.5px;color:var(--text-3)} .chartsum b{display:block;font:800 17px Manrope;color:var(--text);font-variant-numeric:tabular-nums}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px}
+.qa{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:14px;min-height:96px;border-radius:9px;border:1px solid var(--line);background:var(--surface);text-align:left;position:relative}
+.qa:hover{border-color:var(--brand);background:var(--brand-soft)}
+.qa .qi{width:38px;height:38px;border-radius:8px;display:grid;place-items:center;background:var(--brand-soft);color:var(--brand-text)}
+.qa b{font:700 14.5px Manrope;line-height:1.2}
+.qa .kbd{position:absolute;top:12px;right:12px}
+.qa.hero{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.qa.hero .qi{background:rgba(255,255,255,.18);color:inherit}
+html[data-theme="dark"] .qa.hero .qi{background:rgba(0,0,0,.15)}
+.qa.hero .kbd{background:rgba(0,0,0,.18);border-color:rgba(255,255,255,.3);color:inherit}
+.qa.hero:hover{background:var(--accent-hover)}
+.alist{list-style:none;margin:0;padding:0}
+.alist li{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);min-height:58px}
+.alist li:last-child{border-bottom:0}
+.alist .ai{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;flex:none}
+.alist .tx{min-width:0;flex:1}
+.alist .tx b{display:block;font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alist .tx span{font-size:12.5px;color:var(--text-3)}
+.payi{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:13.5px}
+.payi .ic{width:16px;height:16px}
+
+/* ---------------- POS ------------------------------------------------- */
+.pos{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:16px;align-items:stretch}
+.bigsearch{display:flex;align-items:center;gap:12px;height:60px;border:2px solid var(--brand);border-radius:11px;background:var(--surface);padding:0 10px 0 16px;box-shadow:var(--focus)}
+.bigsearch .ic{width:26px;height:26px;color:var(--brand-text)}
+.bigsearch input{flex:1;border:0;outline:0;background:transparent;font:600 19px Inter;min-width:0}
+.results{margin-top:-1px}
+.res{display:grid;grid-template-columns:44px minmax(0,1fr) auto auto 120px;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--line);min-height:64px}
+.res:last-child{border-bottom:0}
+.res.sel{background:var(--brand-soft);box-shadow:inset 3px 0 0 var(--brand)}
+.res .ri{width:44px;height:44px;border-radius:8px;display:grid;place-items:center;background:var(--surface-2);color:var(--text-2)}
+.res b{font-weight:600;font-size:15px;display:block}
+.res .pr{font:800 17px Manrope;text-align:right;font-variant-numeric:tabular-nums}
+.res .addb{justify-self:end}
+.fav{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px}
+.fav button{min-height:76px;border-radius:9px;border:1px solid var(--line);background:var(--surface);text-align:left;padding:10px 12px;display:flex;flex-direction:column;justify-content:space-between;gap:6px}
+.fav button:hover{border-color:var(--brand);background:var(--brand-soft)}
+.fav b{font-weight:600;font-size:14px;line-height:1.25}
+.fav span{font:800 15px Manrope;color:var(--brand-text)}
+.cart{display:flex;flex-direction:column;height:100%;min-height:0}
+.cart-live{display:flex;flex-direction:column;height:100%;min-height:0}
+.lines{flex:1;overflow:auto;min-height:0}
+.content:has(.screen[data-screen="pos"].on){overflow:hidden;display:flex;flex-direction:column}
+.screen[data-screen="pos"].on{display:flex;flex-direction:column;flex:1;min-height:0}
+.pos{flex:1;min-height:0}
+.pos>.poscol{height:100%;overflow:auto;padding:3px;margin:-3px}
+.poscol>*{flex:none}
+.pos[data-state="done"] .cart{height:auto;max-height:100%;overflow:auto}
+.cust{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.cust .av{background:var(--accent-soft);color:var(--accent-text)}
+.cust b{display:block;font-weight:700;font-size:14.5px}
+.cust span{font-size:12.5px;color:var(--text-3)}
+.line{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;padding:10px 16px;border-bottom:1px solid var(--line)}
+.line b{font-weight:600;font-size:14.5px}
+.line .lt{font:800 16px Manrope;text-align:right;font-variant-numeric:tabular-nums}
+.line .ctl{grid-column:1/-1;display:flex;align-items:center;gap:8px}
+.qty{display:flex;align-items:center;border:1px solid var(--line-strong);border-radius:8px;overflow:hidden;height:40px}
+.qty button{width:40px;height:40px;border:0;background:var(--surface-2);display:grid;place-items:center;color:var(--text-2)}
+.qty input{width:64px;height:40px;border:0;text-align:center;font:700 15px Manrope;background:var(--surface);outline:0}
+.qty .u{padding:0 10px 0 2px;font-size:13px;color:var(--text-3);background:var(--surface)}
+.line .up{font-size:13px;color:var(--text-3)}
+.line .rm{margin-left:auto;width:40px;height:40px;border-radius:8px;border:0;background:transparent;color:var(--text-3);display:grid;place-items:center}
+.line .rm:hover{background:var(--danger-soft);color:var(--danger-text)}
+.tot{padding:10px 16px;display:flex;flex-direction:column;gap:4px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+.tot div{display:flex;justify-content:space-between;font-size:14px;color:var(--text-2)}
+.tot .big{align-items:baseline;color:var(--text);padding-top:6px;border-top:1px dashed var(--line-strong);margin-top:4px}
+.tot .big span{font:700 15px Manrope}
+.tot .big b{font:800 34px Manrope;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.pay{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:12px 16px}
+.pay button{height:66px;border-radius:10px;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font:800 16px Manrope;position:relative}
+.pay .kbd{position:absolute;top:7px;left:8px;height:20px;font-size:11px;background:rgba(0,0,0,.2);border-color:rgba(255,255,255,.28);color:inherit}
+.pay .ic{width:24px;height:24px}
+.pay .p1{background:var(--brand);color:var(--brand-ink)}
+.pay .p2{background:#1f2a24;color:#fff}
+html[data-theme="dark"] .pay .p2{background:#3a423c;color:#fff;box-shadow:inset 0 0 0 1px #4d574f}
+.pay .p3{background:var(--accent);color:var(--accent-ink)}
+.cartfoot{display:flex;gap:8px;padding:0 16px 14px}
+.cartfoot .btn{flex:1;height:40px;font-size:13.5px}
+.done{display:none}
+.pos[data-state="done"] .cart-live{display:none}
+.pos[data-state="done"] .done{display:flex}
+.done{flex-direction:column}
+.okhead{display:flex;gap:14px;align-items:center;padding:18px 16px;background:var(--brand-soft);border-bottom:1px solid var(--line)}
+.okhead .okc{width:52px;height:52px;border-radius:12px;background:var(--brand);color:var(--brand-ink);display:grid;place-items:center;flex:none}
+.okhead .okc .ic{width:30px;height:30px;stroke-width:2.6}
+.okhead h3{font:800 19px Manrope}
+.okhead span{font-size:13px;color:var(--text-2)}
+.change{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--line)}
+.change div{padding:14px 16px;border-right:1px solid var(--line)}
+.change div:last-child{border-right:0;background:var(--accent-soft)}
+.change span{font-size:12.5px;color:var(--text-3);font-weight:600}
+.change b{display:block;font:800 22px Manrope;font-variant-numeric:tabular-nums}
+.change div:last-child b{font-size:28px;color:var(--accent-text)}
+.change div:last-child span{color:var(--accent-text)}
+.doneact{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:14px 16px}
+.doneact .btn{height:52px}
+.doneact .wide{grid-column:1/-1}
+.receipt{margin:0 16px 14px;border:1px dashed var(--line-strong);border-radius:8px;padding:12px 14px;font:12.5px/1.55 ui-monospace,Consolas,monospace;color:var(--text-2);background:var(--bg)}
+.receipt .rr{display:flex;justify-content:space-between}
+
+/* ---------------- Ürünler -------------------------------------------- */
+.sumstrip{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:10px;background:var(--surface);margin-bottom:14px;overflow:hidden}
+.sumstrip>div{padding:12px 16px;border-right:1px solid var(--line);display:flex;align-items:center;gap:12px}
+.sumstrip>div:last-child{border-right:0}
+.sumstrip .si{width:38px;height:38px;border-radius:8px;display:grid;place-items:center;flex:none}
+.sumstrip span{font-size:12.5px;color:var(--text-3);font-weight:600;display:block}
+.sumstrip b{font:800 20px Manrope;font-variant-numeric:tabular-nums}
+.filters{display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.filters .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.filters .search{margin-left:0;width:320px;background:var(--surface)}
+.stk{display:flex;flex-direction:column;gap:5px;min-width:110px}
+.stk b{font:800 15px Manrope;font-variant-numeric:tabular-nums}
+.stk b small{font:500 12.5px Inter;color:var(--text-3)}
+.pcards{display:none}
+.rowact{display:flex;gap:6px;justify-content:flex-end}
+.rowact .btn{height:40px}
+.tbl tr.crit td:first-child{box-shadow:inset 3px 0 0 var(--danger)}
+
+/* ---------------- Müşteri / Veresiye --------------------------------- */
+.custhead{display:flex;gap:16px;align-items:center;padding:16px;flex-wrap:wrap}
+.custhead .av{width:60px;height:60px;border-radius:12px;font-size:20px;background:var(--accent-soft);color:var(--accent-text)}
+.custhead>div:nth-child(2){flex:1 1 220px}
+.custhead h2{font:800 22px Manrope}
+.custhead .info{display:flex;gap:14px;flex-wrap:wrap;font-size:13.5px;color:var(--text-2);margin-top:4px}
+.custhead .info span{display:inline-flex;gap:6px;align-items:center}
+.custhead .info .ic{width:16px;height:16px;color:var(--text-3)}
+.custhead .act{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.debt{display:grid;grid-template-columns:1.3fr 1fr 1fr 1.2fr;border-top:1px solid var(--line)}
+.debt>div{padding:14px 16px;border-right:1px solid var(--line)}
+.debt>div:last-child{border-right:0}
+.debt span{font-size:12.5px;font-weight:600;color:var(--text-3);display:flex;gap:6px;align-items:center}
+.debt b{display:block;font:800 26px/1.2 Manrope;font-variant-numeric:tabular-nums;margin-top:4px}
+.debt .dmain b{font-size:32px}
+.debt .od{background:var(--danger-soft)} .debt .od span,.debt .od b{color:var(--danger-text)}
+.c-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;margin-top:16px;align-items:start}
+.tl{list-style:none;margin:0;padding:8px 16px 8px}
+.tl li{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;position:relative;padding:10px 0}
+.tl li::before{content:"";position:absolute;left:19px;top:52px;bottom:-10px;width:2px;background:var(--line)}
+.tl li:last-child::before{display:none}
+.tl .tli{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;z-index:1}
+.tl .tli .ic{width:19px;height:19px}
+.tl b{font-weight:600;font-size:14.5px;display:block}
+.tl .d{font-size:12.5px;color:var(--text-3)}
+.tl .items{font-size:13px;color:var(--text-2);margin-top:4px}
+.tl .amt{text-align:right}
+.tl .amt b{font:800 16px Manrope;font-variant-numeric:tabular-nums}
+.tl .amt span{font-size:12px;color:var(--text-3);display:block;font-variant-numeric:tabular-nums}
+.inst{display:grid;grid-template-columns:40px minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+.inst:last-child{border-bottom:0}
+.inst .no{width:40px;height:40px;border-radius:9px;display:grid;place-items:center;font:800 14px Manrope;background:var(--surface-2);color:var(--text-2)}
+.inst.paid .no{background:var(--brand-soft);color:var(--brand-text)}
+.inst.late{background:var(--danger-soft)}
+.inst.late .no{background:var(--danger);color:#fff}
+html[data-theme="dark"] .inst.late .no{color:#2a0505}
+.inst b{font-weight:600;font-size:14.5px}
+.inst .ia{font:800 16px Manrope;text-align:right;font-variant-numeric:tabular-nums}
+.limit{padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.limit .meter{height:10px;border-radius:5px}
+.note{margin:0 16px 16px;padding:12px 14px;border-radius:8px;background:var(--warn-soft);color:var(--warn-text);font-size:13.5px;display:flex;gap:10px}
+
+/* ---------------- Ayarlar -------------------------------------------- */
+.set{display:grid;grid-template-columns:260px minmax(0,1fr);gap:20px;align-items:start}
+.setnav{position:sticky;top:0;max-height:calc(100vh - 150px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.setnav .search{margin:10px;width:auto;background:var(--bg)}
+.setnav a{display:flex;align-items:center;gap:10px;min-height:42px;padding:0 14px;color:var(--text-2);text-decoration:none;font-weight:500;font-size:14px;cursor:pointer;border-left:3px solid transparent}
+.setnav a .ic{color:var(--text-3);width:18px;height:18px}
+.setnav a:hover{background:var(--surface-2)}
+.setnav a.on{background:var(--brand-soft);color:var(--brand-text);border-left-color:var(--brand);font-weight:600}
+.setnav a.on .ic{color:var(--brand-text)}
+.setnav .grp{font:700 11px Manrope;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);padding:12px 16px 4px}
+.setnav a .warnd{margin-left:auto;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.setmain{display:flex;flex-direction:column;gap:16px}
+.setmain .card{scroll-margin-top:12px}
+.ch .desc{font-size:13px;color:var(--text-3);font-weight:400;font-family:Inter}
+.srow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);min-height:66px}
+.srow:last-child{border-bottom:0}
+.srow .t{font-weight:600;font-size:14.5px}
+.srow .d{font-size:13px;color:var(--text-3);margin-top:2px}
+.srow .ctl{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.srow .ctl .input{width:auto}
+.fgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:16px}
+.fgrid .full{grid-column:1/-1}
+.setup{display:flex;align-items:center;gap:16px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:10px;flex-wrap:wrap}
+.ring{width:56px;height:56px;flex:none}
+.setup h3{font:800 17px Manrope}
+.setup p{margin:2px 0 0;font-size:13.5px;color:var(--text-2)}
+.setup .end{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.matrix{width:100%;border-collapse:collapse;font-size:14px}
+.matrix th{font-weight:600;font-size:12.5px;color:var(--text-3);text-transform:uppercase;letter-spacing:.03em;padding:10px 12px;background:var(--surface-2);border-bottom:1px solid var(--line);text-align:center}
+.matrix th:first-child,.matrix td:first-child{text-align:left}
+.matrix td{padding:4px 12px;border-bottom:1px solid var(--line);text-align:center;height:52px}
+.matrix tr:last-child td{border-bottom:0}
+.cbx{width:40px;height:40px;display:inline-grid;place-items:center;cursor:pointer;position:relative}
+.cbx input{position:absolute;opacity:0}
+.cbx span{width:22px;height:22px;border-radius:6px;border:2px solid var(--line-strong);display:grid;place-items:center;background:var(--surface)}
+.cbx input:checked+span{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.cbx input:checked+span::after{content:"";width:10px;height:5px;border-left:2.5px solid currentColor;border-bottom:2.5px solid currentColor;transform:rotate(-45deg) translate(1px,-1px)}
+.cbx input:focus-visible+span{box-shadow:var(--focus)}
+.themes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:16px}
+.themes button{border:2px solid var(--line);border-radius:10px;background:var(--surface);padding:8px;text-align:left;display:flex;flex-direction:column;gap:8px}
+.themes button[aria-pressed="true"]{border-color:var(--brand);box-shadow:var(--focus)}
+.themes b{font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px;padding:0 4px 2px}
+.mini{height:74px;border-radius:6px;display:grid;grid-template-columns:28% 1fr;overflow:hidden;border:1px solid var(--line)}
+.mini i{display:block}
+.mini .ms{background:#16211c}
+.mini .mc{padding:8px;display:flex;flex-direction:column;gap:5px}
+.mini .mc i{height:8px;border-radius:2px}
+.vars{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.vars code{font:600 12.5px ui-monospace,Consolas,monospace;background:var(--surface-2);border:1px solid var(--line);padding:3px 7px;border-radius:5px;color:var(--text-2)}
+.grant{margin:16px;padding:14px;border-radius:9px;border:1px solid color-mix(in srgb,var(--warn) 50%,transparent);background:var(--warn-soft);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.grant .gi{width:40px;height:40px;border-radius:9px;background:var(--warn);color:#fff;display:grid;place-items:center;flex:none}
+html[data-theme="dark"] .grant .gi{color:#231300}
+.grant b{display:block;color:var(--warn-text);font-size:14.5px}
+.grant span{font-size:13px;color:var(--text-2)}
+.grant .btn{margin-left:auto}
+.kvkk{display:flex;gap:10px;padding:12px 16px;font-size:13px;color:var(--text-2);background:var(--info-soft);border-top:1px solid var(--line)}
+.kvkk .ic{color:var(--info-text);margin-top:1px}
+.plan{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:0}
+.plan>div{padding:16px}
+.plan .pc{background:var(--side-bg);color:#e7ede9;background-image:repeating-linear-gradient(-14deg,transparent 0 9px,rgba(52,211,153,.06) 9px 10px)}
+.plan .pc .pn{font:800 24px Manrope;display:flex;align-items:center;gap:10px}
+.plan .pc p{margin:6px 0 14px;color:#b9c6be;font-size:13.5px}
+.plan .pc .pill{background:rgba(52,211,153,.16);color:#9af0c9}
+.use{display:flex;flex-direction:column;gap:12px}
+.use div span{display:flex;justify-content:space-between;font-size:13.5px;color:var(--text-2);margin-bottom:6px}
+.sess{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);min-height:66px}
+.sess .si{width:40px;height:40px;border-radius:9px;display:grid;place-items:center;background:var(--surface-2);color:var(--text-2);flex:none}
+.sess b{font-weight:600;font-size:14.5px;display:block}
+.sess span{font-size:12.5px;color:var(--text-3)}
+.sess .btn{margin-left:auto}
+.about{display:flex;gap:16px;align-items:center;padding:16px;flex-wrap:wrap}
+.about .logo{width:52px;height:52px;border-radius:12px}
+
+/* ---------------- Giriş ---------------------------------------------- */
+.login{display:none;height:100%;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.app.is-login .shell{display:none}
+.app.is-login .login{display:grid}
+.lhero{background:var(--side-bg);color:#e7ede9;padding:40px 48px;display:flex;flex-direction:column;gap:28px;position:relative;overflow:hidden}
+.lhero::after{content:"";position:absolute;inset:auto -10% -30% -10%;height:60%;background:repeating-linear-gradient(90deg,transparent 0 22px,rgba(52,211,153,.10) 22px 24px);transform:perspective(400px) rotateX(55deg);transform-origin:bottom;pointer-events:none}
+.lhero .brandrow b{font-size:19px} .lhero .logo{width:48px;height:48px}
+.lhero h2{font:800 34px/1.15 Manrope;max-width:460px;letter-spacing:-.02em}
+.lhero h2 em{font-style:normal;color:#5fe0ae}
+.feat{display:flex;flex-direction:column;gap:14px;max-width:440px;position:relative;z-index:1}
+.feat>div{display:flex;gap:14px;align-items:flex-start}
+.feat .fi{width:40px;height:40px;border-radius:9px;background:rgba(52,211,153,.13);color:#5fe0ae;display:grid;place-items:center;flex:none}
+.feat b{display:block;font-weight:600}
+.feat span{font-size:13.5px;color:#b3c1b9}
+.lhero .foot{margin-top:auto;font-size:13px;color:#a3b2a9;display:flex;gap:16px;flex-wrap:wrap;position:relative;z-index:1}
+.lform{display:flex;align-items:center;justify-content:center;padding:32px;background:var(--bg);overflow:auto}
+.lbox{width:100%;max-width:400px;display:flex;flex-direction:column;gap:16px}
+.lbox h1{font:800 28px Manrope}
+.lbox .pw{position:relative}
+.lbox .pw .input{padding-right:52px}
+.lbox .pw button{position:absolute;right:2px;top:2px;width:40px;height:40px;border:0;background:transparent;color:var(--text-3);border-radius:7px;display:grid;place-items:center}
+.lbox .row{display:flex;justify-content:space-between;align-items:center}
+.lbox .or{display:flex;align-items:center;gap:12px;color:var(--text-3);font-size:13px}
+.lbox .or::before,.lbox .or::after{content:"";flex:1;height:1px;background:var(--line-strong)}
+.cbline{display:flex;align-items:center;gap:4px;font-size:14px;color:var(--text-2);cursor:pointer}
+
+/* =====================================================================
+   Telefon (390px) — container query; aynı işaretleme
+   ===================================================================== */
+@container app (max-width: 1180px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .pos{grid-template-columns:minmax(0,1fr) 380px}
+  .fav{grid-template-columns:repeat(3,1fr)}
+  .d-row2{grid-template-columns:1fr}
+}
+@container app (max-width: 720px){
+  .shell{grid-template-columns:1fr;grid-template-rows:auto 1fr auto}
+  .side,.top{display:none}
+  .main{grid-row:2}
+  .mtop{display:flex;align-items:center;gap:10px;height:58px;padding:0 10px 0 14px;background:var(--side-bg);color:#e7ede9;grid-row:1}
+  .mtop .logo{width:34px;height:34px;border-radius:9px}
+  .mtop .logo .ic{width:18px;height:18px}
+  .mtop b{font:800 17px Manrope}
+  .mtop small{display:block;font-size:11.5px;color:var(--side-muted);margin-top:-2px}
+  .mtop .end{margin-left:auto;display:flex;gap:4px}
+  .mtop button{width:42px;height:42px;border-radius:9px;border:0;background:transparent;color:#d5ddd8;display:grid;place-items:center;position:relative}
+  .mtop .badge{position:absolute;top:4px;right:4px;min-width:17px;height:17px;border-radius:5px;background:#dc2626;color:#fff;font:700 10.5px Manrope;display:grid;place-items:center}
+  .mnav{display:grid;grid-template-columns:repeat(5,1fr);grid-row:3;background:var(--side-bg);border-top:1px solid var(--side-line);padding:6px 4px 8px}
+  .mnav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;color:var(--side-muted);font-size:11.5px;font-weight:600;text-decoration:none;cursor:pointer;border-radius:10px;position:relative}
+  .mnav a .ic{width:23px;height:23px}
+  .mnav a.active{color:#7fe8bf}
+  .mnav a.active::before{content:"";position:absolute;top:-6px;left:30%;right:30%;height:3px;border-radius:0 0 3px 3px;background:#34d399}
+  .mnav a.sale{background:#c2410c;color:#fff;margin:0 4px}
+  html[data-theme="dark"] .mnav a.sale{background:#ea6a22;color:#1d0b02}
+  .mnav .cnt{position:absolute;top:2px;right:calc(50% - 22px);min-width:17px;height:17px;border-radius:5px;background:#dc2626;color:#fff;font:700 10.5px Manrope;display:grid;place-items:center;padding:0 3px}
+  .content{padding:14px 12px 24px}
+  .pagehead .t{font-size:20px}
+  .pagehead .end .btn span.hide-m{display:none}
+  .kpis{gap:10px}
+  .kpi .v{font-size:23px} .kpi .v small{font-size:14px}
+  .kpi .kh{font-size:12.5px;padding:0 10px;height:36px}
+  .kpi .kb{padding:10px}
+  .kpi .s{font-size:12px}
+  .kpi .s.muted{display:none}
+  .d-row,.d-row2{grid-template-columns:1fr;gap:12px}
+  .d-row{margin-bottom:12px}
+  .chartsum{gap:14px}
+  .hide-m{display:none !important}
+  .tbl.recent td,.tbl.recent th{padding:8px 10px}
+  .pos{grid-template-columns:1fr}
+  .bigsearch{height:54px} .bigsearch input{font-size:16px}
+  .bigsearch .kbd{display:none}
+  .res{grid-template-columns:40px minmax(0,1fr) auto;gap:10px;padding:10px 12px}
+  .res .ri{width:40px;height:40px}
+  .res .stockcol{display:none}
+  .res .pr{grid-column:2;text-align:left;font-size:15px}
+  .res .addb{grid-row:1/3;grid-column:3}
+  .fav{grid-template-columns:1fr 1fr;padding:12px;gap:8px}
+  .cart,.cart-live{height:auto}
+  .mcart{display:flex;align-items:center;gap:10px;position:sticky;bottom:-24px;margin:12px -12px -24px;padding:10px 12px 12px;background:var(--surface);border-top:1px solid var(--line-strong);box-shadow:0 -6px 16px rgba(0,0,0,.08)}
+  .pos[data-state="done"]~.mcart{display:none}
+  .mcart .mc-n{width:36px;height:36px;border-radius:9px;background:var(--accent-soft);color:var(--accent-text);display:grid;place-items:center;font:800 15px Manrope;flex:none}
+  .mcart b{display:block;font-size:18px;font-weight:800}
+  .mcart span{font-size:12px;color:var(--text-3)}
+  .mcart .btn{margin-left:auto;height:46px;padding:0 14px}
+  .lines{overflow:visible}
+  .content:has(.screen[data-screen="pos"].on){overflow:auto;display:block}
+  .screen[data-screen="pos"].on{display:block}
+  .pos>.poscol{height:auto;overflow:visible}
+  .sumstrip{grid-template-columns:1fr 1fr}
+  .sumstrip>div:nth-child(2){border-right:0}
+  .sumstrip>div:nth-child(-n+2){border-bottom:1px solid var(--line)}
+  .sumstrip>div{padding:10px 12px}
+  .filters{padding:12px}
+  .filters .search{width:100%}
+  .chips.scroll{flex-wrap:nowrap;overflow-x:auto;margin:0 -12px;padding:0 12px 2px;scrollbar-width:none}
+  .ptable{display:none}
+  .pcards{display:block}
+  .custhead .act{margin-left:0;width:100%;display:grid;grid-template-columns:1fr 1fr}
+  .custhead .act .btn{padding:0 10px}
+  .debt{grid-template-columns:1fr 1fr}
+  .debt>div:nth-child(2){border-right:0}
+  .debt>div:nth-child(-n+2){border-bottom:1px solid var(--line)}
+  .debt b{font-size:21px} .debt .dmain b{font-size:24px}
+  .c-grid{grid-template-columns:1fr}
+  .inst{grid-template-columns:36px minmax(0,1fr) auto;padding:10px 12px}
+  .inst .ia{grid-column:3}
+  .inst .pill{grid-column:2;justify-self:start}
+  .set{grid-template-columns:minmax(0,1fr);gap:12px}
+  .setnav{max-height:none}
+  .setnav{position:sticky;top:-14px;z-index:5;display:flex;overflow-x:auto;border-radius:0;margin:-14px -12px 0;border-width:0 0 1px;scrollbar-width:none}
+  .setnav .search,.setnav .grp{display:none}
+  .setnav a{white-space:nowrap;border-left:0;border-bottom:3px solid transparent;flex:none;min-height:48px}
+  .setnav a.on{border-bottom-color:var(--brand)}
+  .srow{grid-template-columns:1fr;gap:8px;padding:12px}
+  .srow .ctl{justify-content:flex-start}
+  .srow.inl{grid-template-columns:minmax(0,1fr) auto}
+  .fgrid{grid-template-columns:1fr;padding:12px}
+  .themes{grid-template-columns:1fr 1fr 1fr;padding:12px;gap:8px}
+  .themes .mini{height:56px}
+  .plan{grid-template-columns:1fr}
+  .tbl.log .hide-m{display:none}
+  .matrix th,.matrix td{padding:4px 6px}
+  .setup .end{margin-left:0}
+  .login{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .lhero{padding:22px 20px 26px;gap:14px}
+  .lhero h2{font-size:22px}
+  .lhero .feat,.lhero .foot{display:none}
+  .lform{padding:22px 18px;align-items:flex-start}
+  .lbox h1{font-size:24px}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ İkon seti (satır içi SVG sembolleri) ============ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-cart" viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 11.4a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.5L21 7H6"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 4.2a4 4 0 0 1 0 7.6M22 21a7 7 0 0 0-4-6.3"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 3h13a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H5z"/><path d="M9 3v18M12.5 8H16M12.5 12H16"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 6-7"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-barcode" viewBox="0 0 24 24"><path d="M3 7V4h3M18 4h3v3M21 17v3h-3M6 20H3v-3M7 8v8M10 8v8M13 8v8M15.5 8v8M17.5 8v8"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 4 2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0z"/><path d="M12 10v4M12 17.5h.01"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-printer" viewBox="0 0 24 24"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></symbol>
+  <symbol id="i-msg" viewBox="0 0 24 24"><path d="M21 12a8.5 8.5 0 0 1-12.3 7.6L3 21l1.5-5.4A8.5 8.5 0 1 1 21 12z"/><path d="M9 10.5c.5 2 2 3.5 4.5 4.3l1.2-1.2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></symbol>
+  <symbol id="i-sprout" viewBox="0 0 24 24"><path d="M12 21v-8"/><path d="M12 13C12 8 9 5 4 5c0 5 3 8 8 8z"/><path d="M12 15c0-4 3-7 8-7 0 5-3 7-8 7z"/></symbol>
+  <symbol id="i-truck" viewBox="0 0 24 24"><path d="M2 6h12v10H2zM14 10h4l4 4v2h-8z"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19.5 10 4 4 0 0 1 18 18z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="i-store" viewBox="0 0 24 24"><path d="M3 9l1.5-5h15L21 9M4 9v11h16V9M3 9h18"/><path d="M9 20v-6h6v6"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
+  <symbol id="i-contrast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18z" fill="currentColor"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3"/></symbol>
+  <symbol id="i-cash" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></symbol>
+  <symbol id="i-percent" viewBox="0 0 24 24"><path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/></symbol>
+  <symbol id="i-headset" viewBox="0 0 24 24"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/><path d="M19 20a3 3 0 0 1-3 2h-2"/></symbol>
+  <symbol id="i-crown" viewBox="0 0 24 24"><path d="m3 8 4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M7 7l10 10M17 8v9H8"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-sync" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.5 6.3L3 16M3 12a9 9 0 0 1 15.5-6.3L21 8"/><path d="M21 3v5h-5M3 21v-5h5"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V3h9l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.5"/></symbol>
+  <symbol id="i-flask" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6L4.2 18.8A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.3-2.2L14 9V3"/><path d="M7 15h10"/></symbol>
+  <symbol id="i-sack" viewBox="0 0 24 24"><path d="M9 3h6l-1.5 3h-3z"/><path d="M10.5 6C6 8 4 12 4 16a5 5 0 0 0 5 5h6a5 5 0 0 0 5-5c0-4-2-8-6.5-10"/><path d="M9 14h6"/></symbol>
+  <symbol id="i-seed" viewBox="0 0 24 24"><path d="M12 21c-5 0-8-4-8-9 4 0 8 3 8 9z"/><path d="M12 21c5 0 8-4 8-9-4 0-8 3-8 9z"/><path d="M12 12c0-4 1.5-7 4-9-3.5 0-6 3-4 9z"/></symbol>
+  <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0 5 5L13 18l-3 3-4-4 3-3 6.7-6.7a4 4 0 0 1-1-1z"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M20 7V5a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15v12H5a2 2 0 0 1-2-2V6"/><path d="M16 13h.01"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></symbol>
+  <symbol id="i-tel" viewBox="0 0 24 24"><path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z"/></symbol>
+  <symbol id="i-type" viewBox="0 0 24 24"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5M4 21h16"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></symbol>
+</svg>
+
+<!-- ============ Prototip araç çubuğu ============ -->
+<div class="proto" role="toolbar" aria-label="Prototip kontrolleri">
+  <span class="tag">Yön C · Saha / Komuta</span>
+  <div class="tabs" id="tabs">
+    <button data-go="dashboard" aria-pressed="true">Ana Sayfa</button>
+    <button data-go="pos">Hızlı Satış</button>
+    <button data-go="products">Ürünler</button>
+    <button data-go="customer">Veresiye Detay</button>
+    <button data-go="settings">Ayarlar</button>
+    <button data-go="login">Giriş</button>
+  </div>
+  <span class="sp"></span>
+  <div class="grp" id="devs">
+    <button data-dev="desk" aria-pressed="true"><i data-i="monitor"></i>Masaüstü</button>
+    <button data-dev="d1366"><i data-i="laptop"></i>1366×768</button>
+    <button data-dev="phone"><i data-i="phone"></i>Telefon</button>
+  </div>
+  <button id="themeBtn" style="border:1px solid #2a332d"><i data-i="moon"></i><span>Koyu tema</span></button>
+</div>
+
+<div class="stage">
+<div class="device" id="device">
+<div class="app" id="app">
+
+<!-- ================= UYGULAMA KABUĞU ================= -->
+<div class="shell">
+  <aside class="side" aria-label="Ana menü">
+    <div class="brandrow">
+      <div class="logo"><i data-i="sprout"></i></div>
+      <div><b>Tarım Market Pro</b><small>Yılmaz Zirai · Çumra</small></div>
+    </div>
+    <button class="salebtn" data-go="pos"><i data-i="cart"></i>Hızlı Satış<span class="kbd">F2</span></button>
+    <div class="navlabel">Operasyon</div>
+    <nav class="nav">
+      <a data-go="dashboard" class="active"><i data-i="home"></i>Ana Sayfa</a>
+      <a data-go="pos"><i data-i="cart"></i>Satış</a>
+      <a data-go="products"><i data-i="box"></i>Ürünler &amp; Stok<span class="cnt">7</span></a>
+      <a data-go="customer"><i data-i="book"></i>Veresiye<span class="cnt o">12</span></a>
+      <a data-go="customer"><i data-i="users"></i>Müşteriler</a>
+      <a><i data-i="truck"></i>Tedarikçiler</a>
+      <a><i data-i="wallet"></i>Giderler</a>
+    </nav>
+    <div class="navlabel">Analiz</div>
+    <nav class="nav">
+      <a><i data-i="chart"></i>Raporlar</a>
+      <a><i data-i="layers"></i>Stok Sayımı</a>
+      <a data-go="settings"><i data-i="sliders"></i>Ayarlar</a>
+    </nav>
+    <div class="sidefoot">
+      <div class="sync"><span class="dot"></span>Çevrimiçi · 2 dk önce eşitlendi</div>
+      <div class="me"><div class="av">MY</div><div><b>Mehmet Yılmaz</b><small>Yönetici</small></div><button aria-label="Çıkış yap" data-go="login"><i data-i="logout"></i></button></div>
+    </div>
+  </aside>
+
+  <!-- Telefon üst çubuğu -->
+  <header class="mtop">
+    <div class="logo"><i data-i="sprout"></i></div>
+    <div><b id="mtitle">Ana Sayfa</b><small>Yılmaz Zirai · Çevrimiçi</small></div>
+    <div class="end">
+      <button aria-label="Ara"><i data-i="search"></i></button>
+      <button aria-label="Bildirimler"><i data-i="bell"></i><span class="badge">5</span></button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="top">
+      <div><h1 id="ttitle">Ana Sayfa</h1><div class="crumb">Salı, 27 Ekim 2026 · Merkez şube</div></div>
+      <label class="search"><i data-i="search"></i><input placeholder="Ürün, müşteri, barkod ara…" aria-label="Genel arama"><span class="kbd">Ctrl K</span></label>
+      <div class="kasa"><i data-i="cash"></i>Kasa açık · 08:12</div>
+      <button class="iconbtn" aria-label="Bildirimler (5)"><i data-i="bell"></i><span class="badge">5</span></button>
+    </div>
+
+    <div class="content" id="content">
+
+<!-- ======================= 1. DASHBOARD ======================= -->
+<section class="screen on" data-screen="dashboard">
+  <div class="kpis">
+    <div class="kpi">
+      <div class="kh"><i data-i="chart"></i>Bugünkü Ciro</div>
+      <div class="kb">
+        <div class="v num">18.640<small>₺</small></div>
+        <div class="s"><span class="pill p-ok"><i data-i="up"></i>%12</span>düne göre · 31 satış</div>
+        <div class="s muted">Satış 18.230 + vade farkı 410</div>
+      </div>
+    </div>
+    <div class="kpi">
+      <div class="kh"><i data-i="cash"></i>Kasadaki Nakit</div>
+      <div class="kb">
+        <div class="v num">9.320<small>₺</small></div>
+        <div class="s">Nakit 7.870 · Tahsilat 2.000</div>
+        <div class="s muted">Gider −550 · Açılış 0</div>
+      </div>
+    </div>
+    <div class="kpi acc">
+      <div class="kh"><i data-i="book"></i>Veresiye Alacak</div>
+      <div class="kb">
+        <div class="v num">186.450<small>₺</small></div>
+        <div class="s"><span class="pill p-danger"><i data-i="clock"></i>23.900 ₺ gecikmede</span></div>
+        <div class="s muted">48 müşteri · bu hafta 3 vade</div>
+      </div>
+    </div>
+    <div class="kpi alert">
+      <div class="kh"><i data-i="alert"></i>Dikkat Gerekenler</div>
+      <div class="kb">
+        <div class="v num">11 <small style="color:inherit">uyarı</small></div>
+        <div class="split">
+          <span class="pill p-danger">7 kritik stok</span>
+          <span class="pill p-warn">4 SKT yaklaşıyor</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-row">
+    <div class="card">
+      <div class="ch"><span class="hi"><i data-i="chart"></i></span><h3>Satış Trendi</h3><span class="meta hide-m">Günlük ciro, ₺</span>
+        <div class="end"><div class="seg" role="group" aria-label="Dönem"><button aria-pressed="false">7G</button><button aria-pressed="true">14G</button><button aria-pressed="false">30G</button></div></div></div>
+      <div class="chartsum">
+        <div>14 gün toplam<b>176.900 ₺</b></div>
+        <div><span style="display:inline-block;width:18px;border-top:2px dashed var(--text-2);vertical-align:middle;margin-right:6px"></span>Günlük ortalama<b>12.636 ₺</b></div>
+        <div class="hide-m">En iyi gün<b>19.600 ₺ · 23 Eki</b></div>
+      </div>
+      <div class="chartwrap" id="chart"></div>
+    </div>
+    <div class="card">
+      <div class="ch"><span class="hi o"><i data-i="grid"></i></span><h3>Hızlı İşlemler</h3></div>
+      <div class="quick">
+        <button class="qa hero" data-go="pos"><span class="qi"><i data-i="cart"></i></span><b>Yeni Satış</b><span class="kbd">F2</span></button>
+        <button class="qa" data-go="customer"><span class="qi"><i data-i="cash"></i></span><b>Tahsilat Al</b><span class="kbd">F6</span></button>
+        <button class="qa" data-go="products"><span class="qi"><i data-i="plus"></i></span><b>Ürün Ekle</b></button>
+        <button class="qa"><span class="qi"><i data-i="truck"></i></span><b>Stok Girişi</b></button>
+        <button class="qa"><span class="qi"><i data-i="wallet"></i></span><b>Gider Ekle</b></button>
+        <button class="qa"><span class="qi"><i data-i="receipt"></i></span><b>Gün Sonu Kapanış</b></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-row2">
+    <div class="card">
+      <div class="ch"><span class="hi"><i data-i="receipt"></i></span><h3>Son Satışlar</h3><div class="end"><a class="link">Tümü<i data-i="chev"></i></a></div></div>
+      <table class="tbl recent"><thead><tr><th>Saat</th><th>Müşteri</th><th class="hide-m">Fiş</th><th>Ödeme</th><th class="r">Tutar</th></tr></thead><tbody id="recent"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="ch"><span class="hi r"><i data-i="alert"></i></span><h3>Kritik Stok &amp; SKT</h3><div class="end"><a class="link" data-go="products">Ürünlere git<i data-i="chev"></i></a></div></div>
+      <ul class="alist" id="alerts"></ul>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 2. POS ======================= -->
+<section class="screen" data-screen="pos">
+  <div class="pagehead">
+    <div class="muted" style="font-size:13.5px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="pill p-neu">Fiş S-20261027-1433</span>Kasiyer: Ayşe Y.<span class="hide-m" style="display:inline-flex;gap:6px;align-items:center">· <span class="kbd">F1</span> Nakit <span class="kbd">F2</span> Kart <span class="kbd">F3</span> Veresiye <span class="kbd">F4</span> Ara</span></div>
+    <div class="end">
+      <div class="seg" role="group" aria-label="Demo durumu" id="posState">
+        <button aria-pressed="true" data-st="cart">Sepet</button>
+        <button aria-pressed="false" data-st="done">Satış sonrası</button>
+      </div>
+    </div>
+  </div>
+  <div class="pos" id="pos" data-state="cart">
+    <div class="poscol" style="display:flex;flex-direction:column;gap:14px;min-width:0">
+      <div>
+        <label class="bigsearch"><i data-i="barcode"></i><input value="üre" aria-label="Barkod okut veya ürün adı yaz" placeholder="Barkod okut veya ürün adı yaz…"><span class="kbd">F4</span></label>
+      </div>
+      <div class="card">
+        <div class="ch"><span class="hi"><i data-i="search"></i></span><h3>Sonuçlar</h3><span class="meta">“üre” · 4 ürün</span><div class="end hide-m"><span class="muted" style="font-size:13px"><span class="kbd">↑↓</span> seç · <span class="kbd">Enter</span> sepete ekle</span></div></div>
+        <div id="results"></div>
+      </div>
+      <div class="card">
+        <div class="ch"><span class="hi o"><i data-i="tag"></i></span><h3>Sık Satılanlar</h3><div class="end"><div class="chips hide-m"><button class="chip" aria-pressed="true">Tümü</button><button class="chip">Gübre</button><button class="chip">İlaç</button><button class="chip">Fide</button></div></div></div>
+        <div class="fav" id="fav"></div>
+      </div>
+    </div>
+
+    <div class="card cart">
+      <div class="cart-live">
+        <div class="ch"><span class="hi o"><i data-i="cart"></i></span><h3>Sepet</h3><span class="meta">4 kalem</span><div class="end"><button class="btn ghost sq" aria-label="Sepeti temizle"><i data-i="trash"></i></button></div></div>
+        <div class="cust"><div class="av">AK</div><div style="min-width:0"><b>Ahmet Kaya</b><span>Borç 32.480 ₺ · Limit 40.000 ₺</span></div><button class="btn" style="margin-left:auto;height:40px">Değiştir</button></div>
+        <div class="lines"><div class="line">
+          <div><b>Domates Fidesi (Aşılı)</b><div class="up">275,00 ₺ / viyol</div></div><div class="lt">27.500,00</div>
+          <div class="ctl"><div class="qty"><button aria-label="Azalt"><i data-i="minus"></i></button><input value="100" aria-label="Miktar"><span class="u">viyol</span><button aria-label="Arttır"><i data-i="plus"></i></button></div><span class="pill p-ok">Stok 486</span><button class="rm" aria-label="Kaldır"><i data-i="x"></i></button></div>
+        </div>
+        <div class="line">
+          <div><b>Üre %46 Azotlu Gübre</b><div class="up">16,40 ₺ / kg (dökme)</div></div><div class="lt">205,00</div>
+          <div class="ctl"><div class="qty"><button aria-label="Azalt"><i data-i="minus"></i></button><input value="12,5" aria-label="Miktar"><span class="u">kg</span><button aria-label="Arttır"><i data-i="plus"></i></button></div><button class="rm" aria-label="Kaldır"><i data-i="x"></i></button></div>
+        </div>
+        <div class="line">
+          <div><b>Mancozeb %80 WP 1 kg</b><div class="up">360,00 ₺ / kutu</div></div><div class="lt">720,00</div>
+          <div class="ctl"><div class="qty"><button aria-label="Azalt"><i data-i="minus"></i></button><input value="2" aria-label="Miktar"><span class="u">kutu</span><button aria-label="Arttır"><i data-i="plus"></i></button></div><span class="pill p-warn">SKT 12 gün</span><button class="rm" aria-label="Kaldır"><i data-i="x"></i></button></div>
+        </div>
+        <div class="line">
+          <div><b>Bahçe Hortumu 1/2" 25 m</b><div class="up">495,00 ₺ / adet</div></div><div class="lt">495,00</div>
+          <div class="ctl"><div class="qty"><button aria-label="Azalt"><i data-i="minus"></i></button><input value="1" aria-label="Miktar"><span class="u">adet</span><button aria-label="Arttır"><i data-i="plus"></i></button></div><span class="pill p-danger">Stokta 3</span><button class="rm" aria-label="Kaldır"><i data-i="x"></i></button></div>
+        </div></div>
+        <div class="tot">
+          <div><span>Ara toplam <b class="num">28.920,00</b> · İskonto <b class="num">0,00</b></span><span>KDV dahil <b class="num">1.284,17</b></span></div>
+          <div class="big"><span>TOPLAM</span><b>28.920,00 ₺</b></div>
+        </div>
+        <div class="pay">
+          <button class="p1"><span class="kbd">F1</span><i data-i="cash"></i>Nakit</button>
+          <button class="p2"><span class="kbd">F2</span><i data-i="card"></i>Kart</button>
+          <button class="p3"><span class="kbd">F3</span><i data-i="book"></i>Veresiye</button>
+        </div>
+        <div class="cartfoot"><button class="btn"><i data-i="percent"></i>İskonto</button><button class="btn"><i data-i="clock"></i>Beklet</button><button class="btn"><i data-i="users"></i>Müşteri</button></div>
+      </div>
+
+      <div class="done">
+        <div class="okhead"><div class="okc"><i data-i="check"></i></div><div><h3>Satış tamamlandı</h3><span>S-20261027-1432 · Nakit · 14:05</span></div></div>
+        <div class="change">
+          <div><span>Tutar</span><b>2.150,00</b></div>
+          <div><span>Alınan</span><b>2.200,00</b></div>
+          <div><span>PARA ÜSTÜ</span><b>50,00 ₺</b></div>
+        </div>
+        <div class="doneact">
+          <button class="btn pri"><i data-i="printer"></i>Fiş Yazdır <span class="kbd" style="background:rgba(0,0,0,.18);color:inherit;border-color:transparent">Enter</span></button>
+          <button class="btn"><i data-i="msg"></i>WhatsApp</button>
+          <button class="btn acc wide" data-st-go="cart"><i data-i="plus"></i>Yeni Satış <span class="kbd" style="background:rgba(0,0,0,.18);color:inherit;border-color:transparent">Esc</span></button>
+        </div>
+        <div class="receipt">
+          <div style="text-align:center;font-weight:700">YILMAZ ZİRAİ · ÇUMRA</div>
+          <div style="text-align:center">27.10.2026 14:05 · S-1432</div>
+          <div>--------------------------------</div>
+          <div class="rr"><span>Üre %46 50kg  x2</span><span>1.640,00</span></div>
+          <div class="rr"><span>Glifosat 1lt  x1</span><span>310,00</span></div>
+          <div class="rr"><span>Biber Fidesi  x1</span><span>200,00</span></div>
+          <div>--------------------------------</div>
+          <div class="rr" style="font-weight:700"><span>TOPLAM</span><span>2.150,00</span></div>
+        </div>
+        <div style="padding:0 16px 14px"><button class="btn dangerline" style="width:100%"><i data-i="x"></i>Satışı iptal et</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="mcart"><span class="mc-n">4</span><div><b class="num">28.920,00 ₺</b><span>Ahmet Kaya · 4 kalem</span></div><button class="btn acc" onclick="document.querySelector('.cart').scrollIntoView({behavior:'smooth'})">Sepet &amp; Ödeme<i data-i="chev"></i></button></div>
+</section>
+
+<!-- telefon: yapışkan sepet çubuğu -->
+<!-- ======================= 3. ÜRÜNLER ======================= -->
+<section class="screen" data-screen="products">
+  <div class="pagehead">
+    <div class="muted" style="font-size:13.5px">Son sayım: 20 Ekim 2026 · 248 ürün, 19 barkodsuz</div>
+    <div class="end"><button class="btn hide-m"><i data-i="download"></i>Excel</button><button class="btn"><i data-i="truck"></i>Stok girişi</button><button class="btn pri"><i data-i="plus"></i>Yeni Ürün</button></div>
+  </div>
+  <div class="sumstrip">
+    <div><span class="si p-ok"><i data-i="box"></i></span><div><span>Toplam ürün</span><b>248</b></div></div>
+    <div><span class="si p-danger"><i data-i="alert"></i></span><div><span>Kritik stok</span><b>7</b></div></div>
+    <div><span class="si p-warn"><i data-i="clock"></i></span><div><span>SKT ≤ 30 gün</span><b>4</b></div></div>
+    <div><span class="si p-acc"><i data-i="wallet"></i></span><div><span>Stok değeri (alış)</span><b>412.380 ₺</b></div></div>
+  </div>
+  <div class="card">
+    <div class="filters">
+      <div class="row">
+        <label class="search"><i data-i="search"></i><input placeholder="Ad, barkod veya GTS no…" aria-label="Ürün ara"></label>
+        <div class="chips scroll">
+          <button class="chip st" aria-pressed="false"><i data-i="alert"></i>Kritik stok <b>7</b></button>
+          <button class="chip"><i data-i="clock"></i>SKT yaklaşan <b>4</b></button>
+          <button class="chip"><i data-i="barcode"></i>Barkodsuz <b>19</b></button>
+        </div>
+      </div>
+      <div class="chips scroll">
+        <button class="chip" aria-pressed="true">Tümü <b>248</b></button>
+        <button class="chip"><i data-i="sack"></i>Gübre <b>42</b></button>
+        <button class="chip"><i data-i="flask"></i>İlaç <b>96</b></button>
+        <button class="chip"><i data-i="seed"></i>Tohum <b>38</b></button>
+        <button class="chip"><i data-i="sprout"></i>Fide <b>24</b></button>
+        <button class="chip"><i data-i="wrench"></i>Hırdavat <b>48</b></button>
+      </div>
+    </div>
+    <div class="ptable" style="overflow:auto">
+      <table class="tbl"><thead><tr><th>Ürün</th><th>Kategori</th><th>Stok</th><th>SKT</th><th class="r">Alış</th><th class="r">Satış</th><th class="r">Kâr oranı</th><th></th></tr></thead><tbody id="ptbody"></tbody></table>
+    </div>
+    <div class="pcards" id="pcards"></div>
+  </div>
+</section>
+
+<!-- ======================= 4. MÜŞTERİ VERESİYE ======================= -->
+<section class="screen" data-screen="customer">
+  <div class="muted" style="font-size:13.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px"><a class="link" style="padding:0">Veresiye</a><i data-i="chev"></i>Ahmet Kaya</div>
+  <div class="card">
+    <div class="custhead">
+      <div class="av">AK</div>
+      <div style="min-width:0">
+        <h2>Ahmet Kaya</h2>
+        <div class="info"><span><i data-i="map"></i>Karapınar Mah. · Çumra / Konya</span><span><i data-i="tel"></i>0532 418 27 63</span><span><i data-i="sprout"></i>ÇKS 42-0187-3361 · 140 da buğday, 25 da domates</span></div>
+      </div>
+      <div class="act">
+        <button class="btn acc" data-go="pos"><i data-i="cart"></i>Satış Yap</button>
+        <button class="btn pri"><i data-i="cash"></i>Tahsilat Al</button>
+        <button class="btn"><i data-i="download"></i>Ekstre PDF</button>
+        <button class="btn"><i data-i="msg"></i>Hatırlat</button>
+      </div>
+    </div>
+    <div class="debt">
+      <div class="dmain"><span><i data-i="book"></i>Toplam borç</span><b>32.480 ₺</b><div class="hint">Vade farkı dahil · 3 açık taksit</div></div>
+      <div class="od"><span><i data-i="alert"></i>Vadesi geçen</span><b>4.200 ₺</b><div class="hint" style="color:inherit">2. taksit · 18 gündür gecikmede</div></div>
+      <div><span><i data-i="cal"></i>Sonraki vade</span><b>8.650 ₺</b><div class="hint">15.11.2026 · 19 gün</div></div>
+      <div><span><i data-i="shield"></i>Kredi limiti</span><b>40.000 ₺</b>
+        <div class="meter" style="margin-top:8px;height:8px"><i style="width:81%;background:var(--warn)"></i></div>
+        <div class="hint">%81 kullanıldı · 7.520 ₺ kaldı</div></div>
+    </div>
+  </div>
+
+  <div class="c-grid">
+    <div class="card">
+      <div class="ch"><span class="hi"><i data-i="cal"></i></span><h3>Taksit Planı</h3><span class="meta">Satış S-0901 · 3 taksit + hasat</span><div class="end"><a class="link hide-m">Planı düzenle</a></div></div>
+      <div class="inst paid"><span class="no"><i data-i="check"></i></span><div><b>15 Eylül 2026</b><div class="hint">1. taksit · nakit ödendi</div></div><span class="pill p-ok">Ödendi</span><span class="ia">6.200,00</span></div>
+      <div class="inst late"><span class="no">2</span><div><b>9 Ekim 2026</b><div class="hint">2. taksit 6.200 · 2.000 kısmi ödendi · 2 hatırlatma</div></div><span class="pill p-danger"><i data-i="clock"></i>18 gün gecikti</span><span class="ia">4.200,00</span></div>
+      <div class="inst"><span class="no">3</span><div><b>15 Kasım 2026</b><div class="hint">3. taksit</div></div><span class="pill p-warn">19 gün kaldı</span><span class="ia">8.650,00</span></div>
+      <div class="inst"><span class="no">4</span><div><b>15 Aralık 2026</b><div class="hint">Hasat sonu · kuruş farkı bu taksitte</div></div><span class="pill p-neu">49 gün</span><span class="ia">11.430,00</span></div>
+      <div class="note"><i data-i="info"></i><div><b>Not:</b> Buğdayı TMO'ya teslim edince kapatacağını söyledi (Kasım ortası). Domates fidesi siparişi şubat başı.</div></div>
+    </div>
+    <div class="card">
+      <div class="ch"><span class="hi o"><i data-i="history"></i></span><h3>Hesap Hareketleri</h3><div class="end"><div class="seg"><button aria-pressed="true">Tümü</button><button aria-pressed="false">Satış</button><button aria-pressed="false">Tahsilat</button></div></div></div>
+      <ul class="tl" id="tl"></ul>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 5. AYARLAR ======================= -->
+<section class="screen" data-screen="settings">
+  <div class="set">
+    <nav class="setnav" id="setnav" aria-label="Ayar grupları">
+      <label class="search"><i data-i="search"></i><input placeholder="Ayar ara…" aria-label="Ayar ara"></label>
+      <div class="grp">İşletme</div>
+      <a data-s="s-biz" class="on"><i data-i="store"></i>İşletme bilgileri<span class="warnd" title="Eksik alan var"></span></a>
+      <a data-s="s-print"><i data-i="printer"></i>Fiş &amp; yazıcı</a>
+      <a data-s="s-sale"><i data-i="cart"></i>Satış ayarları</a>
+      <a data-s="s-credit"><i data-i="book"></i>Veresiye kuralları</a>
+      <a data-s="s-users"><i data-i="users"></i>Kullanıcılar &amp; roller</a>
+      <a data-s="s-notif"><i data-i="bell"></i>Bildirimler</a>
+      <div class="grp">Uygulama</div>
+      <a data-s="s-look"><i data-i="contrast"></i>Görünüm</a>
+      <a data-s="s-lang"><i data-i="globe"></i>Dil &amp; bölge</a>
+      <a data-s="s-backup"><i data-i="cloud"></i>Yedekleme &amp; dışa aktarma</a>
+      <div class="grp">Hesap</div>
+      <a data-s="s-plan"><i data-i="crown"></i>Abonelik &amp; lisans</a>
+      <a data-s="s-support"><i data-i="headset"></i>Destek erişimi</a>
+      <a data-s="s-sec"><i data-i="lock"></i>Güvenlik</a>
+      <a data-s="s-about"><i data-i="info"></i>Hakkında</a>
+    </nav>
+
+    <div class="setmain">
+      <div class="setup">
+        <svg class="ring" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" fill="none" stroke="var(--surface-3)" stroke-width="5"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--brand)" stroke-width="5" stroke-dasharray="75.4 94.2" stroke-linecap="round" transform="rotate(-90 18 18)"/><text x="18" y="22" text-anchor="middle" font-family="Manrope" font-weight="800" font-size="8.5" fill="var(--text)">%80</text></svg>
+        <div><h3>Kurulum %80 tamamlandı</h3><p>2 eksik: <b>işletme logosu</b> ve <b>fiş yazıcısı testi</b>. Tamamlayınca fişleriniz logolu çıkar.</p></div>
+        <div class="end"><button class="btn pri">Eksikleri tamamla</button></div>
+      </div>
+
+      <!-- İşletme -->
+      <div class="card" id="s-biz">
+        <div class="ch"><span class="hi"><i data-i="store"></i></span><div><h3>İşletme bilgileri</h3><div class="desc">Fiş, ekstre ve faturalarda görünür</div></div><div class="end"><button class="btn pri" style="height:40px">Kaydet</button></div></div>
+        <div class="fgrid">
+          <div class="field"><label>Ticari ünvan</label><input class="input" value="Yılmaz Zirai Ürünler Tic. Ltd. Şti."></div>
+          <div class="field"><label>Tabela adı (fişte)</label><input class="input" value="YILMAZ ZİRAİ"></div>
+          <div class="field"><label>Vergi dairesi</label><input class="input" value="Çumra V.D."></div>
+          <div class="field"><label>Vergi no</label><input class="input num" value="9480 271 335"></div>
+          <div class="field"><label>Bitki koruma bayi ruhsat no</label><input class="input" value="KONYA-42-BK-0318"><span class="hint">İlaç satış kayıtlarında (reçete) kullanılır</span></div>
+          <div class="field"><label>Telefon</label><input class="input" value="0332 447 12 90"></div>
+          <div class="field full"><label>Adres</label><input class="input" value="Cumhuriyet Mah. Sanayi Cad. No:14, 42500 Çumra / Konya"></div>
+          <div class="field full"><label>Logo</label>
+            <div style="display:flex;gap:12px;align-items:center;padding:12px;border:1.5px dashed var(--line-strong);border-radius:9px;background:var(--bg)">
+              <span class="pill p-acc"><i data-i="alert"></i>Eksik</span><span class="sub" style="font-size:13.5px;flex:1">PNG veya JPG, kare, en az 256 px. Fişte siyah-beyaz basılır.</span><button class="btn"><i data-i="upload"></i>Yükle</button></div></div>
+        </div>
+      </div>
+
+      <!-- Fiş -->
+      <div class="card" id="s-print">
+        <div class="ch"><span class="hi"><i data-i="printer"></i></span><div><h3>Fiş &amp; yazıcı</h3><div class="desc">Termal fiş, ekstre ve etiket yazdırma</div></div></div>
+        <div class="srow"><div><div class="t">Fiş yazıcısı</div><div class="d">USB veya Bluetooth termal yazıcı</div></div><div class="ctl"><select class="input"><option>Xprinter XP-58IIH (USB)</option><option>Sistem varsayılanı</option></select><button class="btn"><i data-i="printer"></i>Test</button></div></div>
+        <div class="srow"><div><div class="t">Kâğıt genişliği</div></div><div class="ctl"><div class="seg"><button aria-pressed="true">58 mm</button><button aria-pressed="false">80 mm</button><button aria-pressed="false">A4</button></div></div></div>
+        <div class="srow inl"><div><div class="t">Satıştan sonra otomatik yazdır</div><div class="d">Kapalıyken satış özetinde “Fiş Yazdır” sorulur</div></div><div class="ctl"><label class="sw"><input type="checkbox"><span></span></label></div></div>
+        <div class="srow inl"><div><div class="t">Veresiye fişine borç bakiyesi yaz</div><div class="d">Müşterinin güncel borcu ve sonraki vade fişin altına basılır</div></div><div class="ctl"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+        <div class="srow"><div><div class="t">Fiş alt notu</div><div class="d">Her fişin altına basılır</div></div><div class="ctl" style="flex:1;max-width:360px"><input class="input" value="İlaçları çocuklardan uzak tutunuz. Bereketli hasatlar!"></div></div>
+      </div>
+
+      <!-- Satış -->
+      <div class="card" id="s-sale">
+        <div class="ch"><span class="hi o"><i data-i="cart"></i></span><div><h3>Satış ayarları</h3><div class="desc">Kasa, KDV ve stok davranışı</div></div></div>
+        <div class="srow"><div><div class="t">Varsayılan KDV oranı</div><div class="d">Yeni ürünlerde önerilir; ürün bazında değiştirilebilir</div></div><div class="ctl"><div class="seg"><button aria-pressed="false">%1</button><button aria-pressed="false">%10</button><button aria-pressed="true">%20</button></div></div></div>
+        <div class="srow inl"><div><div class="t">Fiyatlar KDV dahil</div></div><div class="ctl"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+        <div class="srow"><div><div class="t">Varsayılan ödeme tipi</div><div class="d">Enter'a basınca bu yöntemle tamamlanır</div></div><div class="ctl"><div class="seg"><button aria-pressed="true"><i data-i="cash"></i>Nakit</button><button aria-pressed="false"><i data-i="card"></i>Kart</button><button aria-pressed="false"><i data-i="book"></i>Veresiye</button></div></div></div>
+        <div class="srow inl"><div><div class="t">Kart satışında onay iste</div><div class="d">Yanlış tuşa basmaya karşı tek adımlı onay</div></div><div class="ctl"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+        <div class="srow inl"><div><div class="t">Negatif stoğa izin ver</div><div class="d" style="color:var(--warn-text)">Kapalı önerilir. Açıksa stok eksiye düşebilir ve sayımda fark çıkar.</div></div><div class="ctl"><label class="sw"><input type="checkbox"><span></span></label></div></div>
+        <div class="srow"><div><div class="t">SKT uyarı süreleri</div><div class="d">Son kullanma tarihi yaklaşan ilaç ve tohumlar</div></div><div class="ctl"><span class="pill p-warn">Uyarı</span><input class="input num" value="30" style="width:70px;text-align:center" aria-label="Uyarı günü"><span class="muted">gün</span><span class="pill p-danger" style="margin-left:6px">Kritik</span><input class="input num" value="7" style="width:70px;text-align:center" aria-label="Kritik gün"><span class="muted">gün</span></div></div>
+        <div class="srow"><div><div class="t">Kasiyer iskonto üst sınırı</div><div class="d">Üstü yönetici şifresi ister</div></div><div class="ctl"><input class="input num" value="%5" style="width:80px;text-align:center" aria-label="İskonto sınırı"></div></div>
+      </div>
+
+      <!-- Veresiye -->
+      <div class="card" id="s-credit">
+        <div class="ch"><span class="hi o"><i data-i="book"></i></span><div><h3>Veresiye kuralları</h3><div class="desc">Vade, limit, vade farkı ve hatırlatmalar</div></div></div>
+        <div class="fgrid">
+          <div class="field"><label>Varsayılan vade</label><select class="input"><option>30 gün</option><option>60 gün</option><option>Hasat sonu (15 Kasım)</option></select></div>
+          <div class="field"><label>Aylık vade farkı</label><input class="input num" value="%3,0"><span class="hint">Peşin fiyat üzerine, taksit sayısıyla çarpılır</span></div>
+          <div class="field"><label>Yeni müşteri kredi limiti</label><input class="input num" value="25.000 ₺"></div>
+          <div class="field"><label>Limit aşılınca</label><div class="seg" style="width:fit-content"><button aria-pressed="false">Uyar</button><button aria-pressed="true">Yönetici onayı</button><button aria-pressed="false">Engelle</button></div></div>
+        </div>
+        <div class="srow"><div><div class="t">Otomatik hatırlatma zamanı</div><div class="d">WhatsApp üzerinden, mesai saatinde (09:00–19:00) gönderilir</div></div><div class="ctl"><button class="chip" aria-pressed="true">3 gün önce</button><button class="chip" aria-pressed="true">Vade günü</button><button class="chip" aria-pressed="true">Gecikmede her 7 gün</button></div></div>
+        <div class="srow" style="grid-template-columns:1fr"><div><div class="t">Hatırlatma mesajı</div>
+          <textarea class="input" rows="3" style="margin-top:8px">Sayın {ad}, Yılmaz Zirai'ye {vade} vadeli {tutar} borcunuz bulunmaktadır. Bilgilerinize sunarız. Tel: 0332 447 12 90</textarea>
+          <div class="vars"><code>{ad}</code><code>{tutar}</code><code>{vade}</code><code>{toplam_borc}</code><code>{isletme}</code></div></div></div>
+        <div class="srow inl"><div><div class="t">Kuruş farkını son taksite yaz</div><div class="d">3 × 575,67 yerine 575,66 + 575,67 + 575,67</div></div><div class="ctl"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+      </div>
+
+      <!-- Kullanıcılar -->
+      <div class="card" id="s-users">
+        <div class="ch"><span class="hi"><i data-i="users"></i></span><div><h3>Kullanıcılar &amp; roller</h3><div class="desc">3 / 5 kullanıcı</div></div><div class="end"><button class="btn pri" style="height:40px"><i data-i="plus"></i>Davet et</button></div></div>
+        <div style="overflow:auto"><table class="tbl"><thead><tr><th>Kullanıcı</th><th>Rol</th><th class="hide-m">Son giriş</th><th></th></tr></thead><tbody id="users"></tbody></table></div>
+        <div style="border-top:1px solid var(--line);overflow:auto">
+          <table class="matrix"><thead><tr><th>Yetki</th><th>Yönetici</th><th>Kasiyer</th><th>Depo</th></tr></thead><tbody id="perm"></tbody></table>
+        </div>
+      </div>
+
+      <!-- Bildirimler -->
+      <div class="card" id="s-notif">
+        <div class="ch"><span class="hi"><i data-i="bell"></i></span><div><h3>Bildirimler</h3><div class="desc">Hangi olay, hangi kanaldan</div></div></div>
+        <div style="overflow:auto"><table class="matrix"><thead><tr><th>Olay</th><th>Uygulama</th><th>E-posta</th><th>WhatsApp</th></tr></thead><tbody id="notif"></tbody></table></div>
+      </div>
+
+      <!-- Görünüm -->
+      <div class="card" id="s-look">
+        <div class="ch"><span class="hi"><i data-i="contrast"></i></span><div><h3>Görünüm</h3><div class="desc">Tema, yoğunluk ve yazı boyutu</div></div></div>
+        <div class="themes" id="themeCards">
+          <button data-t="light"><div class="mini" style="background:#f6f4ee"><i class="ms"></i><div class="mc"><i style="background:#047857;width:50%"></i><i style="background:#e2ddd1"></i><i style="background:#e2ddd1;width:70%"></i></div></div><b><i data-i="sun"></i>Açık</b></button>
+          <button data-t="dark"><div class="mini" style="background:#121412"><i class="ms" style="background:#0b0e0c"></i><div class="mc"><i style="background:#34d399;width:50%"></i><i style="background:#2f342f"></i><i style="background:#2f342f;width:70%"></i></div></div><b><i data-i="moon"></i>Koyu</b></button>
+          <button data-t="auto"><div class="mini" style="background:linear-gradient(90deg,#f6f4ee 50%,#121412 50%)"><i class="ms"></i><div class="mc"><i style="background:#10b981;width:50%"></i></div></div><b><i data-i="sync"></i>Sistem</b></button>
+        </div>
+        <div class="srow"><div><div class="t">Yoğunluk</div><div class="d">Sıkı: 1366×768 ekranlarda daha çok satır</div></div><div class="ctl"><div class="seg"><button aria-pressed="false">Rahat</button><button aria-pressed="true">Standart</button><button aria-pressed="false">Sıkı</button></div></div></div>
+        <div class="srow"><div><div class="t">Yazı boyutu</div><div class="d">Gözlükle rahat okuma için büyütün</div></div><div class="ctl"><div class="seg"><button aria-pressed="false" style="font-size:12.5px">A</button><button aria-pressed="true" style="font-size:15px">A</button><button aria-pressed="false" style="font-size:18px">A</button><button aria-pressed="false" style="font-size:21px">A</button></div></div></div>
+        <div class="srow inl"><div><div class="t">Klavye kısayol ipuçlarını göster</div><div class="d">Butonlarda F1, F2, Enter gibi etiketler</div></div><div class="ctl"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+      </div>
+
+      <!-- Dil -->
+      <div class="card" id="s-lang">
+        <div class="ch"><span class="hi"><i data-i="globe"></i></span><div><h3>Dil &amp; bölge</h3></div></div>
+        <div class="fgrid">
+          <div class="field"><label>Dil</label><select class="input"><option>Türkçe</option><option>English</option><option>العربية</option></select></div>
+          <div class="field"><label>Para birimi</label><select class="input"><option>Türk lirası (₺)</option></select></div>
+          <div class="field"><label>Tarih biçimi</label><select class="input"><option>27.10.2026 (GG.AA.YYYY)</option></select></div>
+          <div class="field"><label>Sayı biçimi</label><select class="input"><option>1.234,56</option></select></div>
+          <div class="field"><label>Haftanın ilk günü</label><select class="input"><option>Pazartesi</option></select></div>
+          <div class="field"><label>Saat dilimi</label><select class="input"><option>İstanbul (GMT+3)</option></select></div>
+        </div>
+      </div>
+
+      <!-- Yedek -->
+      <div class="card" id="s-backup">
+        <div class="ch"><span class="hi"><i data-i="cloud"></i></span><div><h3>Yedekleme &amp; dışa aktarma</h3><div class="desc">Verileriniz sizindir</div></div></div>
+        <div class="srow"><div><div class="t">Son yedek</div><div class="d">Bugün 03:00 · otomatik · 4,2 MB · bulut + bu bilgisayar</div></div><div class="ctl"><span class="pill p-ok"><i data-i="check"></i>Başarılı</span><button class="btn"><i data-i="cloud"></i>Şimdi yedekle</button></div></div>
+        <div class="srow inl"><div><div class="t">Otomatik günlük yedek</div><div class="d">Her gece 03:00, son 30 gün saklanır</div></div><div class="ctl"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+        <div class="srow"><div><div class="t">Çevrimdışı kuyruk</div><div class="d">İnternet yokken yapılan işlemler bağlanınca eşitlenir</div></div><div class="ctl"><span class="pill p-ok">0 bekleyen işlem</span></div></div>
+        <div class="srow"><div><div class="t">Excel'e aktar</div><div class="d">Muhasebeciniz için</div></div><div class="ctl"><button class="btn"><i data-i="download"></i>Ürünler</button><button class="btn"><i data-i="download"></i>Müşteriler</button><button class="btn"><i data-i="download"></i>Satışlar</button></div></div>
+        <div class="srow"><div><div class="t">Yedekten geri yükle</div><div class="d">Mevcut verilerin üzerine yazar; yönetici şifresi gerekir</div></div><div class="ctl"><button class="btn dangerline"><i data-i="history"></i>Geri yükle…</button></div></div>
+      </div>
+
+      <!-- Abonelik -->
+      <div class="card" id="s-plan">
+        <div class="ch"><span class="hi o"><i data-i="crown"></i></span><div><h3>Abonelik &amp; lisans</h3></div></div>
+        <div class="plan">
+          <div class="pc"><div class="pn"><i data-i="crown"></i>Pro · Yıllık</div><p>Yenileme 12 Mart 2027 · 4.800 ₺/yıl (KDV dahil)</p><span class="pill"><i data-i="check"></i>Aktif · 136 gün kaldı</span>
+            <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap"><button class="btn acc">Planı yönet</button><button class="btn" style="background:transparent;color:#e7ede9;border-color:#3b5046">Fatura geçmişi</button></div></div>
+          <div class="use">
+            <div><span>Kullanıcı<b class="num">3 / 5</b></span><div class="meter"><i style="width:60%"></i></div></div>
+            <div><span>Cihaz<b class="num">2 / 3</b></span><div class="meter"><i style="width:66%"></i></div></div>
+            <div><span>Şube<b class="num">1 / 1</b></span><div class="meter"><i style="width:100%;background:var(--accent)"></i></div></div>
+            <div class="hint">İkinci şube için Pro+ planına geçebilirsiniz.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Destek erişimi -->
+      <div class="card" id="s-support">
+        <div class="ch"><span class="hi"><i data-i="headset"></i></span><div><h3>Destek erişimi</h3><div class="desc">Destek ekibinin hesabınızı görmesine siz karar verirsiniz</div></div></div>
+        <div class="grant"><span class="gi"><i data-i="eye"></i></span><div><b>Erişim açık · 3 saat 12 dk kaldı</b><span>Talep #TS-4821 · Sadece görüntüleme · 27.10 11:20 → 27.10 17:20</span></div><button class="btn dangerline"><i data-i="x"></i>Erişimi şimdi kapat</button></div>
+        <div class="srow"><div><div class="t">Yeni erişim izni süresi</div><div class="d">Süre bitince erişim kendiliğinden kapanır</div></div><div class="ctl"><div class="seg"><button aria-pressed="false">1 saat</button><button aria-pressed="true">6 saat</button><button aria-pressed="false">24 saat</button><button aria-pressed="false">7 gün</button></div></div></div>
+        <div class="srow"><div><div class="t">Kapsam</div><div class="d">Düzeltme izni, destek personelinin kayıt değiştirebilmesi demektir</div></div><div class="ctl"><div class="seg"><button aria-pressed="true"><i data-i="eye"></i>Sadece görüntüleme</button><button aria-pressed="false"><i data-i="edit"></i>Görüntüleme + düzeltme</button></div></div></div>
+        <div class="srow inl"><div><div class="t">Müşteri telefon ve TC numaralarını gizle</div><div class="d">Destek ekranında maskelenmiş görünür (0532 *** ** 63)</div></div><div class="ctl"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+        <div class="ch" style="border-top:1px solid var(--line)"><span class="hi"><i data-i="history"></i></span><h3>Erişim geçmişi</h3><div class="end"><a class="link"><i data-i="download"></i>PDF indir</a></div></div>
+        <div style="overflow:auto"><table class="tbl log"><thead><tr><th>Zaman</th><th>Kim</th><th>Ne yaptı</th><th class="hide-m">Kanal</th></tr></thead><tbody id="log"></tbody></table></div>
+        <div class="kvkk"><i data-i="shield"></i><div>Tüm destek erişimleri 6698 sayılı KVKK kapsamında kayıt altına alınır, 2 yıl saklanır ve silinemez. <a class="link" style="min-height:0;padding:0">Aydınlatma metni</a></div></div>
+      </div>
+
+      <!-- Güvenlik -->
+      <div class="card" id="s-sec">
+        <div class="ch"><span class="hi"><i data-i="lock"></i></span><div><h3>Güvenlik</h3></div></div>
+        <div class="srow"><div><div class="t">Şifre</div><div class="d">64 gün önce değiştirildi</div></div><div class="ctl"><button class="btn"><i data-i="key"></i>Şifre değiştir</button></div></div>
+        <div class="srow inl"><div><div class="t">İki adımlı doğrulama (SMS)</div><div class="d">Yeni cihazdan girişte 0532 *** ** 11 numarasına kod gelir</div></div><div class="ctl"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+        <div class="srow inl"><div><div class="t">Kasiyer hızlı giriş (4 haneli PIN)</div><div class="d">Tezgâh bilgisayarında kullanıcı değiştirmek için</div></div><div class="ctl"><label class="sw"><input type="checkbox" checked><span></span></label></div></div>
+        <div class="srow"><div><div class="t">Otomatik ekran kilidi</div></div><div class="ctl"><select class="input"><option>10 dk işlem yoksa</option><option>Kapalı</option></select></div></div>
+        <div class="ch" style="border-top:1px solid var(--line)"><span class="hi"><i data-i="monitor"></i></span><h3>Açık oturumlar</h3><div class="end"><button class="btn dangerline" style="height:40px">Diğerlerini kapat</button></div></div>
+        <div class="sess"><span class="si"><i data-i="monitor"></i></span><div><b>Tezgâh PC · Windows 10</b><span>Çumra · şu an aktif</span></div><span class="pill p-ok" style="margin-left:auto">Bu cihaz</span></div>
+        <div class="sess"><span class="si"><i data-i="phone"></i></span><div><b>Redmi 9 · Android uygulaması</b><span>Çumra · 2 saat önce</span></div><button class="btn">Kapat</button></div>
+        <div class="sess" style="border-bottom:0"><span class="si"><i data-i="globe"></i></span><div><b>Chrome · Ev bilgisayarı</b><span>Konya · 3 gün önce</span></div><button class="btn">Kapat</button></div>
+      </div>
+
+      <!-- Hakkında -->
+      <div class="card" id="s-about">
+        <div class="ch"><span class="hi"><i data-i="info"></i></span><div><h3>Hakkında</h3></div></div>
+        <div class="about"><div class="logo"><i data-i="sprout"></i></div><div><b style="font:800 17px Manrope">Tarım Market Pro</b><div class="muted" style="font-size:13.5px">Sürüm 2.4.0 (yapı 1027) · Güncel</div></div>
+          <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap"><span class="pill p-ok"><span class="dot"></span>Tüm servisler çalışıyor</span><button class="btn"><i data-i="sync"></i>Güncellemeleri denetle</button></div></div>
+        <div class="srow"><div><div class="t">Destek hattı</div><div class="d">Hafta içi 08:30–19:00, sezonda cumartesi de</div></div><div class="ctl"><button class="btn"><i data-i="tel"></i>0850 480 42 42</button><button class="btn"><i data-i="msg"></i>WhatsApp</button></div></div>
+        <div class="srow"><div><div class="t">Yasal</div></div><div class="ctl"><a class="link">KVKK aydınlatma metni</a><a class="link">Kullanım koşulları</a><a class="link">Açık kaynak lisansları</a></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+    </div><!-- /content -->
+  </main>
+
+  <!-- Telefon alt menü -->
+  <nav class="mnav" aria-label="Alt menü">
+    <a data-go="dashboard" class="active"><i data-i="home"></i>Ana Sayfa</a>
+    <a data-go="products"><i data-i="box"></i>Ürünler<span class="cnt">7</span></a>
+    <a data-go="pos" class="sale"><i data-i="cart"></i>Satış</a>
+    <a data-go="customer"><i data-i="book"></i>Veresiye<span class="cnt">12</span></a>
+    <a data-go="settings"><i data-i="more"></i>Diğer</a>
+  </nav>
+</div>
+
+<!-- ================= 6. GİRİŞ ================= -->
+<div class="login">
+  <div class="lhero">
+    <div class="brandrow"><div class="logo"><i data-i="sprout"></i></div><div><b>Tarım Market Pro</b><small>Zirai bayi yönetimi</small></div></div>
+    <h2>Tezgâhtan tarlaya, <em>bütün dükkân</em> tek ekranda.</h2>
+    <div class="feat">
+      <div><span class="fi"><i data-i="barcode"></i></span><div><b>Sezonda hızlı satış</b><span>Barkod okut, miktarı yaz, F1'e bas. Sıra beklemez.</span></div></div>
+      <div><span class="fi"><i data-i="book"></i></span><div><b>Veresiye ve hasat vadesi</b><span>Taksit, vade farkı, WhatsApp hatırlatma.</span></div></div>
+      <div><span class="fi"><i data-i="clock"></i></span><div><b>SKT ve GTS takibi</b><span>Süresi yaklaşan ilacı önceden görün.</span></div></div>
+      <div><span class="fi"><i data-i="cloud"></i></span><div><b>İnternet gitse de çalışır</b><span>Bağlantı gelince kendiliğinden eşitlenir.</span></div></div>
+    </div>
+    <div class="foot"><span>Destek: 0850 480 42 42</span><span>KVKK uyumlu · Verileriniz Türkiye'de</span></div>
+  </div>
+  <div class="lform">
+    <form class="lbox" onsubmit="go('dashboard');return false">
+      <div><h1>Giriş yap</h1><div class="sub" style="margin-top:4px">Hesabınızla devam edin</div></div>
+      <div class="field"><label for="em">E-posta veya telefon</label><input id="em" class="input" style="height:50px;font-size:16px" value="mehmet@yilmazzirai.com"></div>
+      <div class="field"><label for="pw">Şifre</label><div class="pw"><input id="pw" type="password" class="input" style="height:50px;font-size:16px" value="sezon2026"><button type="button" aria-label="Şifreyi göster"><i data-i="eye"></i></button></div></div>
+      <div class="row"><label class="cbline"><span class="cbx"><input type="checkbox" checked><span></span></span>Beni hatırla</label><a class="link">Şifremi unuttum</a></div>
+      <button class="btn pri lg" style="height:54px;font-size:16.5px">Giriş yap<i data-i="chev"></i></button>
+      <div class="or">veya</div>
+      <button type="button" class="btn lg"><i data-i="key"></i>Kasiyer PIN ile giriş</button>
+      <div class="sub" style="text-align:center;font-size:14px">Hesabınız yok mu? <a class="link" style="display:inline;min-height:0">14 gün ücretsiz deneyin</a></div>
+      <div class="muted" style="text-align:center;font-size:12.5px;display:flex;gap:6px;justify-content:center;align-items:center"><span class="dot"></span>Çevrimiçi · Sürüm 2.4.0</div>
+    </form>
+  </div>
+</div>
+
+</div><!-- /app -->
+</div><!-- /device -->
+</div>
+
+<script>
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const ic=(n,st='')=>`<svg class="ic"${st?` style="${st}"`:''}><use href="#i-${n}"/></svg>`;
+const tl=n=>n.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const t0=n=>n.toLocaleString('tr-TR');
+
+/* ---------- Dashboard verisi ---------- */
+const recent=[['14:32','Ahmet Kaya','S-1432','v',4320],['14:05','Perakende','S-1431','n',2150],['13:48','Hasan Çelik','S-1430','k',6780],['13:10','Perakende','S-1429','n',495],['12:22','Mustafa Öztürk','S-1428','v',12450],['11:40','Fatma Arslan','S-1427','k',1260]];
+const pay={n:['Nakit','cash','p-ok'],k:['Kart','card','p-info'],v:['Veresiye','book','p-acc']};
+$('#recent').innerHTML=recent.map(r=>`<tr><td class="num">${r[0]}</td><td class="name">${r[1]}</td><td class="sm hide-m num">${r[2]}</td><td><span class="pill ${pay[r[3]][2]}">${ic(pay[r[3]][1])}${pay[r[3]][0]}</span></td><td class="r num" style="font-weight:800">${tl(r[4])} ₺</td></tr>`).join('');
+const alerts=[['p-danger','box','DAP 18-46 Gübre 50 kg','Stok 18 çuval · en az 30','Kritik'],['p-danger','seed','Mısır Tohumu P31Y43','Stok bitti · 3 müşteri sordu','Tükendi'],['p-danger','flask','Lambda-Cyhalothrin 100 ml','Stok 3 şişe · en az 10','Kritik'],['p-warn','clock','Mancozeb %80 WP 1 kg','Parti GTS-2611 · SKT 08.11.2026','12 gün'],['p-warn','clock','Lambda-Cyhalothrin 100 ml','Parti GTS-2533 · SKT 02.12.2026','36 gün']];
+$('#alerts').innerHTML=alerts.map(a=>`<li><span class="ai ${a[0]}">${ic(a[1])}</span><div class="tx"><b>${a[2]}</b><span>${a[3]}</span></div><span class="pill ${a[0]}">${a[4]}</span></li>`).join('')+`<li><span class="ai p-acc">${ic('book')}</span><div class="tx"><b>Bugün vadesi gelen veresiye</b><span>3 müşteri · Ahmet K., Hasan Ç., İbrahim D.</span></div><button class="btn" style="height:40px">${ic('msg')}Hatırlat</button></li>`;
+
+/* ---------- Satış grafiği (tek seri sütun, bugün vurgulu; gerçek piksel genişliğinde çizilir) ---------- */
+(function(){
+  const days=['14','15','16','17','18','19','20','21','22','23','24','25','26','27'];
+  const dn=['Çar','Per','Cum','Cmt','Paz','Pzt','Sal','Çar','Per','Cum','Cmt','Paz','Pzt','Sal'];
+  const v=[12400,9800,15200,11100,4200,13900,16800,14100,12700,19600,10300,3800,14400,18640];
+  const el=$('#chart');
+  function draw(){
+    const W=Math.max(280,el.clientWidth-24); if(!el.clientWidth) return;
+    const narrow=W<520, H=narrow?190:240, L=34,R=4,T=22,B=26,max=25000, iw=W-L-R, ih=H-T-B, bw=iw/v.length, g=Math.max(4,bw*0.3);
+    const y=n=>T+ih-(n/max)*ih, avg=v.reduce((a,b)=>a+b)/v.length;
+    let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Son 14 günün günlük cirosu; bugün 18.640 ₺, en yüksek 23 Ekim 19.600 ₺">`;
+    for(let k=0;k<=25000;k+=5000){s+=`<line class="gl" x1="${L}" x2="${W-R}" y1="${y(k)}" y2="${y(k)}"/><text class="ax" x="${L-8}" y="${y(k)+4}" text-anchor="end">${k?k/1000+'b':'0'}</text>`}
+    s+=`<line class="avg" x1="${L}" x2="${W-R}" y1="${y(avg)}" y2="${y(avg)}"/>`;
+    v.forEach((n,i)=>{const x=L+i*bw+g/2,w=bw-g,yy=y(n),base=T+ih,r=Math.min(4,w/2);
+      const cls=i===13?'today':(dn[i]==='Paz'?'wk':'');
+      s+=`<path class="bar ${cls}" data-i="${i}" d="M${x},${base} V${yy+r} q0,-${r} ${r},-${r} h${w-2*r} q${r},0 ${r},${r} V${base}z"/>`;
+      const show=narrow?(i%3===1||i===13):(i%2===1||i===13);
+      if(show && !(narrow&&i===10)) s+=`<text class="ax" x="${x+w/2}" y="${H-8}" text-anchor="middle" ${i===13?'style="font-weight:700;fill:var(--accent-text)"':''}>${i===13?'Bugün':days[i]+(narrow?'':' '+dn[i])}</text>`;
+    });
+    s+=`<text class="dl" x="${L+13*bw+bw/2}" y="${y(v[13])-7}" text-anchor="middle">18,6b</text><text class="dl" x="${L+9*bw+bw/2}" y="${y(v[9])-7}" text-anchor="middle">19,6b</text>`;
+    v.forEach((n,i)=>{s+=`<rect class="hit" data-i="${i}" x="${L+i*bw}" y="${T}" width="${bw}" height="${ih}" fill="transparent"/>`});
+    s+='</svg><div class="tip" id="tip"></div>';
+    el.innerHTML=s; const tip=$('#tip');
+    $$('.hit',el).forEach(h=>{h.addEventListener('mouseenter',()=>{const i=+h.dataset.i;$$('.bar',el).forEach(b=>b.classList.toggle('hov',b.dataset.i==i));
+        const r=el.getBoundingClientRect(),hb=h.getBoundingClientRect(),br=$(`.bar[data-i="${i}"]`,el).getBoundingClientRect();
+        tip.style.display='block';tip.style.left=Math.min(Math.max(hb.left-r.left+hb.width/2,70),r.width-70)+'px';tip.style.top=(br.top-r.top-4)+'px';
+        tip.innerHTML=`${dn[i]}, ${days[i]} Ekim${i===13?' (şu ana kadar)':''}<b>${t0(v[i])} ₺</b>`;});
+      h.addEventListener('mouseleave',()=>{tip.style.display='none';$$('.bar',el).forEach(b=>b.classList.remove('hov'))});});
+  }
+  new ResizeObserver(()=>draw()).observe(el);
+})();
+
+/* ---------- POS ---------- */
+const res=[['sack','Üre %46 Azotlu Gübre 50 kg','8690123450012 · Gübre',142,'çuval',820,true],['sack','Üre %46 Dökme (kg)','Barkodsuz · Gübre',2380,'kg',16.4],['sack','Amonyum Sülfat %21 50 kg','8690123450029 · Gübre',64,'çuval',495],['flask','Üre Formaldehit Yaprak Gübresi 1 lt','8691554002171 · Gübre',22,'şişe',185]];
+$('#results').innerHTML=res.map(r=>`<div class="res${r[6]?' sel':''}"><span class="ri">${ic(r[0])}</span><div style="min-width:0"><b>${r[1]}</b><span class="muted" style="font-size:12.5px">${r[2]}</span></div><span class="stockcol pill ${r[3]<30?'p-warn':'p-ok'}">Stok ${t0(r[3])} ${r[4]}</span><span class="pr">${tl(r[5])} ₺</span><button class="btn ${r[6]?'pri':''} addb" aria-label="Sepete ekle">${ic('plus')}<span class="hide-m">Ekle</span></button></div>`).join('');
+const fav=[['Domates Fidesi (viyol)',275],['Biber Fidesi (viyol)',210],['Üre %46 50 kg',820],['DAP 18-46 50 kg',1390],['Glifosat 1 lt',310],['Mancozeb 1 kg',360],['Buğday Esperia 25 kg',720],['Damla Boru 16 mm',2480]];
+$('#fav').innerHTML=fav.map(f=>`<button><b>${f[0]}</b><span>${t0(f[1])} ₺</span></button>`).join('');
+$$('#posState button').forEach(b=>b.onclick=()=>setPos(b.dataset.st));
+$$('[data-st-go]').forEach(b=>b.onclick=()=>setPos(b.dataset.stGo));
+function setPos(st){$('#pos').dataset.state=st;$$('#posState button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.st===st))}
+
+/* ---------- Ürünler ---------- */
+const P=[['Üre %46 Azotlu Gübre 50 kg','8690123450012','Gübre','sack','çuval',142,40,'',690,820],
+['DAP 18-46 Gübre 50 kg','8690123450036','Gübre','sack','çuval',18,30,'',1180,1390],
+['Amonyum Sülfat %21 50 kg','8690123450029','Gübre','sack','çuval',64,25,'',410,495],
+['Domates Fidesi (Aşılı)','Barkodsuz','Fide','sprout','viyol',486,100,'',210,275],
+['Mancozeb %80 WP 1 kg','8697411200915','İlaç','flask','kutu',9,12,'08.11.2026|12',285,360],
+['Glifosat 480 g/l 1 lt','8697411201431','İlaç','flask','şişe',34,15,'14.03.2027|',240,310],
+['Lambda-Cyhalothrin 100 ml','8697411208812','İlaç','flask','şişe',3,10,'02.12.2026|36',145,195],
+['Buğday Tohumu Esperia 25 kg','8680001120044','Tohum','seed','çuval',75,20,'30.06.2027|',610,720],
+['Mısır Tohumu P31Y43 (50 bin)','8680001127716','Tohum','seed','torba',0,5,'',3450,4100],
+['Damla Sulama Borusu 16 mm 400 m','8699002311120','Hırdavat','wrench','top',6,4,'',1950,2480],
+['Bahçe Hortumu 1/2" 25 m','Barkodsuz','Hırdavat','wrench','adet',3,5,'',380,495]];
+function stk(p){const s=p[5],m=p[6],c=s===0?'var(--danger)':s<=m?'var(--danger)':s<=m*1.5?'var(--warn)':'var(--brand)';const w=Math.max(4,Math.min(100,s/(m*3)*100));
+  return `<div class="stk"><b>${t0(s)} <small>${p[4]}</small></b><div class="meter"><i style="width:${s?w:0}%;background:${c}"></i></div></div>`}
+function skt(p){if(!p[7])return '<span class="muted">—</span>';const [d,g]=p[7].split('|');if(!g)return `<span class="num sub">${d}</span>`;return `<span class="pill ${+g<=14?'p-danger':'p-warn'}">${ic('clock')}${g} gün</span><div class="sm num" style="margin-top:3px">${d}</div>`}
+function status(p){return p[5]===0?'<span class="pill p-danger">Tükendi</span>':p[5]<=p[6]?'<span class="pill p-danger">Kritik</span>':''}
+$('#ptbody').innerHTML=P.map(p=>`<tr class="${p[5]<=p[6]?'crit':''}"><td><div style="display:flex;gap:12px;align-items:center"><span class="ri" style="width:38px;height:38px;border-radius:8px;display:grid;place-items:center;background:var(--surface-2);color:var(--text-2);flex:none">${ic(p[3])}</span><div><div class="name">${p[0]} ${status(p)}</div><div class="sm num">${p[1]==='Barkodsuz'?'<span style="color:var(--warn-text)">Barkodsuz</span>':p[1]}</div></div></div></td><td class="sub">${p[2]}</td><td>${stk(p)}</td><td>${skt(p)}</td><td class="r num sub">${tl(p[8])}</td><td class="r num" style="font-weight:800">${tl(p[9])}</td><td class="r num sub">%${Math.round((p[9]-p[8])/p[8]*100)}</td><td><div class="rowact"><button class="btn" aria-label="Sepete ekle">${ic('cart')}</button><button class="btn ghost sq" aria-label="Diğer">${ic('more')}</button></div></td></tr>`).join('');
+$('#pcards').innerHTML=P.map(p=>`<div style="display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;padding:12px;border-bottom:1px solid var(--line);${p[5]<=p[6]?'box-shadow:inset 3px 0 0 var(--danger)':''}"><span style="width:40px;height:40px;border-radius:8px;display:grid;place-items:center;background:var(--surface-2);color:var(--text-2)">${ic(p[3])}</span><div style="min-width:0"><div class="name" style="font-weight:600;font-size:15px">${p[0]}</div><div class="sm muted" style="font-size:12.5px">${p[2]} · ${p[1]}</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center">${status(p)||`<span class="pill p-neu">${t0(p[5])} ${p[4]}</span>`}${p[7]&&p[7].split('|')[1]?`<span class="pill p-warn">${ic('clock')}SKT ${p[7].split('|')[1]} gün</span>`:''}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><b class="num" style="font-size:16px">${tl(p[9])} ₺</b><button class="btn pri" style="height:40px;padding:0 12px" aria-label="Sepete ekle">${ic('plus')}</button></div></div>`).join('');
+
+/* ---------- Müşteri hareketleri ---------- */
+const T=[['cash','p-ok','Tahsilat · Nakit','27 Eki 2026 · 10:42 · Mehmet Y.','2. taksite mahsuben kısmi ödeme',-2000,32480],
+['cart','p-acc','Satış S-1432 · Veresiye','20 Eki 2026 · 16:05','2 çuval DAP 18-46, 1 kutu Mancozeb, 5 viyol biber fidesi',4320,34480],
+['msg','p-info','WhatsApp hatırlatma gönderildi','16 Eki 2026 · 09:00 · otomatik','“2. taksit 6.200 ₺, vade 09.10.2026” · okundu',null,30160],
+['alert','p-danger','2. taksit vadesi geçti','9 Eki 2026','6.200 ₺ ödenmedi',null,30160],
+['cash','p-ok','Tahsilat · Kart','15 Eyl 2026 · 14:20','1. taksit',-6200,30160],
+['cart','p-acc','Satış S-0901 · 4 taksit','1 Eyl 2026 · 11:15','40 çuval Üre %46, 10 çuval DAP · vade farkı %3 (1.380 ₺)',32480,36360]];
+$('#tl').innerHTML=T.map(t=>`<li><span class="tli ${t[1]}">${ic(t[0])}</span><div style="min-width:0"><b>${t[2]}</b><div class="d">${t[3]}</div><div class="items">${t[4]}</div></div><div class="amt">${t[5]==null?'':`<b style="color:${t[5]<0?'var(--brand-text)':'var(--text)'}">${t[5]<0?'−':'+'}${tl(Math.abs(t[5]))}</b>`}<span>Bakiye ${t0(t[6])}</span></div></li>`).join('');
+
+/* ---------- Ayarlar tabloları ---------- */
+const U=[['MY','Mehmet Yılmaz','mehmet@yilmazzirai.com','Yönetici','p-ok','Şu an'],['AY','Ayşe Yılmaz','Kasiyer · PIN ile','Kasiyer','p-acc','Bugün 08:12'],['ED','Emre Demir','emre.d@gmail.com','Depo','p-info','Dün 17:40']];
+$('#users').innerHTML=U.map(u=>`<tr><td><div style="display:flex;gap:10px;align-items:center"><span class="av" style="width:36px;height:36px;border-radius:8px;display:grid;place-items:center;font:800 13px Manrope;background:var(--surface-3);color:var(--text-2)">${u[0]}</span><div><div class="name">${u[1]}</div><div class="sm">${u[2]}</div></div></div></td><td><span class="pill ${u[4]}">${u[3]}</span></td><td class="sub hide-m">${u[5]}</td><td><div class="rowact"><button class="btn ghost sq" aria-label="Düzenle">${ic('edit')}</button></div></td></tr>`).join('');
+const cb=c=>`<label class="cbx"><input type="checkbox"${c?' checked':''}><span></span></label>`;
+const perm=[['Satış yapma',1,1,0],['İskonto (sınır üstü)',1,0,0],['Satış iptali',1,0,0],['Veresiye verme',1,1,0],['Stok girişi & sayım',1,0,1],['Alış fiyatı & kâr görme',1,0,0],['Raporlar',1,0,0]];
+$('#perm').innerHTML=perm.map(p=>`<tr><td>${p[0]}</td><td>${cb(p[1])}</td><td>${cb(p[2])}</td><td>${cb(p[3])}</td></tr>`).join('');
+const nf=[['Kritik stok',1,0,0],['SKT yaklaşan ürün',1,1,0],['Vadesi geçen veresiye',1,1,1],['Gün sonu özeti (19:00)',1,1,1],['Büyük satış (> 10.000 ₺)',1,0,1],['Destek erişim talebi',1,1,1]];
+$('#notif').innerHTML=nf.map(p=>`<tr><td>${p[0]}</td><td>${cb(p[1])}</td><td>${cb(p[2])}</td><td>${cb(p[3])}</td></tr>`).join('');
+const LG=[['27.10 11:24','Selin K. (Destek)','Ürün listesini görüntüledi','Web · talep #TS-4821'],['27.10 11:21','Selin K. (Destek)','Stok hareketleri: Bahçe hortumu','Web · talep #TS-4821'],['27.10 11:20','Mehmet Yılmaz','6 saatlik görüntüleme izni verdi','Tezgâh PC'],['02.09 15:02','Okan T. (Destek)','Stok düzeltmesi: Bahçe hortumu −7 → 3 (onaylı)','Web · talep #TS-4310'],['02.09 14:40','Mehmet Yılmaz','24 saatlik düzeltme izni verdi','Android']];
+$('#log').innerHTML=LG.map(l=>`<tr><td class="num sub" style="white-space:nowrap">${l[0]}</td><td class="name">${l[1]}</td><td>${l[2]}</td><td class="sm hide-m">${l[3]}</td></tr>`).join('');
+
+/* ---------- İkonları yerleştir ---------- */
+$$('i[data-i]').forEach(e=>e.outerHTML=ic(e.dataset.i));
+
+/* ---------- Gezinme ---------- */
+const titles={dashboard:'Ana Sayfa',pos:'Hızlı Satış',products:'Ürünler & Stok',customer:'Ahmet Kaya · Veresiye',settings:'Ayarlar',login:'Giriş'};
+function go(s){
+  $('#app').classList.toggle('is-login',s==='login');
+  $$('.screen').forEach(x=>x.classList.toggle('on',x.dataset.screen===s));
+  $$('#tabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.go===s));
+  $$('.nav a, .mnav a').forEach(a=>a.classList.toggle('active',a.dataset.go===s && !(s==='customer'&&a.textContent.includes('Müşteri'))));
+  $('#ttitle').textContent=titles[s];$('#mtitle').textContent=s==='customer'?'Veresiye':titles[s];
+  $('#content').scrollTop=0;
+  try{localStorage.setItem('c-screen',s)}catch(e){}
+}
+document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g){e.preventDefault();go(g.dataset.go)}});
+$('#content').addEventListener('scroll',()=>{if(!$('[data-screen=settings]').classList.contains('on'))return;const top=$('#content').getBoundingClientRect().top+80;let cur=null;
+  $$('.setmain>.card[id]').forEach(c=>{if(c.getBoundingClientRect().top<=top)cur=c.id});if(!cur)cur='s-biz';
+  $$('#setnav a').forEach(x=>{const on=x.dataset.s===cur;x.classList.toggle('on',on);if(on&&getComputedStyle($('#setnav')).display==='flex')x.scrollIntoView({block:'nearest',inline:'center'})})});
+$$('#setnav a').forEach(a=>a.onclick=()=>{$$('#setnav a').forEach(x=>x.classList.toggle('on',x===a));document.getElementById(a.dataset.s).scrollIntoView({behavior:'smooth',block:'start'})});
+// Segment & çip demo davranışı
+document.addEventListener('click',e=>{const b=e.target.closest('.seg button');if(b&&!b.closest('#posState')){$$('button',b.parentNode).forEach(x=>x.setAttribute('aria-pressed',x===b))}
+  const c=e.target.closest('.chip');if(c){c.setAttribute('aria-pressed',c.getAttribute('aria-pressed')!=='true')}});
+
+/* ---------- Tema & cihaz ---------- */
+function setTheme(t){document.documentElement.dataset.theme=t;const d=t==='dark';$('#themeBtn').innerHTML=ic(d?'sun':'moon')+`<span>${d?'Açık tema':'Koyu tema'}</span>`;
+  $$('#themeCards button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===t));try{localStorage.setItem('c-theme',t)}catch(e){}}
+$('#themeBtn').onclick=()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');
+$$('#themeCards button').forEach(b=>b.onclick=()=>setTheme(b.dataset.t==='auto'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):b.dataset.t));
+function setDev(d){const el=$('#device');el.className='device'+(d==='desk'?'':' '+d);$$('#devs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.dev===d));try{localStorage.setItem('c-dev',d)}catch(e){}}
+$$('#devs button').forEach(b=>b.onclick=()=>setDev(b.dataset.dev));
+let st={};try{st={t:localStorage.getItem('c-theme'),d:localStorage.getItem('c-dev'),s:localStorage.getItem('c-screen')}}catch(e){}
+const q=new URLSearchParams(location.search);
+setTheme(q.get('theme')||st.t||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+setDev(q.get('dev')||st.d||'desk');
+go(q.get('s')||st.s||'dashboard');
+</script>
+</body>
+</html>
