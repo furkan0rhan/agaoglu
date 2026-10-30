@@ -1,24 +1,25 @@
 import { inject, Injectable } from '@angular/core';
 import {
   Firestore, doc, writeBatch, serverTimestamp, collection, increment, getDoc, getDocFromCache, Timestamp,
-  runTransaction, DocumentReference, DocumentData,
+  runTransaction, DocumentReference, DocumentData, DocumentSnapshot, arrayRemove, arrayUnion,
 } from '@angular/fire/firestore';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { CartStore } from '../store/cart.store';
 import { ProductStore } from '../../products/store/product.store';
 import { Sale, SaleItem, SaleReceipt } from '../../../shared/models/sale.model';
-import { Product } from '../../../shared/models/product.model';
+import { Batch, Product } from '../../../shared/models/product.model';
 import { LoggerService } from '../../../core/logging/logger.service';
-import { nearestExpiry } from '../../../shared/utils/batch.utils';
+import { diffBatches, nearestExpiry } from '../../../shared/utils/batch.utils';
 import { NetworkService } from '../../../core/offline/network.service';
 import { LangService } from '../../../core/i18n/lang.service';
-import { allocateFEFO, generateSaleNumber, resolveProduct, restoreBatches, round2, roundQty, toSaleItem } from './sale.utils';
+import { generateSaleNumber, resolveProduct, restoreBatches, round2, roundQty, toSaleItem } from './sale.utils';
+import { planSaleStock, SaleStockLine, SaleStockPlan, SaleWarnings } from './sale-stock';
 import { TenantSettingsService } from '../../../core/settings/tenant-settings.service';
 import { creditDebtFields, SaleCreditPlan } from './credit-plan';
 import { FarmerSyncService } from './farmer-sync.service';
 import { CancelDenial, cancelDenial, isValidCancelReason } from '../../sales/services/cancel-policy';
 import {
-  checkPrescription, isPlantProtection, normalizePrescriptionNo, PrescriptionGap, productRequiresPrescription,
+  checkPrescription, normalizePrescriptionNo, PrescriptionGap, productRequiresPrescription,
 } from '../../../shared/utils/regulatory.utils';
 
 export interface CreditOptions {
@@ -69,11 +70,10 @@ export class InsufficientStockError extends Error {
   }
 }
 
-/** Kullanıcı onayı gerektiren durumlar (süresi geçmiş birim / parti kaydı yetersiz). */
-export interface SaleWarnings {
-  expired: { productName: string; quantity: number }[];
-  batchShortfall: { productName: string; quantity: number }[];
-}
+export type { SaleWarnings } from './sale-stock';
+
+/** Transaction içinde (çevrimiçi) belge okuyucu. */
+type DocReader = (ref: DocumentReference) => Promise<DocumentSnapshot>;
 
 export class SaleNeedsConfirmationError extends Error {
   constructor(readonly warnings: SaleWarnings) {
@@ -180,64 +180,14 @@ export class SaleService {
       });
       if (rx.blocking.length) throw new PrescriptionRequiredError(rx.blocking, rxNames);
 
-      // Stok / FEFO ön kontrolü: gerçek stok yetersizse engelle; okutulan GTS'ler önce düşülür (2.11).
-      // Bitki koruma ürününde SKT geçmiş birim kullanılmaz (engel); diğerlerinde SKT geçmiş birim
-      // veya parti kaydı yetersizliği varsa onay istenir.
-      const warnings: SaleWarnings = { expired: [], batchShortfall: [] };
-      const allocations = resolved.map(({ item, product }) => {
-        if (roundQty(item.quantity) > roundQty(product.stock)) {
-          throw new InsufficientStockError(product.name, roundQty(item.quantity - product.stock));
-        }
-        const plantProtection = isPlantProtection(product);
-        const a = allocateFEFO(product.batches ?? [], item.quantity, Date.now(), {
-          preferredGts: item.gtsNos ?? [],
-          skipExpired: plantProtection,
-        });
-        if (a.missingGts.length) throw new GtsUnavailableError(product.name, a.missingGts);
-        if (a.expiredGts.length || a.expiredBlocked > 0) {
-          throw new ExpiredPlantProtectionError(product.name, a.expiredBlocked || a.expiredGts.length, a.expiredGts);
-        }
-        if (a.expiredUsed > 0) warnings.expired.push({ productName: product.name, quantity: a.expiredUsed });
-        if (a.shortfall > 0) warnings.batchShortfall.push({ productName: product.name, quantity: a.shortfall });
-        return a;
-      });
-      if (!options.confirmed && (warnings.expired.length || warnings.batchShortfall.length)) {
-        throw new SaleNeedsConfirmationError(warnings);
-      }
+      // Stok / FEFO ön kontrolü (yerel önbellek): hızlı geri bildirim ve onay diyaloğu için. Okutulan GTS'ler
+      // önce düşülür (2.11). Bitki koruma ürününde SKT geçmiş birim kullanılmaz (engel); diğerlerinde SKT geçmiş
+      // birim veya parti kaydı yetersizliği varsa onay istenir. Çevrimiçiyken aynı kontrol commit sırasında
+      // transaction içinde SUNUCUDAKİ ürünle tekrarlanır (2.2: iki kasa aynı anda satabilir).
+      this.planOrThrow(resolved, options);
+
       // Doğrulamalar bitti — Firestore referansları ancak şimdi oluşturulur
-      const batch = new WriteOps();
       const saleRef = doc(collection(this.firestore, 'sales'));
-      for (const w of warnings.batchShortfall) {
-        this.logger.warn(`FEFO shortfall on sale ${saleNumber}: ${w.productName} (${w.quantity})`);
-      }
-
-      const saleItems: SaleItem[] = [];
-      for (const [idx, { item, product }] of resolved.entries()) {
-        const { remaining, taken } = allocations[idx];
-        const itemRx = productRequiresPrescription(product);
-        saleItems.push(toSaleItem(item, product, taken, { requiresPrescription: itemRx, prescriptionNo: itemRx ? rxNo : null }));
-
-        batch.update(doc(this.firestore, 'products', product.id), {
-          stock: increment(-item.quantity),
-          batches: remaining,
-          expiryDate: nearestExpiry(remaining),
-          updatedAt: serverTimestamp(),
-        });
-
-        batch.set(doc(collection(this.firestore, 'stockMovements')), {
-          tenantId,
-          productId: product.id,
-          productName: product.name,
-          type: 'out',
-          quantity: item.quantity,
-          previousStock: product.stock,
-          newStock: roundQty(product.stock - item.quantity),
-          reason: `${this.t().sales.saleRef}: ${saleNumber}`,
-          reference: saleRef.id,
-          createdAt: serverTimestamp(),
-          createdBy: userId,
-        });
-      }
 
       // Sepet toplamları (sepet henüz temizlenmedi)
       const subtotal = this.cart.subtotal();
@@ -249,88 +199,126 @@ export class SaleService {
       const debt = creditDebtFields(cartCredit, creditOptions);
       const creditDebt = debt.amount;
       const plan = creditOptions?.plan ?? null;
+      if (cartCredit > 0 && !snap.customerId) throw new Error('Credit sale requires a customer');
+      const creditTxRef = cartCredit > 0 ? doc(collection(this.firestore, 'creditTransactions')) : null;
+      const running: RunningBalance | undefined = creditTxRef && snap.customerId
+        ? { txRef: creditTxRef, customerId: snap.customerId, delta: creditDebt }
+        : undefined;
 
-      const sale: Omit<Sale, 'id'> = {
-        tenantId,
-        saleNumber,
-        customerId: snap.customerId,
-        customerName: snap.customerName,
-        items: saleItems,
-        subtotal,
-        totalDiscount,
-        globalDiscount: snap.globalDiscount,
-        globalDiscountType: snap.globalDiscountType,
-        globalDiscountAmount,
-        totalAmount,
-        paymentMethod: snap.paymentMethod,
-        cashPaid: snap.cashPaid,
-        cardPaid: snap.cardPaid,
-        creditAmount: cartCredit,
-        change,
-        status: 'completed',
-        notes: snap.notes || null,
-        interestRate: creditOptions?.interestRate ?? null,
-        installmentCount: creditOptions?.installmentCount ?? null,
-        installmentAmount: creditOptions?.installmentAmount ?? null,
-        totalWithInterest: creditOptions?.totalWithInterest ?? null,
-        createdAt: serverTimestamp() as unknown as Timestamp,
-        createdBy: userId,
-        cancelledAt: null,
-        cancelledBy: null,
-        cancelReason: null,
-      };
-      if (cartCredit > 0 && plan) {
-        sale.creditDueDate = debt.dueDate;
-        sale.downPayment = debt.downPayment;
-        if (plan.installments.length > 1) sale.installmentIntervalMonths = Math.max(1, Math.floor(Number(plan.intervalMonths) || 1));
-      }
-      if (rxNames.length) {
-        sale.hasPrescriptionItems = true;
-        sale.prescriptionNo = rxNo;
-        sale.prescriberName = (snap.prescriberName ?? '').trim() || null;
-        sale.customerTcNo = options.customerIds?.tcNo || null;
-        sale.customerCksNo = options.customerIds?.cksNo || null;
-      }
-      batch.set(saleRef, sale);
+      /** Satışın tüm yazımları. `read` varsa (çevrimiçi) transaction içinde sunucudaki ürünlerle kurulur. */
+      let saleItems: SaleItem[] = [];
+      const build = async (read: DocReader | null): Promise<WriteOps> => {
+        const lines = read ? await this.readLines(read, resolved) : resolved;
+        const stockPlan = this.planOrThrow(lines, options);
+        for (const w of stockPlan.warnings.batchShortfall) {
+          this.logger.warn(`FEFO shortfall on sale ${saleNumber}: ${w.productName} (${w.quantity})`);
+        }
+        const batch = new WriteOps();
+        saleItems = lines.map(({ item, product }, idx) => {
+          const itemRx = productRequiresPrescription(product);
+          return toSaleItem(item, product, stockPlan.allocations[idx].taken, { requiresPrescription: itemRx, prescriptionNo: itemRx ? rxNo : null });
+        });
 
-      // Veresiye (tam veya kısmi) ise müşteri bakiyesi güncelle
-      let running: RunningBalance | undefined;
-      if (cartCredit > 0) {
-        if (!snap.customerId) throw new Error('Credit sale requires a customer');
-        const units = this.t().pos.units;
-        const txRef = doc(collection(this.firestore, 'creditTransactions'));
-        running = { txRef, customerId: snap.customerId, delta: creditDebt };
-        batch.set(txRef, {
+        for (const [idx, { item, product }] of lines.entries()) {
+          batch.set(doc(collection(this.firestore, 'stockMovements')), {
+            tenantId,
+            productId: product.id,
+            productName: product.name,
+            type: 'out',
+            quantity: item.quantity,
+            previousStock: stockPlan.movements[idx].previousStock,
+            newStock: stockPlan.movements[idx].newStock,
+            reason: `${this.t().sales.saleRef}: ${saleNumber}`,
+            reference: saleRef.id,
+            createdAt: serverTimestamp(),
+            createdBy: userId,
+          });
+        }
+        for (const ch of stockPlan.products.values()) {
+          // lastSaleId: kurallar çevrimdışı fazla satışta (iki kasa son birimi sattı) stoğun negatife
+          // düşmesine yalnız aynı yazımda oluşturulan bu satış için izin verir (2.38) — satış kaydı kaybolmaz.
+          this.writeProductStock(batch, ch.product, ch.batches, -ch.quantity, !!read, { lastSaleId: saleRef.id });
+        }
+
+        const sale: Omit<Sale, 'id'> = {
           tenantId,
+          saleNumber,
           customerId: snap.customerId,
           customerName: snap.customerName,
-          saleId: saleRef.id,
-          type: 'debt',
-          amount: creditDebt,
-          originalAmount: debt.originalAmount,
-          description: `${this.t().sales.saleRef}: ${saleNumber} · ${saleItems.map(i => `${i.productName} (${i.quantity} ${units[i.unit ?? 'adet']})`).join(', ')}`,
-          paymentMethod: null,
-          balance: creditDebt, // commit sırasında işlem sonrası müşteri bakiyesiyle değiştirilir
-          interestRate: debt.interestRate,
-          installmentCount: debt.installmentCount,
-          installmentAmount: debt.installmentAmount,
-          // Vade / taksit planı (CreditService.buildInstallmentPlan); JS Date → Timestamp
-          dueDate: debt.dueDate,
-          installments: debt.installments,
-          downPayment: debt.downPayment,
-          createdAt: serverTimestamp(),
+          items: saleItems,
+          subtotal,
+          totalDiscount,
+          globalDiscount: snap.globalDiscount,
+          globalDiscountType: snap.globalDiscountType,
+          globalDiscountAmount,
+          totalAmount,
+          paymentMethod: snap.paymentMethod,
+          cashPaid: snap.cashPaid,
+          cardPaid: snap.cardPaid,
+          creditAmount: cartCredit,
+          change,
+          status: 'completed',
+          notes: snap.notes || null,
+          interestRate: creditOptions?.interestRate ?? null,
+          installmentCount: creditOptions?.installmentCount ?? null,
+          installmentAmount: creditOptions?.installmentAmount ?? null,
+          totalWithInterest: creditOptions?.totalWithInterest ?? null,
+          createdAt: serverTimestamp() as unknown as Timestamp,
           createdBy: userId,
-        });
-        batch.update(doc(this.firestore, 'customers', snap.customerId), {
-          totalDebt: increment(creditDebt),
-          balance: increment(creditDebt),
-          updatedAt: serverTimestamp(),
-        });
-      }
+          cancelledAt: null,
+          cancelledBy: null,
+          cancelReason: null,
+        };
+        if (cartCredit > 0 && plan) {
+          sale.creditDueDate = debt.dueDate;
+          sale.downPayment = debt.downPayment;
+          if (plan.installments.length > 1) sale.installmentIntervalMonths = Math.max(1, Math.floor(Number(plan.intervalMonths) || 1));
+        }
+        if (rxNames.length) {
+          sale.hasPrescriptionItems = true;
+          sale.prescriptionNo = rxNo;
+          sale.prescriberName = (snap.prescriberName ?? '').trim() || null;
+          sale.customerTcNo = options.customerIds?.tcNo || null;
+          sale.customerCksNo = options.customerIds?.cksNo || null;
+        }
+        batch.set(saleRef, sale);
+
+        // Veresiye (tam veya kısmi) ise müşteri bakiyesi güncelle
+        if (creditTxRef && snap.customerId) {
+          const units = this.t().pos.units;
+          batch.set(creditTxRef, {
+            tenantId,
+            customerId: snap.customerId,
+            customerName: snap.customerName,
+            saleId: saleRef.id,
+            type: 'debt',
+            amount: creditDebt,
+            originalAmount: debt.originalAmount,
+            description: `${this.t().sales.saleRef}: ${saleNumber} · ${saleItems.map(i => `${i.productName} (${i.quantity} ${units[i.unit ?? 'adet']})`).join(', ')}`,
+            paymentMethod: null,
+            balance: creditDebt, // commit sırasında işlem sonrası müşteri bakiyesiyle değiştirilir
+            interestRate: debt.interestRate,
+            installmentCount: debt.installmentCount,
+            installmentAmount: debt.installmentAmount,
+            // Vade / taksit planı (CreditService.buildInstallmentPlan); JS Date → Timestamp
+            dueDate: debt.dueDate,
+            installments: debt.installments,
+            downPayment: debt.downPayment,
+            createdAt: serverTimestamp(),
+            createdBy: userId,
+          });
+          batch.update(doc(this.firestore, 'customers', snap.customerId), {
+            totalDebt: increment(creditDebt),
+            balance: increment(creditDebt),
+            updatedAt: serverTimestamp(),
+          });
+        }
+        return batch;
+      };
 
       // Commit'ten önce sepeti temizle (çift satışı engelle); hata olursa catch geri yükler
       this.cart.clearCart();
-      await this.commit(batch, `sale ${saleNumber}`, running);
+      await this.commit(`sale ${saleNumber}`, build, running);
       const receipt: SaleReceipt = {
         saleNumber,
         date: new Date(),
@@ -366,7 +354,9 @@ export class SaleService {
 
   /**
    * Satışı iptal eder / iade alır: stok ve partiler geri yüklenir, 'return' hareketi yazılır,
-   * veresiye ise müşteri borcu ve cari hesap ters kayıtla düzeltilir. Hepsi tek writeBatch.
+   * veresiye ise müşteri borcu ve cari hesap ters kayıtla düzeltilir. Hepsi tek yazım.
+   * Çevrimiçi: transaction — satış durumu ve ürünler sunucudan okunur (iki kasa aynı satışı iptal edemez,
+   * eşzamanlı satış partileri ezilmez). Çevrimdışı: önbellekteki verilerle increment + arrayRemove/arrayUnion.
    */
   async cancelSale(saleId: string, reasonInput: string): Promise<void> {
     const tenantId = this.auth.currentTenantId();
@@ -376,110 +366,172 @@ export class SaleService {
     const saleRef = doc(this.firestore, 'sales', saleId);
     const saleSnap = await getDoc(saleRef);
     if (!saleSnap.exists()) throw new Error('Sale not found');
-    const sale = { id: saleSnap.id, ...saleSnap.data() } as Sale;
-    if (sale.status !== 'completed') throw new SaleAlreadyCancelledError();
+    const cached = { id: saleSnap.id, ...saleSnap.data() } as Sale;
+    if (cached.status !== 'completed') throw new SaleAlreadyCancelledError();
     const user = this.auth.currentUser();
-    const denial = cancelDenial(sale, user ? { id: userId, role: user.role, cancelAnySale: user.permissions?.cancelAnySale } : null);
+    const denial = cancelDenial(cached, user ? { id: userId, role: user.role, cancelAnySale: user.permissions?.cancelAnySale } : null);
     if (denial) throw new SaleCancelDeniedError(denial);
 
-    const batch = new WriteOps();
     const now = Timestamp.now();
-    const cancelRef = `${this.t().sales.cancelRef}: ${sale.saleNumber}`;
+    const cancelRef = `${this.t().sales.cancelRef}: ${cached.saleNumber}`;
+    const debt = cached.creditAmount > 0 ? round2(cached.totalWithInterest ?? cached.creditAmount) : 0;
+    const creditTxRef = debt > 0 && cached.customerId ? doc(collection(this.firestore, 'creditTransactions')) : null;
+    const running: RunningBalance | undefined = creditTxRef && cached.customerId
+      ? { txRef: creditTxRef, customerId: cached.customerId, delta: -debt }
+      : undefined;
 
-    batch.update(saleRef, {
-      status: 'cancelled',
-      cancelledAt: serverTimestamp(),
-      cancelledBy: userId,
-      cancelReason: reason,
-    });
-    // Y4: değiştirilemez denetim kaydı (kurallar iptali bu kayıt olmadan reddeder)
-    batch.set(doc(this.firestore, 'auditLogs', `sale_cancel_${sale.id}`), {
-      tenantId,
-      actorUid: userId,
-      actorEmail: user?.email ?? '',
-      actorName: user?.displayName ?? '',
-      action: 'sale_cancel',
-      saleId: sale.id,
-      saleNumber: sale.saleNumber ?? '',
-      amount: round2(sale.totalAmount ?? 0),
-      paymentMethod: sale.paymentMethod ?? null,
-      saleCreatedBy: sale.createdBy ?? null,
-      detail: `${sale.saleNumber ?? sale.id} · ${round2(sale.totalAmount ?? 0)} ₺ · ${reason}`.slice(0, 500),
-      createdAt: serverTimestamp(),
-    });
-
-    // Aynı ürün birden fazla kalemde olabilir — ürün başına birikimli güncelle
-    const working = new Map<string, Product>();
-    const restoredQty = new Map<string, number>();
-    for (const item of sale.items ?? []) {
-      let product = working.get(item.productId) ?? await this.fetchProduct(item.productId);
-      if (!product) {
-        this.logger.warn('cancelSale: product not found, stock not restored', item.productId, sale.saleNumber);
-        continue;
+    const build = async (read: DocReader | null): Promise<WriteOps> => {
+      let sale = cached;
+      if (read) {
+        const fresh = await read(saleRef);
+        if (!fresh.exists()) throw new Error('Sale not found');
+        sale = { id: fresh.id, ...fresh.data() } as Sale;
+        if (sale.status !== 'completed') throw new SaleAlreadyCancelledError();
       }
-      const batches = restoreBatches(product.batches ?? [], item, now, () => crypto.randomUUID());
-      const previousStock = product.stock;
-      product = { ...product, batches, stock: roundQty(previousStock + item.quantity) };
-      working.set(product.id, product);
-      restoredQty.set(product.id, roundQty((restoredQty.get(product.id) ?? 0) + item.quantity));
-
-      batch.set(doc(collection(this.firestore, 'stockMovements')), {
-        tenantId,
-        productId: product.id,
-        productName: product.name,
-        type: 'return',
-        quantity: item.quantity,
-        previousStock,
-        newStock: roundQty(previousStock + item.quantity),
-        reason: cancelRef,
-        reference: sale.id,
-        createdAt: serverTimestamp(),
-        createdBy: userId,
+      const batch = new WriteOps();
+      batch.update(saleRef, {
+        status: 'cancelled',
+        cancelledAt: serverTimestamp(),
+        cancelledBy: userId,
+        cancelReason: reason,
       });
-    }
-
-    for (const p of working.values()) {
-      batch.update(doc(this.firestore, 'products', p.id), {
-        stock: increment(restoredQty.get(p.id) ?? 0),
-        batches: p.batches,
-        expiryDate: nearestExpiry(p.batches),
-        updatedAt: serverTimestamp(),
-      });
-    }
-
-    // Veresiye ters kaydı
-    const debt = sale.creditAmount > 0 ? round2(sale.totalWithInterest ?? sale.creditAmount) : 0;
-    let running: RunningBalance | undefined;
-    if (debt > 0 && sale.customerId) {
-      const txRef = doc(collection(this.firestore, 'creditTransactions'));
-      running = { txRef, customerId: sale.customerId, delta: -debt };
-      batch.set(txRef, {
+      // Y4: değiştirilemez denetim kaydı (kurallar iptali bu kayıt olmadan reddeder)
+      batch.set(doc(this.firestore, 'auditLogs', `sale_cancel_${sale.id}`), {
         tenantId,
-        customerId: sale.customerId,
-        customerName: sale.customerName,
+        actorUid: userId,
+        actorEmail: user?.email ?? '',
+        actorName: user?.displayName ?? '',
+        action: 'sale_cancel',
         saleId: sale.id,
-        type: 'debt',
-        amount: -debt,
-        originalAmount: null,
-        description: `${cancelRef} · ${reason}`,
-        paymentMethod: null,
-        balance: -debt, // commit sırasında işlem sonrası müşteri bakiyesiyle değiştirilir
-        interestRate: null,
-        installmentCount: null,
-        installmentAmount: null,
-        isReversal: true,
+        saleNumber: sale.saleNumber ?? '',
+        amount: round2(sale.totalAmount ?? 0),
+        paymentMethod: sale.paymentMethod ?? null,
+        saleCreatedBy: sale.createdBy ?? null,
+        detail: `${sale.saleNumber ?? sale.id} · ${round2(sale.totalAmount ?? 0)} ₺ · ${reason}`.slice(0, 500),
         createdAt: serverTimestamp(),
-        createdBy: userId,
       });
-      batch.update(doc(this.firestore, 'customers', sale.customerId), {
-        totalDebt: increment(-debt),
-        balance: increment(-debt),
-        updatedAt: serverTimestamp(),
-      });
-    }
 
-    await this.commit(batch, `cancel ${sale.saleNumber}`, running);
-    if (sale.customerId) void this.farmerSync.syncCustomer(sale.customerId);
+      // Aynı ürün birden fazla kalemde olabilir — ürün başına birikimli güncelle
+      const working = new Map<string, { product: Product; batches: Batch[]; qty: number }>();
+      for (const item of sale.items ?? []) {
+        let st = working.get(item.productId);
+        if (!st) {
+          const product = read ? await this.readProduct(read, item.productId) : await this.fetchProduct(item.productId);
+          if (!product) {
+            this.logger.warn('cancelSale: product not found, stock not restored', item.productId, sale.saleNumber);
+            continue;
+          }
+          st = { product, batches: product.batches ?? [], qty: 0 };
+          working.set(item.productId, st);
+        }
+        const previousStock = roundQty((Number(st.product.stock) || 0) + st.qty);
+        st.batches = restoreBatches(st.batches, item, now, () => crypto.randomUUID());
+        st.qty = roundQty(st.qty + item.quantity);
+
+        batch.set(doc(collection(this.firestore, 'stockMovements')), {
+          tenantId,
+          productId: st.product.id,
+          productName: st.product.name,
+          type: 'return',
+          quantity: item.quantity,
+          previousStock,
+          newStock: roundQty(previousStock + item.quantity),
+          reason: cancelRef,
+          reference: sale.id,
+          createdAt: serverTimestamp(),
+          createdBy: userId,
+        });
+      }
+      for (const st of working.values()) {
+        this.writeProductStock(batch, st.product, st.batches, st.qty, !!read, {});
+      }
+
+      // Veresiye ters kaydı
+      if (creditTxRef && sale.customerId) {
+        batch.set(creditTxRef, {
+          tenantId,
+          customerId: sale.customerId,
+          customerName: sale.customerName,
+          saleId: sale.id,
+          type: 'debt',
+          amount: -debt,
+          originalAmount: null,
+          description: `${cancelRef} · ${reason}`,
+          paymentMethod: null,
+          balance: -debt, // commit sırasında işlem sonrası müşteri bakiyesiyle değiştirilir
+          interestRate: null,
+          installmentCount: null,
+          installmentAmount: null,
+          isReversal: true,
+          createdAt: serverTimestamp(),
+          createdBy: userId,
+        });
+        batch.update(doc(this.firestore, 'customers', sale.customerId), {
+          totalDebt: increment(-debt),
+          balance: increment(-debt),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      return batch;
+    };
+
+    await this.commit(`cancel ${cached.saleNumber}`, build, running);
+    if (cached.customerId) void this.farmerSync.syncCustomer(cached.customerId);
+  }
+
+  /** Stok planı; sorun varsa ilgili hatayı fırlatır, onaysız uyarı varsa onay ister. */
+  private planOrThrow(lines: SaleStockLine[], options: CompleteSaleOptions): SaleStockPlan {
+    const r = planSaleStock(lines, Date.now());
+    if (r.problem) {
+      const p = r.problem;
+      if (p.kind === 'insufficient') throw new InsufficientStockError(p.productName, p.missing);
+      if (p.kind === 'gts-missing') throw new GtsUnavailableError(p.productName, p.gtsNos);
+      throw new ExpiredPlantProtectionError(p.productName, p.quantity, p.gtsNos);
+    }
+    const w = r.plan.warnings;
+    if (!options.confirmed && (w.expired.length || w.batchShortfall.length)) throw new SaleNeedsConfirmationError(w);
+    return r.plan;
+  }
+
+  /** Transaction içinde sepetteki ürünleri sunucudan oku (ürün başına bir kez). */
+  private async readLines<T extends SaleStockLine>(read: DocReader, lines: readonly T[]): Promise<T[]> {
+    const fresh = new Map<string, Product>();
+    for (const { product } of lines) {
+      if (fresh.has(product.id)) continue;
+      const p = await this.readProduct(read, product.id);
+      if (!p || p.isActive === false) throw new ProductNotFoundError(product.name);
+      fresh.set(product.id, p);
+    }
+    return lines.map(l => ({ ...l, product: fresh.get(l.product.id)! }));
+  }
+
+  private async readProduct(read: DocReader, id: string): Promise<Product | null> {
+    const snap = await read(doc(this.firestore, 'products', id));
+    return snap.exists() ? ({ id: snap.id, ...snap.data() } as Product) : null;
+  }
+
+  /**
+   * Ürün stoğu + partileri yaz (2.2). Stok her zaman `increment` ile.
+   * - transactional (çevrimiçi): partiler sunucudan okunan hâlden hesaplandı → dizinin tamamı yazılır.
+   * - çevrimdışı: dizinin tamamı yazılmaz (bayat önbellek başka kasanın sattığı birimi geri getirirdi);
+   *   yalnız değişen partiler `arrayRemove` (eski hâli) + `arrayUnion` (yeni hâli) ile yazılır.
+   *   Aynı GTS birimi iki kasada çevrimdışı satılırsa stok ile Σ parti ayrışır; ürün kartındaki uzlaştırma çözer.
+   */
+  private writeProductStock(w: WriteOps, product: Product, after: Batch[], stockDelta: number, transactional: boolean, extra: DocumentData): void {
+    const ref = doc(this.firestore, 'products', product.id);
+    const base: DocumentData = {
+      stock: increment(roundQty(stockDelta)),
+      expiryDate: nearestExpiry(after),
+      updatedAt: serverTimestamp(),
+      ...extra,
+    };
+    if (transactional) {
+      w.update(ref, { ...base, batches: after });
+      return;
+    }
+    const { removed, added } = diffBatches(product.batches ?? [], after);
+    w.update(ref, removed.length ? { ...base, batches: arrayRemove(...removed) } : base);
+    if (added.length) w.update(ref, { batches: arrayUnion(...added) });
   }
 
   private async fetchProduct(id: string): Promise<Product | null> {
@@ -493,12 +545,13 @@ export class SaleService {
   }
 
   /**
-   * Online: tek transaction — müşteri bakiyesi okunur, cari kaydın `balance` alanına
-   * işlem sonrası bakiye yazılır. Offline: writeBatch fire-and-forget (eldeki önbellek
-   * bakiyesiyle), hata loglanır (3.9). Müşteri bakiyesi her iki durumda increment ile güncellenir.
+   * Online: tek transaction — `build` sunucudan okuyarak yazımları kurar (çakışmada SDK yeniden dener,
+   * `build` her denemede baştan çalışır); müşteri bakiyesi okunur, cari kaydın `balance` alanına işlem
+   * sonrası bakiye yazılır. Offline: `build(null)` önbellekle kurulur, writeBatch fire-and-forget
+   * (eldeki önbellek bakiyesiyle), hata loglanır (3.9). Müşteri bakiyesi her iki durumda increment ile güncellenir.
    */
-  private async commit(w: WriteOps, label: string, running?: RunningBalance): Promise<void> {
-    const setRunning = (currentBalance: number) => {
+  private async commit(label: string, build: (read: DocReader | null) => Promise<WriteOps>, running?: RunningBalance): Promise<void> {
+    const setRunning = (w: WriteOps, currentBalance: number) => {
       if (!running) return;
       const op = w.ops.find(o => o.ref.path === running.txRef.path);
       if (op) op.data = { ...op.data, balance: round2(currentBalance + running.delta) };
@@ -506,9 +559,10 @@ export class SaleService {
 
     if (this.network.isOnline()) {
       await runTransaction(this.firestore, async tx => {
+        const w = await build(ref => tx.get(ref));
         if (running) {
           const c = await tx.get(doc(this.firestore, 'customers', running.customerId));
-          setRunning(Number(c.data()?.['balance'] ?? 0));
+          setRunning(w, Number(c.data()?.['balance'] ?? 0));
         }
         for (const o of w.ops) {
           if (o.type === 'set') tx.set(o.ref, o.data);
@@ -518,13 +572,14 @@ export class SaleService {
       return;
     }
 
+    const w = await build(null);
     if (running) {
       try {
         const c = await getDocFromCache(doc(this.firestore, 'customers', running.customerId));
-        setRunning(Number(c.data()?.['balance'] ?? 0));
+        setRunning(w, Number(c.data()?.['balance'] ?? 0));
       } catch (err) {
         this.logger.warn(`Offline: customer balance not in cache (${label})`, err);
-        setRunning(0);
+        setRunning(w, 0);
       }
     }
     const batch = writeBatch(this.firestore);

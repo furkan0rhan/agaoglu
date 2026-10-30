@@ -294,7 +294,7 @@ export class SaleDetailPage {
 
   readonly statusText = computed(() => { const s = this.sale(); return s ? statusLabel(this.t(), s.status) : ''; });
   readonly tone = computed<StatusTone>(() => { const s = this.sale(); return s ? statusTone(s.status) : 'success'; });
-  readonly method = computed(() => { const s = this.sale(); return s ? methodLabel(this.t(), s.paymentMethod) : ''; });
+  readonly method = computed(() => { const s = this.sale(); return s ? methodLabel(this.t(), s.paymentMethod, s) : ''; });
   readonly mTone = computed(() => methodTone(this.sale()?.paymentMethod ?? 'cash'));
   readonly mIcon = computed(() => methodIcon(this.sale()?.paymentMethod ?? 'cash'));
   /** Veresiye vadesi (Timestamp ya da Date). */

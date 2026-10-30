@@ -12,7 +12,9 @@ import { DialogModule } from 'primeng/dialog';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { ProductStore } from '../products/store/product.store';
-import { ProductService } from '../products/services/product.service';
+import { ProductService, ProductStockError } from '../products/services/product.service';
+import { NetworkService } from '../../core/offline/network.service';
+import { matchesSearch, searchKey } from '../../shared/utils/search.utils';
 import { Product, Batch, isDecimalUnit, productUnit } from '../../shared/models/product.model';
 import { LangService } from '../../core/i18n/lang.service';
 import { firstFEFO, roundQty } from '../../shared/utils/batch.utils';
@@ -249,6 +251,7 @@ interface ApplyError {
 export class StockCountPage implements OnInit {
   private readonly store = inject(ProductStore);
   private readonly svc = inject(ProductService);
+  private readonly network = inject(NetworkService);
   private readonly toast = inject(MessageService);
   private readonly lang = inject(LangService);
   readonly t = this.lang.t;
@@ -277,9 +280,9 @@ export class StockCountPage implements OnInit {
   }
 
   searchReasons(event: { query: string }, type: 'shortage' | 'surplus'): void {
-    const q = event.query.trim().toLowerCase();
+    const q = searchKey(event.query);
     const saved = this.savedReasons(type);
-    this.reasonSuggestions = q ? saved.filter(r => r.toLowerCase().includes(q)) : saved;
+    this.reasonSuggestions = q ? saved.filter(r => searchKey(r).includes(q)) : saved;
   }
 
   readonly q = signal('');
@@ -306,17 +309,13 @@ export class StockCountPage implements OnInit {
   readonly view = signal<'all' | 'diff' | 'uncounted'>('all');
 
   readonly filteredRows = computed(() => {
-    const search = this.q().toLowerCase().trim();
+    const search = searchKey(this.q());
     const v = this.view();
     let rows = this.rows();
     if (v === 'diff') rows = rows.filter(r => r.counted !== null && r.counted !== r.product.stock);
     else if (v === 'uncounted') rows = rows.filter(r => r.counted === null);
     if (!search) return rows;
-    return rows.filter(r =>
-      (r.product.name ?? '').toLowerCase().includes(search) ||
-      (r.product.barcode ?? '').toLowerCase().includes(search) ||
-      (r.product.category ?? '').toLowerCase().includes(search)
-    );
+    return rows.filter(r => matchesSearch(search, r.product.name, r.product.barcode, r.product.category));
   });
 
   readonly changedCount = computed(() => this.rows().filter(r => r.counted !== null && r.counted !== r.product.stock).length);
@@ -480,6 +479,11 @@ export class StockCountPage implements OnInit {
   async doComplete(): Promise<void> {
     const items = this.confirmItems();
     if (!items.length || this.saving()) return;
+    // 3.8: sayım transaction ister — çevrimdışında beklemeden anlaşılır uyarı
+    if (!this.network.isOnline()) {
+      this.toast.add({ severity: 'warn', summary: this.t().common.error, detail: this.t().inventory.stockNeedsOnline, life: 6000 });
+      return;
+    }
     this.saving.set(true);
     this.applyErrors.set([]);
     this.progress.set({ done: 0, total: items.length });
@@ -488,22 +492,24 @@ export class StockCountPage implements OnInit {
     let shortage = 0;
     let surplus = 0;
     for (const item of items) {
-      // Onay ekranı açıkken stok değişmiş olabilir: güncel ürünle farkı yeniden hesapla
+      // Sayılan değer mutlak hedeftir; fark ProductService.applyCount içinde (transaction) SUNUCUDAKİ güncel
+      // stoka göre hesaplanır — onay ekranı açıkken başka kasada yapılan satış ezilmez (2.2).
       const latest = this.store.products().find(p => p.id === item.product.id) ?? item.product;
-      const target = this.counted().get(latest.id);
-      const delta = target != null ? roundQty(target - latest.stock) : item.delta;
+      const target = this.counted().get(latest.id) ?? roundQty(item.product.stock + item.delta);
       try {
-        if (delta !== 0) {
+        const res = await this.svc.applyCount(latest, target, delta =>
           // Hareket listesinde başlık boş kalmasın: "Stok sayımı (neden)"
-          const reason = `${sc.movementReason} (${item.reason?.trim() || (delta < 0 ? sc.shortage : sc.surplus)})`;
-          await this.svc.adjustStock(latest, delta, reason);
-          if (item.reason?.trim()) this.saveReason(delta < 0 ? 'shortage' : 'surplus', item.reason.trim());
-          if (delta < 0) shortage++; else surplus++;
+          `${sc.movementReason} (${item.reason?.trim() || (delta < 0 ? sc.shortage : sc.surplus)})`);
+        if (res.delta !== 0) {
+          if (item.reason?.trim()) this.saveReason(res.delta < 0 ? 'shortage' : 'surplus', item.reason.trim());
+          if (res.delta < 0) shortage++; else surplus++;
         }
         ok++;
         this.setCount(latest.id, null);
       } catch (e: unknown) {
-        const message = userErrorMessage(e, sc.failed, this.lang.lang());
+        const message = e instanceof ProductStockError && e.code === 'offline'
+          ? this.t().inventory.stockNeedsOnline
+          : e instanceof ProductStockError ? sc.failed : userErrorMessage(e, sc.failed, this.lang.lang());
         this.applyErrors.update(list => [...list, { productId: latest.id, name: latest.name, message }]);
       }
       this.progress.update(p => (p ? { ...p, done: p.done + 1 } : p));

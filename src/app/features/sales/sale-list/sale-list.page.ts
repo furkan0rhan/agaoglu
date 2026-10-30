@@ -272,7 +272,7 @@ export class SaleListPage {
   );
 
   date(s: Sale): string { return formatDateTime(s.createdAt, this.lang.lang()); }
-  method(s: Sale): string { return methodLabel(this.t(), s.paymentMethod); }
+  method(s: Sale): string { return methodLabel(this.t(), s.paymentMethod, s); }
   statusText(s: SaleStatus): string { return statusLabel(this.t(), s); }
   tone(s: SaleStatus): StatusTone { return statusTone(s); }
   rx(s: Sale): boolean { return isPrescriptionSale(s); }

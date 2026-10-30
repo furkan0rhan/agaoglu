@@ -18,6 +18,7 @@ import { productMap, summarizeSales, toDate } from '../reports/services/report-c
 import { endOfDay, getPeriodRange, startOfDay } from '../../shared/utils/date-range.util';
 import { ShellStatusService } from '../../layout/shell-status.service';
 import { PaymentMethod, Sale } from '../../shared/models/sale.model';
+import { methodLabel } from '../sales/services/sales.helpers';
 import { Product } from '../../shared/models/product.model';
 import {
   EmptyStateComponent, GlassCardComponent, KbdComponent, PageHeaderComponent, SegmentedComponent,
@@ -279,7 +280,7 @@ interface AlertRow { id: string; icon: string; tone: UiTone; name: string; sub: 
                         }
                       </td>
                       <td class="px-3 sm:px-3.5">
-                        <ui-status-badge [tone]="payTone(s.paymentMethod)" [icon]="payIcon(s.paymentMethod)">{{ payLabel(s.paymentMethod) }}</ui-status-badge>
+                        <ui-status-badge [tone]="payTone(s.paymentMethod)" [icon]="payIcon(s.paymentMethod)">{{ payLabel(s) }}</ui-status-badge>
                       </td>
                       <td class="num whitespace-nowrap px-3 text-right font-extrabold text-fg sm:px-3.5">{{ s.totalAmount | currencyTr }}</td>
                     </tr>
@@ -437,6 +438,8 @@ export class DashboardPage implements OnInit {
       list.push({ label: h.addExpense, icon: 'pi-minus-circle', link: '/expenses' });
       list.push({ label: h.stockCount, icon: 'pi-barcode', link: '/stock-count' });
     }
+    // 5.11: alış fiyatı yetkili (yönetici olmayan) kullanıcı stok değer raporuna buradan ulaşır (yönetici: Raporlar)
+    if (!this.isAdmin() && this.seeCosts()) list.push({ label: this.t().inventory.stockValue, icon: 'pi-wallet', link: '/reports/stock-value' });
     if (!list.length) list.push({ label: this.t().nav.products, icon: 'pi-box', link: '/products' });
     return list;
   });
@@ -518,9 +521,9 @@ export class DashboardPage implements OnInit {
       : { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   }
 
-  payLabel(m: PaymentMethod): string {
-    const r = this.t().reports;
-    return { cash: r.cash, card: r.card, credit: r.credit, mixed: r.mixed }[m] ?? m;
+  /** 5.4: karma ödemede bileşenler ("Nakit + Kart"). */
+  payLabel(s: Pick<Sale, 'paymentMethod' | 'cashPaid' | 'cardPaid' | 'creditAmount'>): string {
+    return methodLabel(this.t(), s.paymentMethod, s);
   }
 
   payTone(m: PaymentMethod): UiTone {

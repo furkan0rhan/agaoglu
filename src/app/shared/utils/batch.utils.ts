@@ -220,3 +220,41 @@ export function lotFor(lot: LotInput, gts: string | null): string | null {
 export function withLot(b: Batch, lot: string | null): Batch {
   return lot ? { ...b, lotNo: lot } : b;
 }
+
+// ---- Çevrimdışı parti yazımı (2.2): arrayRemove / arrayUnion için tam nesne farkı ----
+
+function sameValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return a == null && b == null;
+  if (typeof a !== 'object' || typeof b !== 'object') return false;
+  const ta = a as { toMillis?: () => number; seconds?: number; nanoseconds?: number };
+  const tb = b as { toMillis?: () => number; seconds?: number; nanoseconds?: number };
+  if (typeof ta.toMillis === 'function' || typeof tb.toMillis === 'function') {
+    if (typeof ta.seconds === 'number' && typeof tb.seconds === 'number') {
+      return ta.seconds === tb.seconds && ta.nanoseconds === tb.nanoseconds;
+    }
+    return typeof ta.toMillis === 'function' && typeof tb.toMillis === 'function' && ta.toMillis() === tb.toMillis();
+  }
+  const ka = Object.keys(a).filter(k => (a as Record<string, unknown>)[k] !== undefined);
+  const kb = Object.keys(b).filter(k => (b as Record<string, unknown>)[k] !== undefined);
+  if (ka.length !== kb.length) return false;
+  return ka.every(k => sameValue((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
+}
+
+/** İki parti nesnesi alan alan aynı mı? (Firestore arrayRemove'un eşitlik anlayışı: tüm alanlar) */
+export function sameBatch(a: Batch, b: Batch): boolean {
+  return sameValue(a, b);
+}
+
+/**
+ * `before` → `after` parti listesi farkı: `removed` = artık olmayan (ya da değişen) partilerin ESKİ hâli,
+ * `added` = yeni ya da değişen partilerin YENİ hâli. Çevrimdışı yazımda partiler dizinin tamamı yerine
+ * `arrayRemove(...removed)` + `arrayUnion(...added)` ile yazılır; böylece iki kasa aynı ürünün FARKLI
+ * GTS birimlerini (quantity:1) sattığında biri diğerinin sattığı birimi geri getiremez (çoğalma / kayıp yok).
+ * Sıra önemsizdir (FEFO okurken sıralanır).
+ */
+export function diffBatches(before: readonly Batch[], after: readonly Batch[]): { removed: Batch[]; added: Batch[] } {
+  const removed = before.filter(b => !after.some(a => sameBatch(a, b)));
+  const added = after.filter(a => !before.some(b => sameBatch(a, b)));
+  return { removed, added };
+}

@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/guards/auth.guard';
 import { guestGuard } from './core/auth/guards/guest.guard';
 import { roleGuard } from './core/auth/guards/role.guard';
+import { permissionGuard } from './core/auth/guards/permission.guard';
 import { superAdminGuard } from './core/auth/guards/super-admin.guard';
 import { licenseGuard } from './core/license/license.guard';
 
@@ -66,6 +67,13 @@ export const routes: Routes = [
         canActivate: [roleGuard],
         data: { roles: ['admin', 'cashier'] },
         loadChildren: () => import('./features/credit/credit.routes').then(m => m.creditRoutes),
+      },
+      {
+        // 5.11 Stok değer raporu: yönetici ya da alış fiyatı yetkisi (seeCosts) olan kullanıcı ('reports'tan önce eşleşir)
+        path: 'reports/stock-value',
+        canActivate: [permissionGuard],
+        data: { permission: 'seeCosts' },
+        loadComponent: () => import('./features/reports/stock-value/stock-value.page').then(m => m.StockValuePage),
       },
       {
         path: 'reports',

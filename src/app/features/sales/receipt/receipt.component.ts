@@ -215,7 +215,7 @@ export class ReceiptComponent {
       day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
     }),
   );
-  readonly method = computed(() => methodLabel(this.t(), this.receipt().paymentMethod));
+  readonly method = computed(() => methodLabel(this.t(), this.receipt().paymentMethod, this.receipt()));
   readonly isPayment = computed(() => this.receipt().kind === 'payment');
   readonly vatRows = computed(() => (this.isPayment() ? [] : receiptVatBreakdown(this.receipt())));
   readonly paymentMethodText = computed(() => {

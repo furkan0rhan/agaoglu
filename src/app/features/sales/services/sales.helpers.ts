@@ -42,11 +42,28 @@ export function qtyWithUnit(t: Translations, q: number, unit: SaleUnit | null | 
   return `${formatQty(q, lang)} ${t.pos.units[unit ?? 'adet']}`;
 }
 
-export function methodLabel(t: Translations, m: PaymentMethod): string {
-  return m === 'cash' ? t.sales.methodCash
-    : m === 'card' ? t.sales.methodCard
-    : m === 'credit' ? t.sales.methodCredit
-    : t.sales.methodMixed;
+/** Karma ödemenin tutarları (satış / fiş). */
+export interface PaymentParts {
+  cashPaid?: number | null;
+  cardPaid?: number | null;
+  creditAmount?: number | null;
+}
+
+/**
+ * Ödeme adı. 'mixed' (karma) için `parts` verilirse bileşenler yazılır: "Nakit + Kart", "Nakit + Veresiye"
+ * (5.4: nakit + kart bölünmüş ödeme, nakit + veresiye peşinatlı satış). Tutar yoksa "Karma".
+ */
+export function methodLabel(t: Translations, m: PaymentMethod, parts?: PaymentParts | null): string {
+  if (m === 'cash') return t.sales.methodCash;
+  if (m === 'card') return t.sales.methodCard;
+  if (m === 'credit') return t.sales.methodCredit;
+  if (!parts) return t.sales.methodMixed;
+  const names = [
+    (parts.cashPaid ?? 0) > 0 ? t.sales.methodCash : null,
+    (parts.cardPaid ?? 0) > 0 ? t.sales.methodCard : null,
+    (parts.creditAmount ?? 0) > 0 ? t.sales.methodCredit : null,
+  ].filter((x): x is string => !!x);
+  return names.length >= 2 ? names.join(' + ') : t.sales.methodMixed;
 }
 
 export function formatDateTime(ts: Timestamp | null | undefined, lang: string): string {

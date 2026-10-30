@@ -35,6 +35,8 @@ export interface InventoryTexts {
   lotNo: string; lotNoPlaceholder: string;
   /** Y3: bitki koruma ürününde SKT zorunlu */
   expiryRequiredPp: string; expiryRequiredPpHint: string; gtsNoExpiry: (n: number) => string;
+  /** 2.2 / 3.8: transaction gerektiren stok işlemi çevrimdışında */
+  stockNeedsOnline: string;
 }
 
 export const INVENTORY_TR: InventoryTexts = {
@@ -76,6 +78,7 @@ export const INVENTORY_TR: InventoryTexts = {
   expiryRequiredPp: 'Bitki koruma ürününde son kullanma tarihi (SKT) zorunludur. Karekodda SKT yoksa kutudaki tarihi yazın.',
   expiryRequiredPpHint: 'Bitki koruma ürünü: SKT zorunlu',
   gtsNoExpiry: n => `${n} karekodda SKT yok; formdaki SKT bu birimlere yazılacak.`,
+  stockNeedsOnline: 'Bu stok işlemi için internet gerekli: stok, diğer kasalarla çakışmasın diye sunucudaki güncel değer üzerinden yazılır. Bağlantı gelince tekrar deneyin. (Stok girişi ve satış çevrimdışında da yapılabilir.)',
 };
 
 export const INVENTORY_EN: InventoryTexts = {
@@ -117,4 +120,5 @@ export const INVENTORY_EN: InventoryTexts = {
   expiryRequiredPp: 'An expiry date is required for plant protection products. If the code has none, enter the date on the box.',
   expiryRequiredPpHint: 'Plant protection product: expiry required',
   gtsNoExpiry: n => `${n} codes have no expiry; the form expiry will be used for them.`,
+  stockNeedsOnline: 'This stock operation needs an internet connection: stock is written from the current server value so it cannot clash with other tills. Try again when you are back online. (Stock-in and sales also work offline.)',
 };

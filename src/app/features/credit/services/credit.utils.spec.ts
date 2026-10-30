@@ -1,5 +1,5 @@
 import {
-  addMonthsClamped, allocatePayment, buildInstallmentPlan, buildReminderText, buildSchedule, buildStatement,
+  addMonthsClamped, agingBucketOf, agingOf, emptyAging, sumAging, allocatePayment, buildInstallmentPlan, buildReminderText, buildSchedule, buildStatement,
   checkCreditLimit, creditStatus, daysOverdue, debtInstallments, reminderMessage, smsLink, summarizeOverdue, toIntlPhone, whatsappLink,
 } from './credit.utils';
 
@@ -212,5 +212,53 @@ describe('Y7: vadesiz borçlara varsayılan vade', () => {
     const items = debtInstallments([debt('A', 100, null, { installmentCount: 3 })], {});
     expect(items.reduce((s, i) => s + i.amount, 0)).toBeCloseTo(100, 2);
     expect(items[2].amount).toBe(33.34);
+  });
+});
+
+describe('5.7 yaşlandırma (agingOf / sumAging)', () => {
+  const today = new Date(2026, 9, 30);
+  const day = (offset: number) => new Date(2026, 9, 30 + offset);
+  const debt = (id: string, amount: number, dueOffset: number | null, createdOffset = -200) => ({
+    id, type: 'debt' as const, amount, saleId: id, createdAt: day(createdOffset),
+    dueDate: dueOffset == null ? null : day(dueOffset),
+  });
+
+  it('dilim sınırları: 0 / 1-30 / 31-60 / 61-90 / 90+', () => {
+    expect(agingBucketOf(0)).toBe('notDue');
+    expect(agingBucketOf(1)).toBe('d0_30');
+    expect(agingBucketOf(30)).toBe('d0_30');
+    expect(agingBucketOf(31)).toBe('d31_60');
+    expect(agingBucketOf(60)).toBe('d31_60');
+    expect(agingBucketOf(61)).toBe('d61_90');
+    expect(agingBucketOf(90)).toBe('d61_90');
+    expect(agingBucketOf(91)).toBe('d90p');
+  });
+
+  it('bakiye dilimlere dağılır; tahsilat en eski vadeden düşülür; toplam = bakiye', () => {
+    const txs = [debt('a', 100, -120), debt('b', 200, -45), debt('c', 300, -10), debt('d', 400, 15)];
+    // toplam borç 1000, bakiye 850 → 150 tahsil edilmiş: a (100) tamamen + b'den 50
+    const r = agingOf(buildSchedule(txs, 850), 850, today);
+    expect(r).toEqual({ notDue: 400, d0_30: 300, d31_60: 150, d61_90: 0, d90p: 0, total: 850, overdue: 450, maxDaysOverdue: 45 });
+  });
+
+  it('varsayılan vade: vadesiz borç satış + N günde gecikmeye düşer', () => {
+    const txs = [debt('x', 500, null, -100)];
+    expect(agingOf(buildSchedule(txs, 500, { defaultDueDays: 30 }), 500, today).d61_90).toBe(500);
+    expect(agingOf(buildSchedule(txs, 500), 500, today).notDue).toBe(500);
+  });
+
+  it('kayıtsız devir bakiyesi vadesi gelmemişe yazılır; bakiye ≤ 0 boş', () => {
+    const r = agingOf(buildSchedule([debt('a', 100, -5)], 250), 250, today);
+    expect(r.d0_30).toBe(100);
+    expect(r.notDue).toBe(150);
+    expect(r.total).toBe(250);
+    expect(agingOf([], -20, today)).toEqual(emptyAging());
+  });
+
+  it('sumAging toplar', () => {
+    const a = agingOf(buildSchedule([debt('a', 100, -100)], 100), 100, today);
+    const b = agingOf(buildSchedule([debt('b', 50, -70), debt('c', 25, 3)], 75), 75, today);
+    const s = sumAging([a, b]);
+    expect(s).toEqual({ notDue: 25, d0_30: 0, d31_60: 0, d61_90: 50, d90p: 100, total: 175, overdue: 150, maxDaysOverdue: 100 });
   });
 });

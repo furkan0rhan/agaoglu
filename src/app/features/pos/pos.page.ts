@@ -15,7 +15,8 @@ import { MessageService, ConfirmationService } from 'primeng/api';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { CartState, CartStore } from './store/cart.store';
 import { CANCEL_REASON_MAX, isValidCancelReason } from '../sales/services/cancel-policy';
-import { cancelErrorText } from '../sales/services/sales.helpers';
+import { cancelErrorText, methodLabel } from '../sales/services/sales.helpers';
+import { CashRemainder, splitPayment } from './services/split-payment';
 import { ProductStore } from '../products/store/product.store';
 import {
   SaleService, CompletedSale, CreditOptions, ProductNotFoundError, InsufficientStockError,
@@ -125,7 +126,18 @@ function fromDateInput(v: string): Date | null {
           [label]="t().pos2.quickCashLabel" [exactLabel]="t().pos2.exact" [count]="4" />
 
         @if (cashShortfall() > 0) {
-          @if (cart.customerId()) {
+          <!-- 5.4: eksik kalan tutar karta (nakit + kart) ya da veresiyeye (nakit + veresiye) -->
+          <div class="flex flex-col gap-1.5">
+            <span class="text-sm font-semibold text-fg-secondary">{{ t().pos2.restTo }}</span>
+            <ui-segmented [options]="restOptions()" [value]="cashRest()" (valueChange)="cashRest.set($event ?? 'card')" [block]="true"
+              [ariaLabel]="t().pos2.restTo" />
+          </div>
+          @if (cashRest() === 'card') {
+            <div class="flex items-center justify-between gap-3 rounded-token-lg border border-info-line bg-info-soft px-4 py-3" aria-live="polite">
+              <span class="text-sm font-semibold text-info-text">{{ t().pos2.remainingToCard }}</span>
+              <ui-money class="num-xl text-xl text-info-text" [value]="cashShortfall()" />
+            </div>
+          } @else if (cart.customerId()) {
             <div class="flex items-center justify-between gap-3 rounded-token-lg border border-accent-line bg-accent-soft px-4 py-3">
               <span class="text-sm font-semibold text-accent-text">{{ t().pos.remainingToCredit }}</span>
               <ui-money class="num-xl text-xl text-accent-text" [value]="cashShortfall()" />
@@ -151,7 +163,7 @@ function fromDateInput(v: string): Date | null {
             (onClick)="showCash.set(false)" [disabled]="saving()" />
           <p-button class="flex-1" styleClass="w-full min-h-[48px]" [label]="t().pos.complete" icon="pi pi-check"
             (onClick)="confirmCashPayment()" [loading]="saving()"
-            [disabled]="saving() || (cashShortfall() > 0 && !cart.customerId())" />
+            [disabled]="saving() || (cashShortfall() > 0 && cashRest() === 'credit' && !cart.customerId())" />
         </div>
       </ng-template>
     </p-dialog>
@@ -184,18 +196,26 @@ function fromDateInput(v: string): Date | null {
     <!-- Y9: odak "Evet, tahsil edildi"de (Enter onaylar, Esc kapatır); PrimeNG ilk odaklanabilir öğeye (İptal) odaklamasın -->
     <p-dialog [header]="t().pos.cardConfirmTitle" [(visible)]="showCard" [modal]="true" [draggable]="false"
       appendTo="body" styleClass="w-[400px] max-w-[calc(100vw-2rem)]" [focusOnShow]="false"
-      (onShow)="focusById('card-confirm-yes', false, 0)" (onHide)="focusSearch()">
+      (onShow)="focusById('card-confirm-yes', false, 0)" (onHide)="onCardHide()">
       <div class="flex flex-col items-center gap-3 py-2 text-center">
         <span class="flex h-16 w-16 items-center justify-center rounded-token-xl bg-surface-strong text-fg">
           <i class="pi pi-credit-card text-3xl" aria-hidden="true"></i>
         </span>
-        <ui-money class="num-xl text-3xl text-fg" [value]="payTotal()" />
+        <ui-money class="num-xl text-3xl text-fg" [value]="cardDue()" />
+        @if (splitCash() > 0) {
+          <!-- 5.4: nakit + kart -->
+          <dl class="m-0 flex w-full flex-col gap-1 rounded-token-lg bg-surface-muted px-4 py-2.5 text-sm">
+            <div class="flex justify-between gap-3"><dt class="text-fg-secondary">{{ t().pos.totalAmount }}</dt><dd class="m-0"><ui-money class="text-fg" [value]="payTotal()" /></dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-fg-secondary">{{ t().pos2.splitCashPart }}</dt><dd class="m-0"><ui-money class="text-fg" [value]="splitCash()" /></dd></div>
+            <div class="flex justify-between gap-3 font-semibold"><dt class="text-fg">{{ t().pos2.splitCardPart }}</dt><dd class="m-0"><ui-money class="text-fg" [value]="cardDue()" /></dd></div>
+          </dl>
+        }
         <p class="m-0 text-base font-semibold text-fg-secondary">{{ cardQuestion() }}</p>
       </div>
       <ng-template #footer>
         <div class="flex w-full gap-2">
-          <p-button [label]="t().pos.cancel" severity="secondary" styleClass="min-h-[48px]"
-            (onClick)="showCard.set(false)" [disabled]="saving()" />
+          <p-button [label]="splitCash() > 0 ? t().pos2.splitBack : t().pos.cancel" severity="secondary" styleClass="min-h-[48px]"
+            (onClick)="cancelCard()" [disabled]="saving()" />
           <button id="card-confirm-yes" type="button" (click)="confirmCardPayment()" [disabled]="saving()"
             class="flex min-h-[48px] flex-1 cursor-pointer items-center justify-center gap-2 rounded-token-md border-0 bg-brand px-4 text-base font-bold text-brand-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed ui-btn-disabled-soft">
             <i class="pi" [class]="saving() ? 'pi-spin pi-spinner' : 'pi-check'" aria-hidden="true"></i>
@@ -1069,9 +1089,19 @@ export class PosPage implements OnInit, AfterViewInit {
   /** Nakit eksik kalan tutar (1.4). */
   readonly cashShortfall = computed(() => round2(Math.max(0, this.payTotal() - this.receivedCash())));
   readonly cashChange = computed(() => round2(Math.max(0, this.receivedCash() - this.payTotal())));
+  /** 5.4: nakitte eksik kalan tutarın gideceği yer. */
+  readonly cashRest = signal<CashRemainder>('card');
+  readonly restOptions = computed<UiSegmentOption<CashRemainder>[]>(() => [
+    { value: 'card', label: this.t().pos2.restCard, icon: 'pi-credit-card' },
+    { value: 'credit', label: this.t().pos2.restCredit, icon: 'pi-book' },
+  ]);
 
+  // ---- Kart (5.4: nakit + kart bölünmüşse yalnız kalan kısım karttan) ----
+  /** Bölünmüş ödemede alınan nakit (0 = tamamı kart). */
+  readonly splitCash = signal(0);
+  readonly cardDue = computed(() => round2(Math.max(0, this.payTotal() - this.splitCash())));
   readonly cardQuestion = computed(() =>
-    this.t().pos.cardConfirmQuestion.replace('{amount}', `${this.money(this.payTotal(), false)} ₺`));
+    this.t().pos.cardConfirmQuestion.replace('{amount}', `${this.money(this.cardDue(), false)} ₺`));
 
   // ---- Veresiye ----
   readonly installmentOptions = INSTALLMENT_OPTIONS;
@@ -1743,8 +1773,11 @@ export class PosPage implements OnInit, AfterViewInit {
     if (!this.canPay()) return;
     if (this.needsRxPrompt(method)) return;
     this.payTotal.set(this.cart.totalAmount());
+    this.splitCash.set(0);
     if (method === 'cash') {
       this.cashAmount.set(this.cart.totalAmount());
+      // 5.4: eksik nakit için varsayılan: müşteri seçiliyse veresiye (eski davranış), değilse kart
+      this.cashRest.set(this.cart.customerId() ? 'credit' : 'card');
       this.showCash.set(true);
     } else if (method === 'card') {
       this.showCard.set(true);
@@ -1778,22 +1811,54 @@ export class PosPage implements OnInit, AfterViewInit {
   async confirmCashPayment(): Promise<void> {
     if (this.saving()) return;
     const amount = this.receivedCash();
-    const shortfall = this.cashShortfall();
-    if (shortfall > 0 && !this.cart.customerId()) {
-      // Müşteri yoksa eksik ödeme ile satış tamamlanmaz
+    const split = splitPayment(this.payTotal(), amount, this.cashRest());
+    if (split.card > 0) {
+      // 5.4: nakit + kart — kalan kısım için kart onayı (POS cihazından çekildi mi?)
+      this.splitCash.set(split.cash);
+      this.showCash.set(false);
+      this.showCard.set(true);
+      return;
+    }
+    if (split.credit > 0 && !this.cart.customerId()) {
+      // Müşteri yoksa eksik ödeme veresiyeye yazılamaz
       this.toast(this.t().pos.creditNeedsCustomer, 'warn');
       return;
     }
     // Eksik tutar varsa kalan veresiyeye yazılır (cart.creditAmount > 0)
-    this.cart.setPayment(shortfall > 0 ? 'mixed' : 'cash', amount, 0);
+    this.cart.setPayment(split.method, split.cash, 0);
     if (await this.completeSale()) this.showCash.set(false);
   }
 
   async confirmCardPayment(): Promise<void> {
     if (this.saving()) return;
-    this.payTotal.set(this.cart.totalAmount());
-    this.cart.setPayment('card', 0, this.cart.totalAmount());
-    if (await this.completeSale()) this.showCard.set(false);
+    const total = this.cart.totalAmount();
+    this.payTotal.set(total);
+    const cash = this.splitCash();
+    if (cash > 0) {
+      // 5.4: nakit + kart (para üstü yok, veresiye yok)
+      const split = splitPayment(total, cash, 'card');
+      this.cart.setPayment(split.method, split.cash, split.card);
+    } else {
+      this.cart.setPayment('card', 0, total);
+    }
+    if (await this.completeSale()) {
+      this.splitCash.set(0);
+      this.showCard.set(false);
+    }
+  }
+
+  /** Kart onayında İptal / Geri: bölünmüş ödemede nakit dialoguna dön. */
+  cancelCard(): void {
+    const back = this.splitCash() > 0;
+    this.showCard.set(false);
+    if (back) {
+      this.splitCash.set(0);
+      this.showCash.set(true);
+    }
+  }
+
+  onCardHide(): void {
+    if (!this.showCash()) this.focusSearch();
   }
 
   /**
@@ -1907,9 +1972,7 @@ export class PosPage implements OnInit, AfterViewInit {
   // ================= Satış sonrası =================
 
   methodText(ls: CompletedSale): string {
-    const s = this.t().sales;
-    const m = ls.receipt.paymentMethod;
-    return m === 'cash' ? s.methodCash : m === 'card' ? s.methodCard : m === 'credit' ? s.methodCredit : s.methodMixed;
+    return methodLabel(this.t(), ls.receipt.paymentMethod, ls.receipt);
   }
 
   printLast(): void {

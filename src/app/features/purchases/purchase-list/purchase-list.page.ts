@@ -19,6 +19,7 @@ import { SumStripComponent, SumStripItem } from '../../products/components/sum-s
 import { SupplierService } from '../../suppliers/services/supplier.service';
 import { PurchaseService } from '../services/purchase.service';
 import { roundKurus } from '../services/purchase.utils';
+import { injectReturnTexts } from '../returns/supplier-return.i18n';
 
 @Component({
   selector: 'app-purchase-list',
@@ -34,6 +35,8 @@ import { roundKurus } from '../services/purchase.utils';
     <p-toast />
     <ui-page-header [title]="t().purchases.title" icon="pi-download" iconTone="info"
       [subtitle]="filtered().length + ' ' + t().purchases.countSuffix">
+      <!-- 11.13 Firmaya iade -->
+      <p-button [label]="rt().openLink" icon="pi pi-reply" severity="secondary" routerLink="returns" />
       <p-button [label]="t().purchases.newPurchase" icon="pi pi-plus" routerLink="new" />
     </ui-page-header>
 
@@ -142,6 +145,7 @@ export class PurchaseListPage {
   private readonly toast = inject(MessageService);
   readonly t = inject(LangService).t;
   readonly inv = computed(() => this.t().inventory);
+  readonly rt = injectReturnTexts();
   private readonly router = inject(Router);
   private readonly currency = new CurrencyTrPipe();
 

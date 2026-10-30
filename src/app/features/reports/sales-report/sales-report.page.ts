@@ -27,7 +27,7 @@ import {
 import { PurchaseService } from '../../purchases/services/purchase.service';
 import { PurchaseSummary } from '../../purchases/services/purchase.utils';
 import { injectReportTexts } from '../reports.i18n';
-import { qtyWithUnit } from '../../sales/services/sales.helpers';
+import { methodLabel, qtyWithUnit } from '../../sales/services/sales.helpers';
 import type { UnitQty } from '../services/report-calc';
 import { buildCancellationRows, CancellationRow } from '../services/cancellations';
 
@@ -81,6 +81,9 @@ function cssVar(name: string): string {
     <p-toast />
 
     <ui-page-header [title]="t().reports.title" [subtitle]="t().reports.subtitle" icon="pi-chart-bar" iconTone="info">
+      <!-- 5.7 / 5.11 diğer raporlar (ayrı lazy sayfalar) -->
+      <p-button icon="pi pi-clock" [label]="rx().agingLink" severity="secondary" routerLink="credit-aging" />
+      <p-button icon="pi pi-box" [label]="rx().stockValueLink" severity="secondary" routerLink="stock-value" />
       <p-button icon="pi pi-file-excel" [label]="t().reports.exportExcel" severity="secondary"
         [loading]="exporting() === 'xlsx'" [disabled]="loading() || !!exporting()" (onClick)="export('xlsx')" />
       <p-button icon="pi pi-file-pdf" [label]="t().reports.exportPdf" severity="secondary"
@@ -336,7 +339,7 @@ function cssVar(name: string): string {
                   </div>
                   <div class="flex shrink-0 flex-col items-end gap-1">
                     <ui-money class="text-sm font-bold text-fg" [value]="sale.totalAmount" />
-                    <ui-status-badge size="sm" [tone]="payTone(sale.paymentMethod)">{{ paymentLabel(sale.paymentMethod) }}</ui-status-badge>
+                    <ui-status-badge size="sm" [tone]="payTone(sale.paymentMethod)">{{ paymentLabel(sale) }}</ui-status-badge>
                   </div>
                 </li>
               }
@@ -697,10 +700,9 @@ export class SalesReportPage implements OnInit {
     return m[method] ?? 'neutral';
   }
 
-  paymentLabel(method: PaymentMethod): string {
-    const r = this.t().reports;
-    const m: Record<string, string> = { cash: r.cash, card: r.card, credit: r.credit, mixed: r.mixed };
-    return m[method] ?? method;
+  /** 5.4: karma ödemede bileşenler ("Nakit + Kart"). */
+  paymentLabel(s: Sale): string {
+    return methodLabel(this.t(), s.paymentMethod, s);
   }
 
   // ── Dışa aktarma ──────────────────────────────────────────────
@@ -736,7 +738,7 @@ export class SalesReportPage implements OnInit {
           const cost = round2(saleCost(x, pm).cost);
           const v = saleVat(x, pm);
           return [
-            x.saleNumber, this.formatTime(x.createdAt), x.customerName || r.cashCustomer, this.paymentLabel(x.paymentMethod),
+            x.saleNumber, this.formatTime(x.createdAt), x.customerName || r.cashCustomer, this.paymentLabel(x),
             x.totalAmount, v.vat, v.net, cost, round2(v.net - cost), round2(saleInterest(x)),
           ];
         }),

@@ -115,7 +115,52 @@ service cloud.firestore {
     }
     function stockOnlyUpdate() {
       return request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['stock', 'batches', 'expiryDate', 'updatedAt']);
+        .hasOnly(['stock', 'batches', 'expiryDate', 'updatedAt', 'lastSaleId']);
+    }
+
+    // ---- 2.38: stok güvenlik ağı (products) ----
+    // stock sayı ve >= 0. İstisnalar (negatif stok ayarı yok; bunlar veri kaybını önlemek için):
+    //  (a) stoğu azaltmayan yazım (stok zaten negatifse — eski veri / çevrimdışı fazla satış — ad, fiyat, giriş yazılabilsin),
+    //  (b) çevrimdışı satış: iki kasa çevrimdışıyken son birimi sattıysa `increment` stoğu negatife düşürür; satış
+    //      kaydı kaybolmasın diye yalnız AYNI yazımda oluşturulan satış (lastSaleId) için izin verilir.
+    //      Çevrimiçi satış transaction'da sunucudaki stokla doğrulanır (sale.service.ts).
+    function stockValueOk(s, prev) {
+      return s is number && (s >= 0 || (prev is number && s >= prev) || offlineSaleWrite());
+    }
+    function offlineSaleWrite() {
+      let sid = request.resource.data.get('lastSaleId', null);
+      return sid is string && sid != resource.data.get('lastSaleId', null)
+        && existsAfter(/databases/$(database)/documents/sales/$(sid))
+        && !exists(/databases/$(database)/documents/sales/$(sid));
+    }
+    // Parti miktarı sayı ve >= 0. Kurallar listede döngü kuramaz: ilk 40 parti denetlenir (güvenlik ağı;
+    // istemci hiçbir yolda negatif parti yazmaz — allocateFEFO / consumeFEFO tükenen partiyi siler).
+    function batchQtyOk(list, i) {
+      return list.size() <= i || (list[i].get('quantity', 0) is number && list[i].get('quantity', 0) >= 0);
+    }
+    function batchesOk(d) {
+      return !('batches' in d) || d.batches == null || (d.batches is list
+        && batchQtyOk(d.batches, 0) && batchQtyOk(d.batches, 1) && batchQtyOk(d.batches, 2) && batchQtyOk(d.batches, 3)
+        && batchQtyOk(d.batches, 4) && batchQtyOk(d.batches, 5) && batchQtyOk(d.batches, 6) && batchQtyOk(d.batches, 7)
+        && batchQtyOk(d.batches, 8) && batchQtyOk(d.batches, 9) && batchQtyOk(d.batches, 10) && batchQtyOk(d.batches, 11)
+        && batchQtyOk(d.batches, 12) && batchQtyOk(d.batches, 13) && batchQtyOk(d.batches, 14) && batchQtyOk(d.batches, 15)
+        && batchQtyOk(d.batches, 16) && batchQtyOk(d.batches, 17) && batchQtyOk(d.batches, 18) && batchQtyOk(d.batches, 19)
+        && batchQtyOk(d.batches, 20) && batchQtyOk(d.batches, 21) && batchQtyOk(d.batches, 22) && batchQtyOk(d.batches, 23)
+        && batchQtyOk(d.batches, 24) && batchQtyOk(d.batches, 25) && batchQtyOk(d.batches, 26) && batchQtyOk(d.batches, 27)
+        && batchQtyOk(d.batches, 28) && batchQtyOk(d.batches, 29) && batchQtyOk(d.batches, 30) && batchQtyOk(d.batches, 31)
+        && batchQtyOk(d.batches, 32) && batchQtyOk(d.batches, 33) && batchQtyOk(d.batches, 34) && batchQtyOk(d.batches, 35)
+        && batchQtyOk(d.batches, 36) && batchQtyOk(d.batches, 37) && batchQtyOk(d.batches, 38) && batchQtyOk(d.batches, 39));
+    }
+    function productCreateStockOk() {
+      let d = request.resource.data;
+      return (!('stock' in d) || (d.stock is number && d.stock >= 0)) && batchesOk(d);
+    }
+    // Yalnız değişen alanlar denetlenir (eski / bozuk veri ad-fiyat düzenlemesini kilitlemesin)
+    function productUpdateStockOk() {
+      let d = request.resource.data;
+      let changed = d.diff(resource.data).affectedKeys();
+      return (!changed.hasAny(['stock']) || stockValueOk(d.get('stock', 0), resource.data.get('stock', 0)))
+        && (!changed.hasAny(['batches']) || batchesOk(d));
     }
 
     // ---- Satış iptali (Y4) — src/app/features/sales/services/cancel-policy.ts ile aynı ----
@@ -349,8 +394,9 @@ service cloud.firestore {
     // Y5: ürün tanımı (ekleme, fiyat, bilgi, silme) yalnız yönetici; kasiyer/personel yalnız stok alanları
     match /products/{productId} {
       allow read: if canRead();
-      allow create: if canAdminCreate();
-      allow update: if canUpdate() && (stockOnlyUpdate() || isAdminOf(resource.data.tenantId));
+      allow create: if canAdminCreate() && productCreateStockOk();
+      allow update: if canUpdate() && (stockOnlyUpdate() || isAdminOf(resource.data.tenantId))
+        && productUpdateStockOk();
       allow delete: if canAdminDelete();
     }
 
@@ -435,6 +481,23 @@ service cloud.firestore {
           request.resource.data.amount >= 0
           || request.resource.data.get('isReversal', false) == true
         );
+    }
+
+    // 11.13 Firmaya iade (SKT geçmiş BKÜ vb.): değişmez kayıt (update/delete yok), yalnız yönetici / destek.
+    // Stok düşümü aynı transaction'da products (yönetici) + stockMovements 'out' (reference = iade id).
+    match /supplierReturns/{returnId} {
+      allow read: if canAdminRead();
+      allow create: if canAdminCreate()
+        && request.resource.data.quantity is number
+        && request.resource.data.quantity > 0
+        && request.resource.data.reason in ['expired', 'damaged', 'recall', 'other']
+        && request.resource.data.supplierId is string
+        && request.resource.data.supplierId.size() > 0
+        && request.resource.data.productId is string
+        && request.resource.data.units is list
+        && request.resource.data.units.size() > 0
+        && request.resource.data.returnDate is timestamp
+        && request.resource.data.createdBy == request.auth.uid;
     }
 
     // ===== ÇİFTÇİ MODÜLÜ =====

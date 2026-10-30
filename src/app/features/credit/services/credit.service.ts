@@ -13,7 +13,7 @@ import { Customer } from '../../../shared/models/customer.model';
 import { CreditTransaction } from '../../../shared/models/credit.model';
 import { CustomerService } from '../../customers/services/customer.service';
 import {
-  CreditLimitCheck, CreditStatus, InstallmentPlan, OverdueSummary, buildInstallmentPlan, buildSchedule,
+  AgingRow, CreditLimitCheck, CreditStatus, InstallmentPlan, OverdueSummary, agingOf, buildInstallmentPlan, buildSchedule,
   checkCreditLimit, creditStatus, roundKurus, summarizeOverdue,
 } from './credit.utils';
 
@@ -121,6 +121,29 @@ export class CreditService {
         return out;
       }),
       shareReplay({ bufferSize: 1, refCount: true }),
+    );
+  }
+
+  /**
+   * 5.7 Yaşlandırma raporu: borçlu (bakiye > 0) müşterilerin bakiyesi vade dilimlerine dağıtılmış (bkz. agingOf).
+   * Borç sorgusu hatası raporda gizlenmez (yanlış "vadesi gelmemiş" göstermemek için) — çağıran ele alır.
+   */
+  agingByCustomer$(today = new Date()): Observable<{ customer: Customer; aging: AgingRow }[]> {
+    this.settings.ensureLoaded();
+    return combineLatest([this.customers.getAll$(), this.debts$(), this.creditSettings$]).pipe(
+      map(([customers, debts, cs]) => {
+        const byCustomer = new Map<string, CreditTransaction[]>();
+        for (const tx of debts) {
+          const list = byCustomer.get(tx.customerId);
+          if (list) list.push(tx); else byCustomer.set(tx.customerId, [tx]);
+        }
+        return customers
+          .filter(c => roundKurus(c.balance ?? 0) > 0)
+          .map(c => ({
+            customer: c,
+            aging: agingOf(buildSchedule(byCustomer.get(c.id) ?? [], c.balance, { defaultDueDays: cs.defaultDueDays }), c.balance, today),
+          }));
+      }),
     );
   }
 

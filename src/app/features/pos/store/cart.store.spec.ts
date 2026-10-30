@@ -72,6 +72,14 @@ describe('CartStore', () => {
     expect(cart.change()).toBe(0);
   });
 
+  it('5.4: nakit + kart bölünmüş ödemede veresiye ve para üstü 0', () => {
+    const cart = create();
+    cart.addItem(item('A', 1000.5));
+    cart.setPayment('mixed', 300, 700.5);
+    expect(cart.creditAmount()).toBe(0);
+    expect(cart.change()).toBe(0);
+  });
+
   it('stok sınırında limit döner', () => {
     const cart = create();
     expect(cart.addItem(item('A', 10, { stock: 1 }))).toBe('added');

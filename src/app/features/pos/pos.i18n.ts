@@ -65,6 +65,14 @@ export interface PosTexts {
   mobileCart: string;
   quickCashLabel: string;
   exact: string;
+  /** 5.4 nakit + kart bölünmüş ödeme */
+  restTo: string;
+  restCard: string;
+  restCredit: string;
+  remainingToCard: string;
+  splitCashPart: string;
+  splitCardPart: string;
+  splitBack: string;
   // Veresiye dialogu
   creditMode: string;
   modeInstallment: string;
@@ -159,6 +167,13 @@ export const POS_TR: PosTexts = {
   mobileCart: 'Sepet & Ödeme',
   quickCashLabel: 'Alınan:',
   exact: 'Tam',
+  restTo: 'Kalan tutar',
+  restCard: 'Kartla',
+  restCredit: 'Veresiyeye',
+  remainingToCard: 'Kalan tutar karttan çekilecek',
+  splitCashPart: 'Nakit alındı',
+  splitCardPart: 'Karttan çekilecek',
+  splitBack: 'Geri',
   creditMode: 'Ödeme şekli',
   modeInstallment: 'Taksitli',
   modeHarvest: 'Hasatta öde',
@@ -250,6 +265,13 @@ export const POS_EN: PosTexts = {
   mobileCart: 'Cart & payment',
   quickCashLabel: 'Received:',
   exact: 'Exact',
+  restTo: 'Remaining amount',
+  restCard: 'By card',
+  restCredit: 'To credit',
+  remainingToCard: 'Remaining amount will be charged to card',
+  splitCashPart: 'Cash received',
+  splitCardPart: 'To charge on card',
+  splitBack: 'Back',
   creditMode: 'Payment type',
   modeInstallment: 'Installments',
   modeHarvest: 'Pay at harvest',

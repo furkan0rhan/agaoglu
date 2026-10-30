@@ -15,6 +15,7 @@ import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { ProductStore } from '../store/product.store';
 import { ProductService } from '../services/product.service';
+import { matchesSearch, searchKey } from '../../../shared/utils/search.utils';
 import { AddItemResult, CartStore } from '../../pos/store/cart.store';
 import { cartItemFromProduct, findByCode } from '../../pos/services/cart-item.utils';
 import { isPlantProtection } from '../../../shared/utils/regulatory.utils';
@@ -385,16 +386,9 @@ export class ProductListPage implements OnInit {
       const list = this.store.filteredProducts();
       return this.noBarcodeOnly() ? list.filter(p => !p.barcode?.trim()) : list;
     }
-    const q = this.store.searchQuery().toLowerCase().trim();
-    let list = this.passiveProducts();
-    if (q) {
-      list = list.filter(p =>
-        (p.name ?? '').toLowerCase().includes(q) ||
-        (p.barcode ?? '').toLowerCase().includes(q) ||
-        (p.brand ?? '').toLowerCase().includes(q)
-      );
-    }
-    return list;
+    const q = searchKey(this.store.searchQuery());
+    const list = this.passiveProducts();
+    return q ? list.filter(p => matchesSearch(q, p.name, p.barcode, p.brand)) : list;
   });
 
   readonly mobileRows = computed(() => this.tableData().slice(0, this.mobileLimit()));

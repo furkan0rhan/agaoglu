@@ -296,6 +296,73 @@ export function summarizeOverdue(statuses: Iterable<CreditStatus>): OverdueSumma
   return { totalOverdue: roundKurus(totalOverdue), customerCount };
 }
 
+// ─────────────────────────────────────────────────────────────── Yaşlandırma (5.7)
+
+/** Yaşlandırma dilimleri: vadesi gelmemiş, gecikme 1-30 / 31-60 / 61-90 / 90+ gün. */
+export const AGING_BUCKETS = ['notDue', 'd0_30', 'd31_60', 'd61_90', 'd90p'] as const;
+export type AgingBucket = typeof AGING_BUCKETS[number];
+
+export type AgingRow = Record<AgingBucket, number> & {
+  /** Dilimlerin toplamı (= müşterinin pozitif bakiyesi). */
+  total: number;
+  /** Vadesi geçmiş toplam (notDue hariç). */
+  overdue: number;
+  maxDaysOverdue: number;
+};
+
+export function emptyAging(): AgingRow {
+  return { notDue: 0, d0_30: 0, d31_60: 0, d61_90: 0, d90p: 0, total: 0, overdue: 0, maxDaysOverdue: 0 };
+}
+
+/** Gecikme gününe göre dilim (0 = vadesi gelmemiş / bugün). */
+export function agingBucketOf(days: number): AgingBucket {
+  if (days <= 0) return 'notDue';
+  if (days <= 30) return 'd0_30';
+  if (days <= 60) return 'd31_60';
+  if (days <= 90) return 'd61_90';
+  return 'd90p';
+}
+
+/**
+ * Müşterinin bakiyesini vade dilimlerine dağıtır. Kaynak: `buildSchedule` (tahsilatlar en eski vadeden düşülmüş
+ * taksitler; vadesiz borçlar Ayarlar → Veresiye "varsayılan vade" ile türetilir).
+ * - Vadesi olmayan (varsayılan vade de yok) taksitler "vadesi gelmemiş" sayılır.
+ * - Bakiye taksitlerin kalanından büyükse (borç kaydı olmayan devir bakiyesi) fark da "vadesi gelmemiş"e yazılır;
+ *   böylece dilimlerin toplamı her zaman bakiyeye eşittir. Bakiye ≤ 0 → boş satır.
+ */
+export function agingOf(schedule: ScheduleItem[], balance: number, today: Date = new Date()): AgingRow {
+  const row = emptyAging();
+  const bal = roundKurus(Math.max(0, balance || 0));
+  if (bal <= 0) return row;
+  let allocated = 0;
+  for (const i of schedule) {
+    if (!(i.remaining > 0)) continue;
+    const take = Math.min(i.remaining, roundKurus(bal - allocated));
+    if (take <= 0) break;
+    const days = daysOverdue(i.dueDate, today);
+    const b = agingBucketOf(days);
+    row[b] = roundKurus(row[b] + take);
+    allocated = roundKurus(allocated + take);
+    if (days > row.maxDaysOverdue) row.maxDaysOverdue = days;
+  }
+  if (bal > allocated) row.notDue = roundKurus(row.notDue + bal - allocated);
+  row.total = bal;
+  row.overdue = roundKurus(row.d0_30 + row.d31_60 + row.d61_90 + row.d90p);
+  return row;
+}
+
+/** Satırların toplamı (rapor alt toplamı). */
+export function sumAging(rows: Iterable<AgingRow>): AgingRow {
+  const out = emptyAging();
+  for (const r of rows) {
+    for (const k of AGING_BUCKETS) out[k] = roundKurus(out[k] + r[k]);
+    out.total = roundKurus(out.total + r.total);
+    out.overdue = roundKurus(out.overdue + r.overdue);
+    out.maxDaysOverdue = Math.max(out.maxDaysOverdue, r.maxDaysOverdue);
+  }
+  return out;
+}
+
 // ─────────────────────────────────────────────────────────────── Veresiye limiti
 
 export interface CreditLimitCheck {

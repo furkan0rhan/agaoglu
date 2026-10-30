@@ -20,6 +20,7 @@ import { Batch, isDecimalUnit, Product, productUnit, ProductUnit, StockMovement 
 import { SupplierService } from '../../suppliers/services/supplier.service';
 import { Supplier } from '../../../shared/models/supplier.model';
 import { LangService } from '../../../core/i18n/lang.service';
+import { userErrorMessage } from '../../../core/error/user-error';
 import { batchTotal, checkStockVsBatches, expiryInfo, findBarcodeConflict, findGtsConflict, roundQty, sortFEFO } from '../../../shared/utils/batch.utils';
 import { priceBreakdown } from '../../../shared/utils/pricing';
 import { collectCategories, collectVatRates, parseVatRate, suggestCategories, suggestVatRates } from '../../../shared/utils/product-form.utils';
@@ -366,7 +367,8 @@ export class ProductDetailPage implements OnInit {
   private readonly toast = inject(MessageService);
   private readonly confirm = inject(ConfirmationService);
   private readonly destroyRef = inject(DestroyRef);
-  readonly t = inject(LangService).t;
+  private readonly lang = inject(LangService);
+  readonly t = this.lang.t;
   readonly isAdmin = inject(AuthService).hasRole('admin');
   /** Y5: alış fiyatı / kâr — yönetici ya da yetki verilmiş kullanıcı. */
   private readonly can = injectPermissions();
@@ -635,8 +637,8 @@ export class ProductDetailPage implements OnInit {
       this.toast.add({ severity: 'success', summary: this.t().common.success, detail: `${this.t().products.stockUpdated}: ${this.qtyLabel(res.newStock)}`, life: 3000 });
       this.warnShortfall(res.shortfall);
       this.refreshProduct();
-    } catch {
-      this.toast.add({ severity: 'error', summary: this.t().common.error, detail: this.t().products.stockFailed, life: 3000 });
+    } catch (e) {
+      this.toast.add({ severity: 'error', summary: this.t().common.error, detail: this.stockErrorText(e), life: 4000 });
     } finally {
       this.saving.set(false);
     }
@@ -679,8 +681,8 @@ export class ProductDetailPage implements OnInit {
       await this.svc.reconcileStock(p, mode, this.t().products.reconcileReason);
       this.toast.add({ severity: 'success', summary: '', detail: this.t().products.reconciled, life: 2500 });
       this.refreshProduct();
-    } catch {
-      this.toast.add({ severity: 'error', summary: this.t().common.error, detail: this.t().products.stockFailed, life: 3000 });
+    } catch (e) {
+      this.toast.add({ severity: 'error', summary: this.t().common.error, detail: this.stockErrorText(e), life: 4000 });
     } finally {
       this.saving.set(false);
     }
@@ -741,7 +743,9 @@ export class ProductDetailPage implements OnInit {
     if (e instanceof ProductStockError && e.code === 'duplicate-gts') {
       return `${this.t().products.dialogGtsDuplicate}: ${e.detail ?? ''}`;
     }
-    return this.t().products.stockFailed;
+    if (e instanceof ProductStockError && e.code === 'offline') return this.t().inventory.stockNeedsOnline;
+    if (e instanceof ProductStockError) return this.t().products.stockFailed;
+    return userErrorMessage(e, this.t().products.stockFailed, this.lang.lang());
   }
 
   // ---- Satır (birim) düzenleme / silme ----

@@ -4,6 +4,7 @@ import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { pipe, switchMap, tap, catchError, EMPTY, timer, retry } from 'rxjs';
 import { Product } from '../../../shared/models/product.model';
 import { ProductService } from '../services/product.service';
+import { matchesSearch, searchKey } from '../../../shared/utils/search.utils';
 import { TenantSettingsService } from '../../../core/settings/tenant-settings.service';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { LangService } from '../../../core/i18n/lang.service';
@@ -49,13 +50,12 @@ export const ProductStore = signalStore(
   return {
     filteredProducts: computed(() => {
       let list = products();
-      const q = searchQuery().toLowerCase().trim();
+      // 2.22: Türkçe duyarlı (İ/i, I/ı) — shared/utils/search.utils
+      const q = searchKey(searchQuery());
       if (q) {
         list = list.filter(p =>
-          (p.name ?? '').toLowerCase().includes(q) ||
-          (p.barcode ?? '').toLowerCase().includes(q) ||
-          (p.brand ?? '').toLowerCase().includes(q) ||
-          (p.batches ?? []).some(b => (b.gtsNo ?? '').toLowerCase().includes(q))
+          matchesSearch(q, p.name, p.barcode, p.brand) ||
+          (p.batches ?? []).some(b => matchesSearch(q, b.gtsNo))
         );
       }
       if (selectedCategory()) {

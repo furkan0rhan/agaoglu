@@ -108,3 +108,18 @@ describe('report-calc — birim bazlı miktar (Y13)', () => {
     expect(topProducts([s]).find(p => p.productId === 'p2')?.units).toEqual([{ unit: 'cuval', quantity: 5 }]);
   });
 });
+
+describe('report-calc — kasa özeti nakit / kart (5.4)', () => {
+  it('nakit + kart bölünmüş satış: nakit ve kart ayrı toplanır, veresiye 0', () => {
+    const s = summarizeSales([
+      sale([item({ totalPrice: 1000, unitPrice: 1000 })], { paymentMethod: 'mixed', cashPaid: 300, cardPaid: 700 }),
+      sale([item()], { paymentMethod: 'cash', cashPaid: 200, change: 80 }),
+      sale([item()], { paymentMethod: 'card', cardPaid: 120 }),
+      sale([item({ totalPrice: 500, unitPrice: 500 })], { paymentMethod: 'mixed', cashPaid: 100, creditAmount: 400 }),
+    ], new Map());
+    expect(s.cash).toBe(300 + 120 + 100);
+    expect(s.card).toBe(820);
+    expect(s.credit).toBe(400);
+    expect(s.cash + s.card + s.credit).toBe(s.revenue);
+  });
+});
