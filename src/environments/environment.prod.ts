@@ -1,6 +1,8 @@
 export const environment = {
   production: true,
   appVersion: '1.0.0',
+  /** false: e-postası doğrulanmamış hesaplar doğrulama ekranına takılmaz (eski hesaplar için geçiş). docs/TEST-ORTAMI.md */
+  requireEmailVerification: true,
   appName: 'Tarım Market Pro',
   firebase: {
     apiKey: 'AIzaSyC96oNJeVg4kcsjE7-dgViVI4NLyA61pQY',

@@ -1,0 +1,50 @@
+name: Windows Release (EXE + MSI)
+
+# Nasıl kullanılır:
+#   npm run release -- 1.0.1     -> sürümü günceller, commit + tag (v1.0.1) atar, push eder
+#   GitHub Actions bu tag'i görünce Windows'ta derler ve
+#   Releases sayfasına TASLAK bir sürüm olarak .exe (NSIS kurulum) ve .msi yükler.
+#   Taslağı kontrol edip "Publish" demen yeterli.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install npm dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build and publish draft release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Tarım Market Pro ${{ github.ref_name }}'
+          releaseBody: 'Kurulum için .exe (önerilen) veya .msi dosyasını indirin.'
+          releaseDraft: true
+          prerelease: false

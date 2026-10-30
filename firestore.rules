@@ -1,73 +1,646 @@
 rules_version = '2';
+
+// Tarım Market Pro — çok kullanıcılı işletme (tenant) kuralları.
+// Spark (ücretsiz) plan uyumlu: Cloud Functions / custom claims YOK.
+// Kullanıcının işletmesi ve rolü users/{uid} dokümanından get() ile okunur.
+// Açıklama ve test senaryoları: firestore.rules.md
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ------------------------------------------------------------------
+    // Yardımcılar
+    // ------------------------------------------------------------------
     function isAuth() {
       return request.auth != null;
     }
 
-    function isTenant(tenantId) {
-      return isAuth() && request.auth.uid == tenantId;
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    // Users
+    // Aktif ve bu işletmeye ait kullanıcı
+    function inTenant(t) {
+      return isAuth() && userDoc().tenantId == t && userDoc().isActive == true;
+    }
+
+    function isAdmin() {
+      return isAuth() && userDoc().role == 'admin' && userDoc().isActive == true;
+    }
+
+    function isTenantAdmin(t) {
+      return inTenant(t) && userDoc().role == 'admin';
+    }
+
+    function validRole(r) {
+      return r in ['admin', 'cashier', 'staff'];
+    }
+
+    // Alan yoksa geçer; varsa sayı ve >= 0 olmalı
+    function nonNegative(data, field) {
+      return !(field in data) || (data[field] is number && data[field] >= 0);
+    }
+
+    // ---- Superadmin (platform yöneticisi) ---------------------------------
+    // platformAdmins/{uid} yalnız Firebase Console'dan eklenir; istemci yazamaz.
+    function isSuperAdmin() {
+      return isAuth() && exists(/databases/$(database)/documents/platformAdmins/$(request.auth.uid));
+    }
+
+    function tenantPath(t) {
+      return /databases/$(database)/documents/tenants/$(t);
+    }
+
+    // Superadmin'in işletme VERİSİNE erişimi: işletme supportAccess'i kapatmadıysa (KVKK).
+    // tenants dokümanı ve lisans alanları bu şarttan bağımsızdır.
+    function supportOk(t) {
+      return isSuperAdmin() && get(tenantPath(t)).data.get('supportAccess', true) != false;
+    }
+
+    // ---- Lisans ------------------------------------------------------------
+    // plan yok = lisans öncesi (eski) işletme → kısıtsız. Askıda / süresi dolmuşsa yazma yok.
+    function licenseActive(d) {
+      return d.get('status', 'active') != 'suspended'
+        && (
+          d.get('plan', '') == ''
+          || (d.plan == 'trial' && d.get('trialEndsAt', null) is timestamp && d.trialEndsAt > request.time)
+          || (d.plan != 'trial' && (d.get('licenseExpiresAt', null) == null || d.licenseExpiresAt > request.time))
+        );
+    }
+    function licenseOk(t) {
+      return !exists(tenantPath(t)) || licenseActive(get(tenantPath(t)).data);
+    }
+
+    // Standart tenant kuralları. Not: inTenant() ilk sırada → normal kullanıcıda superadmin
+    // kontrolü (ek okuma) yapılmaz. users dokümanı olmayan superadmin'de inTenant hata verir;
+    // kurallarda `hata || true` = true olduğundan supportOk() yine değerlendirilir.
+    function canRead() {
+      return inTenant(resource.data.tenantId) || supportOk(resource.data.tenantId);
+    }
+    function canCreate() {
+      return (inTenant(request.resource.data.tenantId) && licenseOk(request.resource.data.tenantId))
+        || supportOk(request.resource.data.tenantId);
+    }
+    function canUpdate() {
+      // tenantId değiştirme yasağı superadmin için de geçerli
+      return request.resource.data.tenantId == resource.data.tenantId
+        && (
+          (inTenant(resource.data.tenantId) && licenseOk(resource.data.tenantId))
+          || supportOk(resource.data.tenantId)
+        );
+    }
+    function canDelete() {
+      return (inTenant(resource.data.tenantId) && licenseOk(resource.data.tenantId))
+        || supportOk(resource.data.tenantId);
+    }
+
+    // Yeni işletme: yalnız deneme lisansıyla (en fazla 31 gün, en fazla 3 kullanıcı)
+    function validNewTenantLicense(d) {
+      return d.get('plan', '') == 'trial'
+        && d.get('status', 'active') == 'active'
+        && d.trialEndsAt is timestamp
+        && d.trialEndsAt <= request.time + duration.value(31, 'd')
+        && !('licenseExpiresAt' in d)
+        && d.get('maxUsers', 3) is int
+        && d.get('maxUsers', 3) <= 3
+        && d.get('supportAccess', true) is bool;
+    }
+
+    // Giriş yapan kullanıcının (küçük harf) e-postası
+    function authEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    function invitePath(email) {
+      return /databases/$(database)/documents/invites/$(email);
+    }
+
+    // ------------------------------------------------------------------
+    // Kullanıcılar
+    // ------------------------------------------------------------------
     match /users/{userId} {
-      allow read, write: if isAuth() && request.auth.uid == userId;
+      // Kendi dokümanı veya aynı işletmenin admini
+      allow get: if isAuth()
+        && (request.auth.uid == userId || isTenantAdmin(resource.data.tenantId) || isSuperAdmin());
+      // Admin aynı işletmedeki kullanıcıları listeleyebilir (where tenantId == ...); superadmin hepsini
+      allow list: if isTenantAdmin(resource.data.tenantId) || isSuperAdmin();
+
+      // Oluşturma: yalnız kendi dokümanı.
+      //  (a) kendi işletmesinin sahibi: tenantId == uid, role 'admin'
+      //  (b) geçerli bir davet: invites/{email} ile tenantId + role eşleşmeli,
+      //      e-posta doğrulanmış olmalı (başkasının e-postasıyla davet kapılmasın)
+      allow create: if isAuth()
+        && request.auth.uid == userId
+        && request.resource.data.isActive == true
+        && request.resource.data.tenantId is string
+        && validRole(request.resource.data.role)
+        && request.resource.data.get('canPrescribe', false) == false // çiftçi modülü: öneri yetkisini yalnız admin verir
+        && (
+          (request.resource.data.tenantId == userId && request.resource.data.role == 'admin')
+          || (
+            request.auth.token.email_verified == true
+            && exists(invitePath(authEmail()))
+            && get(invitePath(authEmail())).data.tenantId == request.resource.data.tenantId
+            && get(invitePath(authEmail())).data.role == request.resource.data.role
+          )
+        );
+
+      allow update: if isAuth() && (
+        // Kullanıcı kendi profilinde sadece görünen ad / e-posta / son giriş
+        (
+          request.auth.uid == userId
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['displayName', 'email', 'lastLogin'])
+        )
+        // Aynı işletmenin admini: rol / aktiflik (sahip ve kendisi hariç)
+        || (
+          isTenantAdmin(resource.data.tenantId)
+          && request.auth.uid != userId
+          && userId != resource.data.tenantId
+          && request.resource.data.tenantId == resource.data.tenantId
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['role', 'isActive'])
+          && validRole(request.resource.data.role)
+          && request.resource.data.isActive is bool
+        )
+        // Superadmin: rol / aktiflik (tenantId değiştiremez)
+        || (
+          isSuperAdmin()
+          && request.resource.data.tenantId == resource.data.tenantId
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['role', 'isActive'])
+          && validRole(request.resource.data.role)
+          && request.resource.data.isActive is bool
+        )
+      );
+
+      allow delete: if false;
     }
 
-    // Products — her tenant kendi ürünlerine erişir
+    // ------------------------------------------------------------------
+    // İşletmeler
+    // ------------------------------------------------------------------
+    match /tenants/{tenantId} {
+      // Superadmin tenants dokümanını (lisans alanları dahil) her zaman görür — supportAccess'ten bağımsız
+      allow get: if inTenant(tenantId) || isSuperAdmin();
+      allow list: if isSuperAdmin();
+      allow create: if isAuth()
+        && request.auth.uid == tenantId
+        && request.resource.data.ownerId == request.auth.uid
+        && validNewTenantLicense(request.resource.data);
+      allow update: if request.resource.data.ownerId == resource.data.ownerId && (
+        // İşletme admini: yalnız işletme bilgileri + ayarlar + destek erişimi (lisans alanları HAYIR).
+        // Yeni bir işletme alanı eklerken bu listeye ekleyin.
+        (
+          isTenantAdmin(tenantId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+               'name', 'address', 'phone', 'taxOffice', 'taxNo', 'receiptFooter', 'dealerLicenseNo',
+               'settings', 'supportAccess', 'updatedAt', 'lastActiveAt', 'lastBackupAt'
+             ])
+          && request.resource.data.get('supportAccess', true) is bool
+          && (
+            !('settings' in request.resource.data)
+            || request.resource.data.settings.get('prescriptionMode', 'required') in ['required', 'warn', 'off']
+          )
+        )
+        // Her üye girişte son aktiviteyi yazabilir
+        || (
+          inTenant(tenantId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastActiveAt'])
+        )
+        // Superadmin: lisans (plan, status, trialEndsAt, licenseExpiresAt, maxUsers) dahil her alan
+        || isSuperAdmin()
+      );
+      allow delete: if false;
+    }
+
+    // ------------------------------------------------------------------
+    // Personel davetleri: invites/{emailLowercase}
+    // ------------------------------------------------------------------
+    match /invites/{email} {
+      // Davet edilen kişi kendi davetini, admin kendi işletmesinin davetlerini okur
+      allow get: if isAuth()
+        && (authEmail() == email || isTenantAdmin(resource.data.tenantId) || supportOk(resource.data.tenantId));
+      allow list: if isTenantAdmin(resource.data.tenantId) || supportOk(resource.data.tenantId);
+      // Admin yalnız kendi işletmesine davet oluşturur. Var olan davetin üzerine
+      // yazılamaz (update yok) → başka işletmenin daveti ele geçirilemez.
+      allow create: if (
+          (isTenantAdmin(request.resource.data.tenantId) && licenseOk(request.resource.data.tenantId))
+          || supportOk(request.resource.data.tenantId)
+        )
+        && email == email.lower()
+        && validRole(request.resource.data.role)
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if false;
+      // Admin iptal eder; davet edilen (doğrulanmış) kişi katılınca siler
+      allow delete: if isTenantAdmin(resource.data.tenantId)
+        || supportOk(resource.data.tenantId)
+        || (isAuth() && request.auth.token.email_verified == true && authEmail() == email);
+    }
+
+    // ------------------------------------------------------------------
+    // Platform yöneticileri: platformAdmins/{uid}
+    // Yalnız Firebase Console'dan eklenir (docs/SUPERADMIN.md). Kişi yalnız kendi kaydını okur.
+    // ------------------------------------------------------------------
+    match /platformAdmins/{adminUid} {
+      allow get: if isAuth() && request.auth.uid == adminUid;
+      allow list, create, update, delete: if false;
+    }
+
+    // ------------------------------------------------------------------
+    // Denetim kaydı: auditLogs/{autoId} — değiştirilemez
+    // ------------------------------------------------------------------
+    match /auditLogs/{logId} {
+      allow read: if isTenantAdmin(resource.data.tenantId) || isSuperAdmin();
+      allow create: if isSuperAdmin()
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.tenantId is string
+        && request.resource.data.action in ['support_start', 'support_end', 'license_change', 'user_change']
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // ------------------------------------------------------------------
+    // Veri koleksiyonları
+    // ------------------------------------------------------------------
     match /products/{productId} {
-      allow read: if isAuth() && resource.data.tenantId == request.auth.uid;
-      allow create: if isAuth() && request.resource.data.tenantId == request.auth.uid;
-      allow update, delete: if isAuth() && resource.data.tenantId == request.auth.uid;
+      allow read: if canRead();
+      allow create: if canCreate();
+      allow update: if canUpdate();
+      allow delete: if canDelete();
     }
 
-    // Stock movements
+    // Stok hareketleri: değişmez defter (update/delete yok)
     match /stockMovements/{movId} {
-      allow read: if isAuth() && resource.data.tenantId == request.auth.uid;
-      allow create: if isAuth() && request.resource.data.tenantId == request.auth.uid;
+      allow read: if canRead();
+      allow create: if canCreate();
     }
 
-    // Sales
+    // Satışlar: iptal/iade için update açık, silme yok
     match /sales/{saleId} {
-      allow read: if isAuth() && resource.data.tenantId == request.auth.uid;
-      allow create: if isAuth() && request.resource.data.tenantId == request.auth.uid;
-      allow update: if isAuth() && resource.data.tenantId == request.auth.uid;
+      allow read: if canRead();
+      allow create: if canCreate() && nonNegative(request.resource.data, 'totalAmount');
+      allow update: if canUpdate() && nonNegative(request.resource.data, 'totalAmount');
     }
 
-    // Customers
     match /customers/{customerId} {
-      allow read: if isAuth() && resource.data.tenantId == request.auth.uid;
-      allow create: if isAuth() && request.resource.data.tenantId == request.auth.uid;
-      allow update, delete: if isAuth() && resource.data.tenantId == request.auth.uid;
+      allow read: if canRead();
+      allow create: if canCreate();
+      allow update: if canUpdate();
+      allow delete: if canDelete();
     }
 
-    // Credits
-    match /credits/{creditId} {
-      allow read: if isAuth() && resource.data.tenantId == request.auth.uid;
-      allow create: if isAuth() && request.resource.data.tenantId == request.auth.uid;
-      allow update: if isAuth() && resource.data.tenantId == request.auth.uid;
-    }
-
-    // Expenses
     match /expenses/{expenseId} {
-      allow read: if isAuth() && resource.data.tenantId == request.auth.uid;
-      allow create: if isAuth() && request.resource.data.tenantId == request.auth.uid;
-      allow delete: if isAuth() && resource.data.tenantId == request.auth.uid;
+      allow read: if canRead();
+      allow create: if canCreate() && nonNegative(request.resource.data, 'amount');
+      allow update: if canUpdate() && nonNegative(request.resource.data, 'amount');
+      allow delete: if canDelete();
     }
 
-    // Credit Transactions
+    // Veresiye hareketleri: değişmez defter. Düzeltme/iptal = yeni (ters) kayıt.
+    // amount >= 0; yalnız satış iptali ters kaydı (isReversal == true) negatif olabilir.
     match /creditTransactions/{txId} {
-      allow read: if isAuth() && resource.data.tenantId == request.auth.uid;
-      allow create: if isAuth() && request.resource.data.tenantId == request.auth.uid;
-      allow update: if isAuth() && resource.data.tenantId == request.auth.uid;
+      allow read: if canRead();
+      allow create: if canCreate()
+        && request.resource.data.amount is number
+        && (
+          request.resource.data.amount >= 0
+          || request.resource.data.get('isReversal', false) == true
+        );
     }
 
-    // Suppliers
     match /suppliers/{supplierId} {
-      allow read: if isAuth() && resource.data.tenantId == request.auth.uid;
-      allow create: if isAuth() && request.resource.data.tenantId == request.auth.uid;
-      allow update, delete: if isAuth() && resource.data.tenantId == request.auth.uid;
+      allow read: if canRead();
+      allow create: if canCreate();
+      allow update: if canUpdate();
+      allow delete: if canDelete();
     }
+
+    // ===== SATIN ALMA =====
+    // Yardımcılar (canRead/canCreate/canUpdate) superadmin destek erişimini ve lisans kontrolünü içerir.
+    // Alış belgesi: tenant üyesi okur/oluşturur. Düzenleme yok; yalnız 'active' → 'cancelled' iptali
+    // (stok/cari ters kayıtları aynı transaction'da yazılır). Silme yok.
+    match /purchases/{purchaseId} {
+      allow read: if canRead();
+      allow create: if canCreate()
+        && nonNegative(request.resource.data, 'grandTotal')
+        && nonNegative(request.resource.data, 'discount')
+        && request.resource.data.get('status', 'active') in ['active', 'cancelled'];
+      allow update: if canUpdate()
+        && resource.data.get('status', 'active') == 'active'
+        && request.resource.data.status == 'cancelled'
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'cancelledAt', 'cancelledBy', 'cancelReason']);
+    }
+
+    // Tedarikçi cari hareketleri: değişmez defter (update/delete yok). Düzeltme/iptal = yeni (ters) kayıt.
+    // amount >= 0; yalnız ters kayıt (isReversal == true) negatif olabilir.
+    match /supplierTransactions/{txId} {
+      allow read: if canRead();
+      allow create: if canCreate()
+        && request.resource.data.type in ['purchase', 'payment']
+        && request.resource.data.amount is number
+        && (
+          request.resource.data.amount >= 0
+          || request.resource.data.get('isReversal', false) == true
+        );
+    }
+
+    // ===== ÇİFTÇİ MODÜLÜ =====
+    // docs/CIFTCI-MODULU.md §5.3. Çiftçi verisi tenant verisi DEĞİLDİR: çiftçinin erişimi farmers/{id}.ownerUids,
+    // bayinin erişimi dokümandaki sharedTenantIds (aktif bağlantı + KVKK izni; çiftçi yönetir) üzerinden.
+    // Çiftçi hesabı (users.accountType == 'farmer', tenantId == null) hiçbir tenant koleksiyonunu okuyamaz (inTenant false).
+    // Öneri (recommendations) yalnızca canPrescribe + yetki belge no'lu bayi personeli yazar; değiştirilemez.
+    function farmerPath(fid) {
+      return /databases/$(database)/documents/farmers/$(fid);
+    }
+    function farmerLinkPath(t, fid) {
+      return /databases/$(database)/documents/farmerLinks/$(t + '_' + fid);
+    }
+    function farmerInvitePath(code) {
+      return /databases/$(database)/documents/farmerInvites/$(code);
+    }
+    function isFarmerOf(fid) {
+      return isAuth() && fid is string && request.auth.uid in get(farmerPath(fid)).data.ownerUids;
+    }
+    function isFarmerOfAfter(fid) {
+      return isAuth() && fid is string && request.auth.uid in getAfter(farmerPath(fid)).data.ownerUids;
+    }
+    // Bayi tarafı çiftçi ekranları: admin / kasiyer (staff görmez)
+    function isDealerStaffOf(t) {
+      return inTenant(t) && userDoc().role in ['admin', 'cashier'];
+    }
+    function dealerCanSeeShared(d) {
+      return isAuth() && userDoc().get('tenantId', null) is string
+        && userDoc().tenantId in d.sharedTenantIds
+        && userDoc().isActive == true
+        && userDoc().role in ['admin', 'cashier'];
+    }
+    // Sentetik e-posta: 90XXXXXXXXXX[.n]@ciftci.tarimmarket.app
+    function farmerEmailForPhone(phone) {
+      return request.auth.token.email.matches('^' + phone + '([.][0-9])?@ciftci[.]tarimmarket[.]app$');
+    }
+    function farmerEmailEndsWith(last4) {
+      return request.auth.token.email.matches('^90[0-9]{6}' + last4 + '([.][0-9])?@ciftci[.]tarimmarket[.]app$');
+    }
+    // Davet BU yazımda bu kullanıcı tarafından bu çiftçi profili için kullanıldı (önce kullanılmamıştı)
+    function inviteConsumedFor(code, fid) {
+      return code is string
+        && get(farmerInvitePath(code)).data.used == false
+        && getAfter(farmerInvitePath(code)).data.usedBy == request.auth.uid
+        && getAfter(farmerInvitePath(code)).data.usedFarmerId == fid;
+    }
+    function validFarmerConsent(c) {
+      return c.purchases == true && c.fields is bool && c.logs is bool && c.notifications is bool
+        && c.textVersion is string && c.grantedAt is timestamp;
+    }
+    function linkByInvite(d) {
+      return isFarmerOfAfter(d.farmerId)
+        && inviteConsumedFor(d.inviteCode, d.farmerId)
+        && getAfter(farmerInvitePath(d.inviteCode)).data.tenantId == d.tenantId
+        && getAfter(farmerInvitePath(d.inviteCode)).data.customerId == d.customerId
+        && d.status == 'active'
+        && validFarmerConsent(d.consent)
+        && d.get('balance', null) == null;
+    }
+    function farmerDocOk(d) {
+      return d.farmerId is string && d.sharedTenantIds is list && d.sharedTenantIds.size() <= 20;
+    }
+    function recItemNeedsRx(items, i) {
+      return items.size() > i && (
+        items[i].requiresPrescription == true
+        || (items[i].productId is string
+            && get(/databases/$(database)/documents/products/$(items[i].productId)).data.get('requiresPrescription', false) == true)
+      );
+    }
+    function recNeedsRx(items) {
+      return recItemNeedsRx(items, 0) || recItemNeedsRx(items, 1) || recItemNeedsRx(items, 2)
+        || recItemNeedsRx(items, 3) || recItemNeedsRx(items, 4);
+    }
+
+    // users: çiftçi hesabı yalnız davet akışında (aynı yazımda farmers profili sahibi olarak) oluşur.
+    // Bayi yöneticisi öneri yetkisini (canPrescribe + yetki belge no) verir — kendisine de.
+    match /users/{userId} {
+      allow create: if isAuth()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['accountType', 'tenantId', 'role', 'canPrescribe', 'isActive', 'farmerId', 'email', 'displayName', 'createdAt'])
+        && request.resource.data.accountType == 'farmer'
+        && request.resource.data.tenantId == null
+        && request.resource.data.role == null
+        && request.resource.data.canPrescribe == false
+        && request.resource.data.isActive == true
+        && isFarmerOfAfter(request.resource.data.farmerId);
+      allow update: if isTenantAdmin(resource.data.tenantId)
+        && request.resource.data.tenantId == resource.data.tenantId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['canPrescribe', 'prescriberLicenseNo'])
+        && request.resource.data.canPrescribe is bool
+        && (
+          request.resource.data.canPrescribe == false
+          || (request.resource.data.prescriberLicenseNo is string && request.resource.data.prescriberLicenseNo.size() >= 3)
+        );
+    }
+
+    match /farmers/{farmerId} {
+      allow get: if (isAuth() && request.auth.uid in resource.data.ownerUids) || isSuperAdmin();
+      allow list, delete: if false;
+      allow create: if isAuth()
+        && request.resource.data.ownerUids == [request.auth.uid]
+        && request.resource.data.phone is string
+        && request.resource.data.phone.matches('^90[0-9]{10}$')
+        && farmerEmailForPhone(request.resource.data.phone)
+        && inviteConsumedFor(request.resource.data.inviteCode, farmerId)
+        && getAfter(farmerInvitePath(request.resource.data.inviteCode)).data.farmerId == null;
+      allow update: if isAuth() && (
+        // Sahip: profil alanları + silme talebi
+        (
+          request.auth.uid in resource.data.ownerUids
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['displayName', 'city', 'district', 'village', 'cksNo', 'updatedAt', 'deletionRequestedAt'])
+        )
+        // PIN sıfırlama / yeni cihaz: bayinin BU çiftçi için ürettiği davet aynı yazımda kullanıldı; eski uid düşer
+        || (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerUids', 'inviteCode', 'updatedAt'])
+          && request.resource.data.ownerUids == [request.auth.uid]
+          && farmerEmailForPhone(resource.data.phone)
+          && inviteConsumedFor(request.resource.data.inviteCode, farmerId)
+          && getAfter(farmerInvitePath(request.resource.data.inviteCode)).data.farmerId == farmerId
+        )
+      );
+    }
+
+    // Davet kodu ~50 bitlik gizli anahtardır: bilen TEK dokümanı okuyabilir (giriş öncesi karşılama ekranı).
+    // Liste yalnız bayi personeline (kendi işletmesi). Tek kullanımlık, en fazla 8 gün, telefon son 4 hane eşleşmeli.
+    match /farmerInvites/{code} {
+      allow get: if true;
+      allow list: if isDealerStaffOf(resource.data.tenantId) || isSuperAdmin();
+      allow create: if isDealerStaffOf(request.resource.data.tenantId)
+        && licenseOk(request.resource.data.tenantId)
+        && code.matches('^[A-HJ-NP-Z2-9]{10}$')
+        && request.resource.data.keys().hasOnly(['tenantId', 'tenantName', 'customerId', 'customerName', 'phoneLast4', 'farmerId',
+             'expiresAt', 'used', 'usedBy', 'usedFarmerId', 'revoked', 'createdBy', 'createdAt'])
+        && request.resource.data.used == false
+        && request.resource.data.usedBy == null
+        && request.resource.data.usedFarmerId == null
+        && request.resource.data.revoked == false
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.phoneLast4.matches('^[0-9]{4}$')
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt <= request.time + duration.value(8, 'd')
+        && get(/databases/$(database)/documents/customers/$(request.resource.data.customerId)).data.tenantId == request.resource.data.tenantId
+        && (
+          request.resource.data.farmerId == null
+          || get(farmerLinkPath(request.resource.data.tenantId, request.resource.data.farmerId)).data.customerId == request.resource.data.customerId
+        );
+      allow update: if
+        // Bayi: kullanılmamış daveti iptal eder (yeni davet eskisini geçersiz kılar)
+        (
+          isDealerStaffOf(resource.data.tenantId)
+          && resource.data.used == false
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revoked'])
+          && request.resource.data.revoked == true
+        )
+        // Çiftçi: daveti kullanır — aynı yazımda profil sahibi olmalı ve bağlantı oluşmalı
+        || (
+          isAuth()
+          && resource.data.used == false
+          && resource.data.revoked == false
+          && resource.data.expiresAt > request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['used', 'usedBy', 'usedFarmerId', 'usedAt'])
+          && request.resource.data.used == true
+          && request.resource.data.usedBy == request.auth.uid
+          && request.resource.data.usedFarmerId is string
+          && (resource.data.farmerId == null || request.resource.data.usedFarmerId == resource.data.farmerId)
+          && farmerEmailEndsWith(resource.data.phoneLast4)
+          && isFarmerOfAfter(request.resource.data.usedFarmerId)
+          && existsAfter(farmerLinkPath(resource.data.tenantId, request.resource.data.usedFarmerId))
+        );
+      allow delete: if false;
+    }
+
+    // Bağlantı: açık rızayla (davet) kurulur; çiftçi izinleri değiştirir / koparır, bayi yalnız bakiye anlık değerini yazar.
+    match /farmerLinks/{linkId} {
+      allow read: if isFarmerOf(resource.data.farmerId) || isDealerStaffOf(resource.data.tenantId) || isSuperAdmin();
+      allow create: if linkId == request.resource.data.tenantId + '_' + request.resource.data.farmerId
+        && linkByInvite(request.resource.data);
+      allow update: if
+        (
+          isFarmerOf(resource.data.farmerId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['consent', 'status', 'updatedAt'])
+          && request.resource.data.status in ['active', 'revoked']
+          && (resource.data.status == 'active' || request.resource.data.status == 'revoked')
+          && validFarmerConsent(request.resource.data.consent)
+        )
+        // Yeniden bağlanma / PIN sıfırlama: yeni davetle
+        || (
+          request.resource.data.tenantId == resource.data.tenantId
+          && request.resource.data.farmerId == resource.data.farmerId
+          && linkByInvite(request.resource.data)
+        )
+        || (
+          inTenant(resource.data.tenantId)
+          && resource.data.status == 'active'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['balance', 'balanceUpdatedAt', 'tenantName'])
+        );
+      allow delete: if false;
+    }
+
+    match /fields/{fieldId} {
+      allow read: if isFarmerOf(resource.data.farmerId) || dealerCanSeeShared(resource.data) || isSuperAdmin();
+      allow create: if isFarmerOf(request.resource.data.farmerId)
+        && farmerDocOk(request.resource.data)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 60
+        && request.resource.data.areaDecare is number && request.resource.data.areaDecare > 0
+        && request.resource.data.irrigation in ['irrigated', 'dry']
+        && request.resource.data.isActive == true;
+      allow update: if isFarmerOf(resource.data.farmerId)
+        && request.resource.data.farmerId == resource.data.farmerId
+        && farmerDocOk(request.resource.data)
+        && request.resource.data.areaDecare is number && request.resource.data.areaDecare > 0;
+      allow delete: if false; // soft delete (isActive = false)
+    }
+
+    match /seasons/{seasonId} {
+      allow read: if isFarmerOf(resource.data.farmerId) || dealerCanSeeShared(resource.data) || isSuperAdmin();
+      allow create: if isFarmerOf(request.resource.data.farmerId)
+        && farmerDocOk(request.resource.data)
+        && request.resource.data.fieldId is string
+        && request.resource.data.crop is string
+        && request.resource.data.status in ['planned', 'active', 'harvested'];
+      allow update: if isFarmerOf(resource.data.farmerId)
+        && request.resource.data.farmerId == resource.data.farmerId
+        && farmerDocOk(request.resource.data)
+        && request.resource.data.status in ['planned', 'active', 'harvested'];
+      allow delete: if isFarmerOf(resource.data.farmerId);
+    }
+
+    // Kişisel uygulama defteri (resmî ÜKD değildir)
+    match /applicationLogs/{logId} {
+      allow read: if isFarmerOf(resource.data.farmerId) || dealerCanSeeShared(resource.data) || isSuperAdmin();
+      allow create: if isFarmerOf(request.resource.data.farmerId)
+        && farmerDocOk(request.resource.data)
+        && request.resource.data.fieldId is string
+        && request.resource.data.type in ['pesticide', 'fertilizer', 'irrigation', 'tillage', 'sowing', 'other']
+        && request.resource.data.date is timestamp
+        && request.resource.data.get('phiSource', null) in [null, 'dealer', 'recommendation', 'manual']
+        && nonNegative(request.resource.data, 'quantity');
+      allow update: if isFarmerOf(resource.data.farmerId)
+        && request.resource.data.farmerId == resource.data.farmerId
+        && farmerDocOk(request.resource.data);
+      allow delete: if isFarmerOf(resource.data.farmerId);
+    }
+
+    // Çiftçinin ambarı: bayi satışının projeksiyonu (alış/maliyet fiyatı İÇERMEZ). Bayi yazar, çiftçi yalnız kalan miktarı günceller.
+    match /farmerPurchases/{saleId} {
+      allow read: if isFarmerOf(resource.data.farmerId) || inTenant(resource.data.tenantId) || isSuperAdmin();
+      allow create: if inTenant(request.resource.data.tenantId)
+        && request.resource.data.saleId == saleId
+        && !('remaining' in request.resource.data)
+        && get(farmerLinkPath(request.resource.data.tenantId, request.resource.data.farmerId)).data.status == 'active'
+        && get(/databases/$(database)/documents/sales/$(saleId)).data.tenantId == request.resource.data.tenantId
+        && get(/databases/$(database)/documents/sales/$(saleId)).data.customerId
+             == get(farmerLinkPath(request.resource.data.tenantId, request.resource.data.farmerId)).data.customerId;
+      allow update: if
+        (
+          inTenant(resource.data.tenantId)
+          && request.resource.data.tenantId == resource.data.tenantId
+          && request.resource.data.farmerId == resource.data.farmerId
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['remaining'])
+          && get(farmerLinkPath(resource.data.tenantId, resource.data.farmerId)).data.status == 'active'
+        )
+        || (
+          isFarmerOf(resource.data.farmerId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['remaining'])
+        );
+      allow delete: if false;
+    }
+
+    // Bayideki yetkili kişinin önerisi / reçete kaydı: DEĞİŞTİRİLEMEZ, yalnız geri çekilir; silinmez.
+    match /recommendations/{recId} {
+      allow read: if isFarmerOf(resource.data.farmerId) || isDealerStaffOf(resource.data.tenantId) || isSuperAdmin();
+      allow create: if inTenant(request.resource.data.tenantId)
+        && userDoc().get('canPrescribe', false) == true
+        && userDoc().get('prescriberLicenseNo', null) is string
+        && userDoc().prescriberLicenseNo.size() >= 3
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.authorLicenseNo == userDoc().prescriberLicenseNo
+        && request.resource.data.status == 'active'
+        && request.resource.data.createdAt == request.time
+        && get(farmerLinkPath(request.resource.data.tenantId, request.resource.data.farmerId)).data.status == 'active'
+        && request.resource.data.target is string && request.resource.data.target.size() > 0
+        && request.resource.data.items is list
+        && request.resource.data.items.size() >= 1 && request.resource.data.items.size() <= 5
+        && (
+          !recNeedsRx(request.resource.data.items)
+          || (request.resource.data.prescriptionNo is string && request.resource.data.prescriptionNo.size() >= 4)
+        );
+      allow update: if inTenant(resource.data.tenantId)
+        && userDoc().get('canPrescribe', false) == true
+        && resource.data.status == 'active'
+        && request.resource.data.status == 'withdrawn'
+        && request.resource.data.withdrawnBy == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'withdrawnAt', 'withdrawnBy']);
+      allow delete: if false;
+    }
+    // ===== ÇİFTÇİ MODÜLÜ SONU =====
   }
 }

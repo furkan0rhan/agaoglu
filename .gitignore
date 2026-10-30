@@ -57,3 +57,15 @@ src-tauri/gen/android/app/build/
 
 # APK outputs
 *.apk
+# Firebase Emulator (yerel test ortamı — docs/TEST-ORTAMI.md)
+.tools/
+.emulator-data/
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+database-debug.log
+pubsub-debug.log
+
+# Eski kural uyumluluk testi (geçici ortam)
+src/environments/environment.legacy-test.ts
