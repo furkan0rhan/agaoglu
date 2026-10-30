@@ -1,6 +1,6 @@
 export const environment = {
   production: true,
-  appVersion: '1.2.0',
+  appVersion: '1.3.0',
   /** false: e-postası doğrulanmamış hesaplar doğrulama ekranına takılmaz (eski hesaplar için geçiş). docs/TEST-ORTAMI.md */
   requireEmailVerification: true,
   appName: 'Tarım Market Pro',
