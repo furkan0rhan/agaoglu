@@ -1,0 +1,108 @@
+// =============================================================================
+// PrimeNG: preset'te token karşılığı olmayan küçük ekler (yükseklik, başlık
+// şeridi, tablo başlığı). Renk / yarıçap ayarları: src/app/core/theme/primeng-preset.ts
+// !important KULLANMAYIN. v2: cam/blur yok.
+// =============================================================================
+
+// ---- Form alanları: en az 44px (dokunmatik + C ölçüsü) -----------------------
+.p-inputtext,
+.p-select,
+.p-multiselect,
+.p-autocomplete-input-multiple,
+.p-cascadeselect,
+.p-treeselect {
+  min-height: 44px;
+}
+.p-select,
+.p-multiselect {
+  align-items: center;
+}
+.p-inputtext.p-inputtext-sm { min-height: 36px; }
+.p-inputtext.p-inputtext-lg { min-height: 52px; }
+
+// Eski davranış: şifre alanı tam genişlik
+.p-password { width: 100%; }
+.p-password input { width: 100%; }
+
+// ---- Butonlar: Manrope değil Inter, 600; ikon boyu ------------------------------
+.p-button { min-height: 42px; }
+.p-button.p-button-sm { min-height: 36px; }
+.p-button.p-button-lg { min-height: 52px; font-size: 1rem; }
+.p-button-icon-only { min-height: 0; }
+
+// ---- Dialog: başlık şeridi ------------------------------------------------------
+.p-dialog .p-dialog-header {
+  background-color: var(--surface-muted);
+  background-image: var(--furrow-pattern);
+  border-bottom: 1px solid var(--border-subtle);
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+}
+.p-dialog .p-dialog-title { font-family: var(--font-display); }
+.p-dialog .p-dialog-content { padding-top: 1rem; }
+.p-dialog .p-dialog-footer { border-top: 1px solid var(--border-subtle); padding-top: 0.875rem; }
+
+// ---- p-card: C kartı ------------------------------------------------------------
+.p-card { border: 1px solid var(--border-subtle); }
+.p-card .p-card-title { font-family: var(--font-display); }
+
+// ---- Tablo başlığı: küçük büyük harf etiket ---------------------------------------
+.p-datatable .p-datatable-thead > tr > th {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.p-datatable .p-datatable-tbody > tr > td { height: 52px; }
+
+// Para / sayı hücreleri için: <td class="num">
+.p-datatable .num { font-variant-numeric: tabular-nums; }
+
+// ---- Toast: sol renk şeridi ------------------------------------------------------
+.p-toast .p-toast-message { border-width: 1px 1px 1px 4px; }
+.p-toast .p-toast-summary { font-family: var(--font-display); font-weight: 700; }
+.p-toast .p-toast-message-info { border-left-color: var(--info); }
+.p-toast .p-toast-message-success { border-left-color: var(--success); }
+.p-toast .p-toast-message-warn { border-left-color: var(--warning); }
+.p-toast .p-toast-message-error { border-left-color: var(--danger); }
+
+// ---- Etiket / chip ---------------------------------------------------------------
+.p-tag { font-family: var(--font-sans); }
+
+// Kullanıcı menüsünde "Çıkış" satırı
+.p-menu .menu-danger .p-menu-item-label,
+.p-menu .menu-danger .p-menu-item-icon { color: var(--danger-text); }
+
+// Menü grup başlığı
+.p-menu .p-menu-submenu-label { font-family: var(--font-display); }
+
+// ---- Yoğunluk: "Sıkı" (ThemeService → html.density-compact) ---------------------
+// Fare/klavye ile çalışılan 1366×768 tezgâh ekranı için: kontroller ve tablo satırları alçalır.
+html.density-compact {
+  .p-inputtext,
+  .p-select,
+  .p-multiselect,
+  .p-autocomplete-input-multiple,
+  .p-cascadeselect,
+  .p-treeselect { min-height: 38px; }
+  .p-inputtext { padding-block: 0.375rem; }
+  .p-button { min-height: 36px; padding-block: 0.375rem; }
+  .p-datatable .p-datatable-tbody > tr > td { height: 42px; padding-block: 0.375rem; }
+  .p-datatable .p-datatable-thead > tr > th { padding-block: 0.5rem; }
+  .list-row { padding-block: 0.5rem; }
+  .page-body { gap: 0.625rem; }
+}
+
+// ---- ConfirmDialog: severity verilmemiş "İptal" düz C butonu olsun --------------------
+// (PrimeNG varsayılanı dolu birincil → koyu temada yeşil "İptal" + kırmızı "Sil" yan yana iki ana buton gibi)
+.p-confirmdialog .p-confirmdialog-reject-button:not([class*='p-button-']) {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+.p-confirmdialog .p-confirmdialog-reject-button:not([class*='p-button-']):not(:disabled):hover {
+  background: var(--surface-muted);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}

@@ -1,92 +1,29 @@
-/* Ionic core (must be @use first) */
-@use '@ionic/angular/css/core.css';
-@use '@ionic/angular/css/normalize.css';
-@use '@ionic/angular/css/structure.css';
-@use '@ionic/angular/css/display.css';
+/* =============================================================================
+   Tarım Market Pro — global stiller
+   Tokenlar:        src/styles/_tokens.scss   (renk, yarıçap, gölge, z-index)
+   Tasarım v2 "Saha / Komuta" — prototip: docs/design/c-saha-komuta/index.html
+   Taban:           src/styles/_base.scss     (body, font, başlıklar, odak)
+   Yardımcılar:     src/styles/_components.scss (.ui-card, .card-head, .kbd, .num, .page-body)
+   PrimeNG ekleri:  src/styles/_primeng.scss  (renkler preset'te: core/theme/primeng-preset.ts)
+   Bileşen kılavuzu: src/app/shared/ui/README.md
+   ============================================================================= */
+
+@use 'sass:meta';
+
+/* Yazı tipleri (yerel; Tauri çevrimdışı çalışır): Inter gövde, Manrope başlık + rakam */
+@import '@fontsource-variable/inter/index.css';
+@import '@fontsource-variable/manrope/index.css';
+
+/* PrimeIcons: yalnız woff2/woff (src/styles/_primeicons.scss, üretici scripts/codemods/primeicons-css.mjs) */
+@include meta.load-css('styles/primeicons');
+
+@include meta.load-css('styles/tokens');
+@include meta.load-css('styles/base');
 
 /* Tailwind */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* PrimeIcons */
-@import 'primeicons/primeicons.css';
-
-:root {
-  --ion-font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-}
-
-* { box-sizing: border-box; }
-html, body, ion-app { height: 100%; width: 100%; }
-
-
-/* PrimeNG global overrides */
-.p-button { border-radius: 10px !important; font-weight: 600 !important; }
-.p-inputtext { border-radius: 10px !important; border-color: #e5e7eb !important; }
-.p-inputtext:focus { border-color: #16a34a !important; box-shadow: 0 0 0 3px rgba(22,163,74,0.12) !important; }
-.p-password { width: 100%; }
-.p-password input { border-radius: 10px !important; border-color: #e5e7eb !important; width: 100%; }
-.p-tag { border-radius: 20px !important; font-size: 0.72rem !important; font-weight: 700 !important; padding: 3px 10px !important; }
-.p-chip { border-radius: 20px !important; font-size: 0.82rem !important; }
-.p-card { border-radius: 16px !important; box-shadow: 0 2px 12px rgba(0,0,0,0.06) !important; }
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
-
-/* ---- Theme CSS Variables ---- */
-:root {
-  --bg-surface:      #ffffff;
-  --bg-page:         #f8fafc;
-  --bg-muted:        #f1f5f9;
-  --text-primary:    #1e293b;
-  --text-secondary:  #64748b;
-  --border:          #f1f5f9;
-  --border-mid:      #e2e8f0;
-  --nav-active-bg:   #f0fdf4;
-  --icon-bg:         #f1f5f9;
-  --icon-color:      #64748b;
-  --text-muted:      #94a3b8;
-}
-
-html.dark {
-  --bg-surface:      #1e293b;
-  --bg-page:         #0f172a;
-  --bg-muted:        #334155;
-  --text-primary:    #f1f5f9;
-  --text-secondary:  #94a3b8;
-  --border:          #334155;
-  --border-mid:      #475569;
-  --nav-active-bg:   rgba(20, 83, 45, 0.5);
-  --icon-bg:         #334155;
-  --icon-color:      #94a3b8;
-  --text-muted:      #64748b;
-}
-
-html.dark body {
-  background: var(--bg-page);
-  color: var(--text-primary);
-}
-
-html.dark .p-inputtext {
-  border-color: var(--border-mid) !important;
-}
-
-html.dark ::-webkit-scrollbar-thumb { background: #475569; }
-
-/* Tailwind sınıfları için dark mode override'ları */
-html.dark .bg-white        { background-color: var(--bg-surface); }
-html.dark .bg-gray-50      { background-color: var(--bg-page); }
-html.dark .bg-gray-100     { background-color: var(--bg-muted); }
-html.dark .text-gray-800   { color: var(--text-primary); }
-html.dark .text-gray-700   { color: var(--text-primary); }
-html.dark .text-gray-600   { color: var(--text-secondary); }
-html.dark .text-gray-500   { color: var(--text-secondary); }
-html.dark .text-gray-400   { color: var(--text-muted); }
-html.dark .text-gray-300   { color: #64748b; }
-html.dark .border-gray-50  { border-color: var(--border); }
-html.dark .border-gray-100 { border-color: var(--border); }
-html.dark .border-gray-200 { border-color: var(--border-mid); }
-html.dark .hover\:bg-gray-100:hover { background-color: var(--bg-muted); }
-html.dark .shadow-soft     { box-shadow: 0 2px 12px rgba(0,0,0,0.35); }
+@include meta.load-css('styles/components');
+@include meta.load-css('styles/primeng');

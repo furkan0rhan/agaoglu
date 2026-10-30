@@ -1,6 +1,7 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
@@ -11,157 +12,148 @@ import { Router } from '@angular/router';
 import { SupplierService } from '../services/supplier.service';
 import { Supplier } from '../../../shared/models/supplier.model';
 import { ProductStore } from '../../products/store/product.store';
+import { SupplierAccountComponent } from '../supplier-account/supplier-account.component';
 import { LangService } from '../../../core/i18n/lang.service';
+import {
+  EmptyStateComponent, GlassCardComponent, IconButtonComponent, PageHeaderComponent,
+  StatusBadgeComponent,
+} from '../../../shared/ui';
 
 @Component({
   selector: 'app-supplier-detail',
   standalone: true,
-  imports: [RouterLink, FormsModule, ButtonModule, InputTextModule, TextareaModule, ToastModule, ConfirmDialogModule],
+  imports: [
+    RouterLink, FormsModule, ButtonModule, InputTextModule, TextareaModule, ToastModule, ConfirmDialogModule,
+    PageHeaderComponent, GlassCardComponent, EmptyStateComponent, IconButtonComponent,
+    StatusBadgeComponent, SupplierAccountComponent,
+  ],
   providers: [MessageService, ConfirmationService],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block' },
   template: `
-    <p-toast></p-toast>
-    <p-confirmDialog></p-confirmDialog>
-    <div style="display:flex; flex-direction:column; height:100%; background:var(--bg-page); overflow:hidden;">
+    <p-toast />
+    <p-confirmDialog />
 
-      <!-- Header -->
-      <div style="background:var(--bg-surface); border-bottom:1px solid var(--border); padding:14px 24px; display:flex; align-items:center; gap:12px; flex-shrink:0;">
-        <a routerLink="/suppliers" style="width:36px; height:36px; border-radius:10px; background:var(--bg-muted); display:flex; align-items:center; justify-content:center; text-decoration:none; color:var(--text-secondary); flex-shrink:0;">
-          <i class="pi pi-arrow-left" style="font-size:14px;"></i>
-        </a>
-        <h1 style="font-size:18px; font-weight:700; color:var(--text-primary); margin:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ supplier()?.name ?? t().nav.suppliers }}</h1>
+    <ui-page-header backLink="/suppliers" [backLabel]="t().common.back"
+      [title]="supplier()?.name ?? t().nav.suppliers" [subtitle]="supplier()?.contactPerson ?? ''">
+      @if (supplier()) {
         @if (!isEditing()) {
-          <p-button icon="pi pi-pencil" [label]="t().common.edit" severity="secondary" size="small" (onClick)="startEdit()" />
-          <p-button icon="pi pi-trash" severity="danger" [outlined]="true" size="small" (onClick)="confirmDelete()" />
-        }
-        @if (isEditing()) {
-          <p-button icon="pi pi-times" [label]="t().common.cancel" severity="secondary" [outlined]="true" size="small" (onClick)="cancelEdit()" />
-          <p-button icon="pi pi-check" [label]="t().common.save" severity="success" size="small" [loading]="saving()" (onClick)="saveEdit()" />
-        }
-      </div>
-
-      <!-- Content -->
-      <div style="flex:1; overflow-y:auto; padding:24px; display:flex; flex-direction:column; gap:20px; max-width:900px;">
-
-        @if (!supplier()) {
-          <div style="display:flex; justify-content:center; padding:60px 0; color:var(--text-muted);">
-            <i class="pi pi-spin pi-spinner" style="font-size:28px;"></i>
-          </div>
+          <ui-icon-button icon="pi-pencil" variant="outline" [ariaLabel]="t().common.edit" (click)="startEdit()" />
+          <ui-icon-button icon="pi-trash" tone="danger" variant="outline" [ariaLabel]="t().suppliers.deleteTitle" (click)="confirmDelete()" />
         } @else {
+          <ui-icon-button icon="pi-times" variant="outline" [ariaLabel]="t().common.cancel" (click)="cancelEdit()" />
+          <p-button icon="pi pi-check" [label]="t().common.save" [loading]="saving()"
+            [disabled]="!editForm.name.trim() || editEmailInvalid()" (onClick)="saveEdit()" />
+        }
+      }
+    </ui-page-header>
 
-          <!-- Avatar + hızlı bilgi -->
-          <div style="background:var(--bg-surface); border-radius:20px; padding:24px; box-shadow:0 1px 4px rgba(0,0,0,0.05); border:1px solid var(--border); display:flex; align-items:center; gap:20px;">
-            <div style="width:64px; height:64px; border-radius:18px; background:linear-gradient(135deg,#3b82f6,#1d4ed8); display:flex; align-items:center; justify-content:center; color:white; font-weight:800; font-size:20px; flex-shrink:0; letter-spacing:1px;">
-              {{ initials(supplier()!.name) }}
-            </div>
-            <div style="flex:1; min-width:0;">
-              <p style="font-size:20px; font-weight:700; color:var(--text-primary); margin:0 0 4px;">{{ supplier()!.name }}</p>
-              @if (supplier()!.contactPerson) {
-                <p style="font-size:13px; color:var(--text-secondary); margin:0;"><i class="pi pi-user" style="margin-right:6px;"></i>{{ supplier()!.contactPerson }}</p>
-              }
-            </div>
-            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
-              @if (supplier()!.phone) {
-                <a [href]="'tel:' + supplier()!.phone" style="font-size:14px; font-weight:600; color:#16a34a; text-decoration:none; display:flex; align-items:center; gap:6px;">
-                  <i class="pi pi-phone"></i>{{ supplier()!.phone }}
-                </a>
-              }
-              @if (supplier()!.email) {
-                <a [href]="'mailto:' + supplier()!.email" style="font-size:13px; color:#3b82f6; text-decoration:none; display:flex; align-items:center; gap:6px;">
-                  <i class="pi pi-envelope"></i>{{ supplier()!.email }}
-                </a>
-              }
-            </div>
-          </div>
+    <div class="page-body">
+      @if (!supplier()) {
+        <div class="h-48 animate-pulse rounded-token-xl bg-surface-muted" aria-hidden="true"></div>
+        <div class="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4" aria-hidden="true">
+          <div class="h-56 animate-pulse rounded-token-xl bg-surface-muted"></div>
+          <div class="h-56 animate-pulse rounded-token-xl bg-surface-muted"></div>
+        </div>
+        <span class="sr-only" role="status">{{ t().common.loading }}</span>
+      } @else {
+        <!-- Cari kartı: bakiye, ödeme, hareketler, alış belgeleri -->
+        <app-supplier-account [supplier]="supplier()!" />
 
-          <!-- Bilgi kartı -->
-          <div style="background:var(--bg-surface); border-radius:20px; box-shadow:0 1px 4px rgba(0,0,0,0.05); border:1px solid var(--border); overflow:hidden;">
-            <div style="padding:14px 20px; border-bottom:1px solid var(--border);">
-              <h2 style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin:0;">{{ t().suppliers.companyInfo }}</h2>
-            </div>
+        <div class="grid grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-4">
 
+          <!-- Firma bilgileri -->
+          <ui-glass-card [title]="t().suppliers.companyInfo" icon="pi-building" tone="info" [padding]="isEditing() ? 'md' : 'none'" clip>
             @if (!isEditing()) {
-              <div>
-                @for (row of infoRows(); track row.label) {
-                  <div style="display:flex; align-items:flex-start; padding:12px 20px; border-bottom:1px solid var(--border);">
-                    <span style="font-size:13px; color:var(--text-muted); width:120px; flex-shrink:0;">{{ row.label }}</span>
-                    <span style="font-size:13px; font-weight:600; color:var(--text-primary); font-family:{{ row.mono ? 'monospace' : 'inherit' }};">{{ row.value }}</span>
-                  </div>
-                }
-              </div>
+              @if (infoRows().length) {
+                <dl class="m-0 flex flex-col">
+                  @for (row of infoRows(); track row.label) {
+                    <div class="flex min-h-[52px] flex-col justify-center gap-0.5 border-b border-line px-4 py-2.5 last:border-b-0 sm:flex-row sm:items-center sm:justify-start sm:gap-3">
+                      <dt class="shrink-0 text-12.5 text-fg-muted sm:w-28">{{ row.label }}</dt>
+                      <dd class="m-0 min-w-0 break-words text-14 font-medium text-fg" [class.font-mono]="row.mono">
+                        @if (row.href) {
+                          <a [href]="row.href" class="text-brand-text no-underline hover:underline">{{ row.value }}</a>
+                        } @else { {{ row.value }} }
+                      </dd>
+                    </div>
+                  }
+                </dl>
+              } @else {
+                <ui-empty-state compact icon="pi-building" [title]="t().suppliers.noInfo" />
+              }
             } @else {
-              <div style="padding:20px; display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                <div style="grid-column:1/-1; display:flex; flex-direction:column; gap:6px;">
-                  <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().suppliers.companyName }}</label>
-                  <input pInputText [(ngModel)]="editForm.name" style="width:100%;" />
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div class="flex flex-col gap-1.5 sm:col-span-2">
+                  <label for="sd-name" class="text-sm font-semibold text-fg-secondary">{{ t().suppliers.companyName }}</label>
+                  <input pInputText id="sd-name" class="w-full" autocomplete="organization" [(ngModel)]="editForm.name"
+                    [attr.aria-invalid]="!editForm.name.trim()" [attr.aria-describedby]="!editForm.name.trim() ? 'sd-name-err' : null" />
+                  @if (!editForm.name.trim()) {
+                    <p id="sd-name-err" class="m-0 text-xs font-medium text-danger-text">{{ t().suppliers.companyNameRequired }}</p>
+                  }
                 </div>
-                <div style="display:flex; flex-direction:column; gap:6px;">
-                  <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().suppliers.contactPerson }}</label>
-                  <input pInputText [(ngModel)]="editForm.contactPerson" style="width:100%;" />
+                <div class="flex flex-col gap-1.5">
+                  <label for="sd-contact" class="text-sm font-semibold text-fg-secondary">{{ t().suppliers.contactPerson }}</label>
+                  <input pInputText id="sd-contact" class="w-full" autocomplete="name" [(ngModel)]="editForm.contactPerson" />
                 </div>
-                <div style="display:flex; flex-direction:column; gap:6px;">
-                  <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().suppliers.phone }}</label>
-                  <input pInputText type="tel" [(ngModel)]="editForm.phone" style="width:100%;" />
+                <div class="flex flex-col gap-1.5">
+                  <label for="sd-phone" class="text-sm font-semibold text-fg-secondary">{{ t().suppliers.phone }}</label>
+                  <input pInputText id="sd-phone" type="tel" inputmode="tel" autocomplete="tel" class="w-full" [(ngModel)]="editForm.phone" />
                 </div>
-                <div style="display:flex; flex-direction:column; gap:6px;">
-                  <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().suppliers.email }}</label>
-                  <input pInputText type="email" [(ngModel)]="editForm.email" style="width:100%;" />
+                <div class="flex flex-col gap-1.5">
+                  <label for="sd-email" class="text-sm font-semibold text-fg-secondary">{{ t().suppliers.email }}</label>
+                  <input pInputText id="sd-email" type="email" inputmode="email" autocomplete="email" class="w-full" [(ngModel)]="editForm.email"
+                    [attr.aria-invalid]="editEmailInvalid()" [attr.aria-describedby]="editEmailInvalid() ? 'sd-email-err' : null" />
+                  @if (editEmailInvalid()) {
+                    <p id="sd-email-err" class="m-0 text-xs font-medium text-danger-text">{{ t().suppliers.emailInvalid }}</p>
+                  }
                 </div>
-                <div style="display:flex; flex-direction:column; gap:6px;">
-                  <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().suppliers.taxNo }}</label>
-                  <input pInputText [(ngModel)]="editForm.taxNo" style="width:100%; font-family:monospace;" />
+                <div class="flex flex-col gap-1.5">
+                  <label for="sd-tax" class="text-sm font-semibold text-fg-secondary">{{ t().suppliers.taxNo }}</label>
+                  <input pInputText id="sd-tax" inputmode="numeric" autocomplete="off" class="num w-full font-mono" [(ngModel)]="editForm.taxNo" />
                 </div>
-                <div style="grid-column:1/-1; display:flex; flex-direction:column; gap:6px;">
-                  <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().suppliers.address }}</label>
-                  <textarea pTextarea [(ngModel)]="editForm.address" rows="2" style="width:100%; resize:vertical;"></textarea>
+                <div class="flex flex-col gap-1.5 sm:col-span-2">
+                  <label for="sd-address" class="text-sm font-semibold text-fg-secondary">{{ t().suppliers.address }}</label>
+                  <textarea pTextarea id="sd-address" rows="2" class="w-full resize-y" [(ngModel)]="editForm.address"></textarea>
                 </div>
-                <div style="grid-column:1/-1; display:flex; flex-direction:column; gap:6px;">
-                  <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().suppliers.notes }}</label>
-                  <textarea pTextarea [(ngModel)]="editForm.notes" rows="2" style="width:100%; resize:vertical;"></textarea>
+                <div class="flex flex-col gap-1.5 sm:col-span-2">
+                  <label for="sd-notes" class="text-sm font-semibold text-fg-secondary">{{ t().suppliers.notes }}</label>
+                  <textarea pTextarea id="sd-notes" rows="2" class="w-full resize-y" [(ngModel)]="editForm.notes"></textarea>
                 </div>
               </div>
             }
-          </div>
+          </ui-glass-card>
 
           <!-- Tedarik ettiği ürünler -->
-          <div style="background:var(--bg-surface); border-radius:20px; box-shadow:0 1px 4px rgba(0,0,0,0.05); border:1px solid var(--border); overflow:hidden;">
-            <div style="padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
-              <h2 style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin:0;">{{ t().suppliers.productsSupplied }}</h2>
-              @if (suppliedProducts().length > 0) {
-                <span style="font-size:11px; font-weight:600; color:var(--text-secondary); background:var(--bg-muted); border-radius:999px; padding:2px 10px;">{{ suppliedProducts().length }} {{ t().suppliers.suppliedCount }}</span>
-              }
-            </div>
-            @if (suppliedProducts().length === 0) {
-              <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 20px; color:var(--text-muted); gap:10px;">
-                <i class="pi pi-box" style="font-size:28px; opacity:0.3;"></i>
-                <p style="font-size:13px; margin:0;">{{ t().suppliers.noProducts }}</p>
-                <p style="font-size:12px; margin:0; color:var(--text-muted);">{{ t().suppliers.noProductsHint }}</p>
-              </div>
-            } @else {
-              <div>
-                @for (p of suppliedProducts(); track p.id) {
-                  <a [routerLink]="['/products', p.id]"
-                    style="display:flex; align-items:center; gap:12px; padding:12px 20px; border-bottom:1px solid var(--border); text-decoration:none; transition:background 0.15s;"
-                    onmouseenter="this.style.background='#f8fafc'"
-                    onmouseleave="this.style.background='transparent'">
-                    <div style="width:36px; height:36px; border-radius:10px; background:#f0fdf4; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                      <i class="pi pi-box" style="font-size:14px; color:#16a34a;"></i>
-                    </div>
-                    <div style="flex:1; min-width:0;">
-                      <p style="font-size:14px; font-weight:600; color:var(--text-primary); margin:0 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ p.name }}</p>
-                      <p style="font-size:12px; color:var(--text-muted); margin:0;">{{ p.category }}</p>
-                    </div>
-                    <div style="text-align:right; flex-shrink:0;">
-                      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0;">{{ p.stock }} {{ t().products.piece }}</p>
-                    </div>
-                    <i class="pi pi-chevron-right" style="color:#cbd5e1; font-size:12px; flex-shrink:0;"></i>
-                  </a>
-                }
-              </div>
+          <ui-glass-card [title]="t().suppliers.productsSupplied" icon="pi-box" padding="none" clip>
+            @if (suppliedProducts().length > 0) {
+              <ui-status-badge card-actions tone="neutral" size="sm">{{ suppliedProducts().length }} {{ t().suppliers.suppliedCount }}</ui-status-badge>
             }
-          </div>
+            @if (suppliedProducts().length === 0) {
+              <ui-empty-state compact icon="pi-box" [title]="t().suppliers.noProducts" [description]="t().suppliers.noProductsHint" />
+            } @else {
+              <ul class="m-0 flex list-none flex-col p-0">
+                @for (p of suppliedProducts(); track p.id) {
+                  <li class="border-b border-line last:border-b-0">
+                    <a [routerLink]="['/products', p.id]"
+                      class="list-row flex min-h-[56px] items-center gap-3 px-4 py-2 no-underline">
+                      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-token-md bg-brand-soft text-brand-text" aria-hidden="true">
+                        <i class="pi pi-box text-sm"></i>
+                      </span>
+                      <span class="min-w-0 flex-1">
+                        <span class="block truncate text-sm font-semibold text-fg">{{ p.name }}</span>
+                        <span class="block truncate text-xs text-fg-muted">{{ p.category }}</span>
+                      </span>
+                      <span class="num shrink-0 text-14 font-bold text-fg">{{ p.stock }} {{ t().pos.units[p.unit ?? 'adet'] }}</span>
+                      <i class="pi pi-chevron-right text-xs text-fg-muted" aria-hidden="true"></i>
+                    </a>
+                  </li>
+                }
+              </ul>
+            }
+          </ui-glass-card>
+        </div>
 
-        }
-      </div>
+      }
     </div>
   `,
 })
@@ -172,6 +164,7 @@ export class SupplierDetailPage implements OnInit {
   private readonly toast = inject(MessageService);
   private readonly confirm = inject(ConfirmationService);
   private readonly productStore = inject(ProductStore);
+  private readonly destroyRef = inject(DestroyRef);
   readonly t = inject(LangService).t;
 
   readonly supplier = signal<Supplier | null>(null);
@@ -184,14 +177,17 @@ export class SupplierDetailPage implements OnInit {
   readonly suppliedProducts = computed(() => {
     const id = this.supplierId;
     return this.productStore.products().filter(p =>
-      p.batches?.some(b => (b as any).supplierId === id)
+      p.batches?.some(b => b.supplierId === id)
     );
   });
 
   ngOnInit(): void {
     this.supplierId = this.route.snapshot.paramMap.get('id') ?? '';
-    this.svc.getById$(this.supplierId).subscribe(s => this.supplier.set(s));
-    this.productStore.loadProducts(undefined as any);
+    this.svc.getById$(this.supplierId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: s => this.supplier.set(s),
+      error: () => this.toast.add({ severity: 'error', summary: this.t().common.error, detail: this.t().suppliers.loadError }),
+    });
+    this.productStore.ensureLoaded();
   }
 
   startEdit(): void {
@@ -210,6 +206,11 @@ export class SupplierDetailPage implements OnInit {
   }
 
   cancelEdit(): void { this.isEditing.set(false); }
+
+  editEmailInvalid(): boolean {
+    const v = this.editForm.email.trim();
+    return !!v && Validators.email(new FormControl(v)) !== null;
+  }
 
   async saveEdit(): Promise<void> {
     if (!this.editForm.name.trim()) {
@@ -239,6 +240,15 @@ export class SupplierDetailPage implements OnInit {
   }
 
   confirmDelete(): void {
+    // Partilerde bu tedarikçiye referans varsa silmeyi engelle (ürün listesi yüklenmeden karar verme).
+    if (this.productStore.loading()) {
+      this.toast.add({ severity: 'info', summary: '', detail: this.t().common.loading, life: 2000 });
+      return;
+    }
+    if (this.suppliedProducts().length > 0) {
+      this.toast.add({ severity: 'warn', summary: '', detail: this.t().suppliers.deleteHasProducts, life: 4000 });
+      return;
+    }
     this.confirm.confirm({
       message: this.t().suppliers.deleteConfirm,
       header: this.t().suppliers.deleteTitle,
@@ -251,6 +261,10 @@ export class SupplierDetailPage implements OnInit {
   }
 
   private async doDelete(): Promise<void> {
+    if (this.suppliedProducts().length > 0) {
+      this.toast.add({ severity: 'warn', summary: '', detail: this.t().suppliers.deleteHasProducts, life: 4000 });
+      return;
+    }
     try {
       await this.svc.delete(this.supplierId);
       await this.router.navigate(['/suppliers']);
@@ -259,21 +273,17 @@ export class SupplierDetailPage implements OnInit {
     }
   }
 
-  infoRows(): { label: string; value: string; mono?: boolean }[] {
+  infoRows(): { label: string; value: string; mono?: boolean; href?: string }[] {
     const s = this.supplier();
     if (!s) return [];
     const su = this.t().suppliers;
     return [
       ...(s.contactPerson ? [{ label: su.contactShort, value: s.contactPerson }] : []),
-      ...(s.phone ? [{ label: su.phone, value: s.phone }] : []),
-      ...(s.email ? [{ label: su.email, value: s.email }] : []),
+      ...(s.phone ? [{ label: su.phone, value: s.phone, href: `tel:${s.phone.replace(/\s+/g, '')}` }] : []),
+      ...(s.email ? [{ label: su.email, value: s.email, href: `mailto:${s.email}` }] : []),
       ...(s.taxNo ? [{ label: su.taxNo, value: s.taxNo, mono: true }] : []),
       ...(s.address ? [{ label: su.address, value: s.address }] : []),
       ...(s.notes ? [{ label: su.notes, value: s.notes }] : []),
     ].filter(r => r.value);
-  }
-
-  initials(name: string): string {
-    return name.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase()).join('').slice(0, 2);
   }
 }

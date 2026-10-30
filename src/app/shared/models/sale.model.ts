@@ -4,15 +4,48 @@ export type PaymentMethod = 'cash' | 'card' | 'credit' | 'mixed';
 export type SaleStatus = 'completed' | 'cancelled' | 'refunded';
 export type DiscountType = 'percent' | 'amount';
 
+/** Satış birimi (ürünün `unit` alanı). Yoksa 'adet' kabul edilir. */
+export type SaleUnit = 'adet' | 'kg' | 'lt' | 'paket' | 'cuval' | 'metre';
+export const SALE_UNITS: readonly SaleUnit[] = ['adet', 'kg', 'lt', 'paket', 'cuval', 'metre'];
+/** Ondalıklı miktara (2 hane) izin verilen birimler; diğerleri tam sayı. */
+export const DECIMAL_UNITS: readonly SaleUnit[] = ['kg', 'lt', 'metre'];
+
+/** Satışta bir kalemden düşülen parti (iptal/iadede geri yüklemek için). */
+export interface SaleItemBatch {
+  batchId: string;
+  quantity: number;
+  gtsNo: string | null;
+  expiryDate: Timestamp | null;
+}
+
 export interface SaleItem {
   productId: string;
   productName: string;
   barcode: string;
+  /** kg / lt / metre birimlerinde ondalıklı olabilir (3 haneye yuvarlı). */
   quantity: number;
+  /** Satış anındaki birim. Eski satışlarda yoktur (= adet). */
+  unit?: SaleUnit | null;
   unitPrice: number;
   discount: number;
   discountType: DiscountType;
+  /** Kalem indirimi düşülmüş satır toplamı (kuruşa yuvarlı). */
   totalPrice: number;
+  /** Satış anındaki alış fiyatı (ürünün purchasePrice'ı) — kâr hesabı için. */
+  costPrice?: number | null;
+  /** FEFO ile düşülen partiler. Eski satışlarda yoktur. */
+  batches?: SaleItemBatch[];
+  /**
+   * Satılan birimlerin GTS / karekod numaraları (okutulan + FEFO ile seçilen).
+   * Sepette: okutularak eklenen GTS'ler (satışta önce bunlar düşülür).
+   */
+  gtsNos?: string[];
+  /** Satış anında ürün e-reçeteli miydi? */
+  requiresPrescription?: boolean;
+  /** E-reçete numarası (reçeteli kalemlerde). */
+  prescriptionNo?: string | null;
+  /** Satış anındaki ruhsat no (denetim kaydı için). */
+  licenseNo?: string | null;
 }
 
 export interface Sale {
@@ -23,7 +56,13 @@ export interface Sale {
   customerName: string | null;
   items: SaleItem[];
   subtotal: number;
+  /** Kalem indirimleri + genel indirim. */
   totalDiscount: number;
+  /** Genel (sepet) indirimi girdi değeri. */
+  globalDiscount?: number;
+  globalDiscountType?: DiscountType;
+  /** Genel indirimin TL karşılığı. */
+  globalDiscountAmount?: number;
   totalAmount: number;
   paymentMethod: PaymentMethod;
   cashPaid: number;
@@ -35,13 +74,58 @@ export interface Sale {
   interestRate: number | null;
   installmentCount: number | null;
   installmentAmount: number | null;
+  /** Veresiyeye yazılan borç: vade farkı varsa veresiye + vade farkı (raporda vade farkı = bu − creditAmount). */
   totalWithInterest: number | null;
+  /** Veresiye vadesi (son taksit tarihi). Eski satışlarda yok. */
+  creditDueDate?: Timestamp | Date | null;
+  /** Veresiye satışta alınan peşinat (nakit olarak `cashPaid` içinde). */
+  downPayment?: number | null;
   createdAt: Timestamp;
   createdBy: string;
   cancelledAt: Timestamp | null;
+  cancelledBy?: string | null;
+  cancelReason?: string | null;
+  // ---- Mevzuat (reçeteli satış kaydı; 5 yıl saklanır) ----
+  /** Sepette e-reçeteli ürün var mıydı? (Reçeteli satışlar filtresi) */
+  hasPrescriptionItems?: boolean;
+  /** E-reçete numarası. */
+  prescriptionNo?: string | null;
+  /** Reçeteyi yazan (opsiyonel). */
+  prescriberName?: string | null;
+  /** Reçeteli satışta müşterinin TC kimlik no'su (satış anındaki). */
+  customerTcNo?: string | null;
+  /** Reçeteli satışta müşterinin ÇKS / kayıt no'su (satış anındaki). */
+  customerCksNo?: string | null;
 }
 
+/** Sepet kalemi — yalnızca istemcide; satış dokümanına _tempId ve stock yazılmaz. */
 export interface CartItem extends SaleItem {
   _tempId: string;
   stock: number;
+}
+
+/** Fiş / satış sonrası özet için gereken alanlar (Firestore'dan bağımsız). */
+export interface SaleReceipt {
+  saleNumber: string;
+  date: Date;
+  customerName: string | null;
+  items: (Pick<SaleItem, 'productName' | 'quantity' | 'unit' | 'unitPrice' | 'discount' | 'discountType' | 'totalPrice'>
+    & Partial<Pick<SaleItem, 'gtsNos' | 'licenseNo'>>)[];
+  /** E-reçete numarası (reçeteli satışta). */
+  prescriptionNo?: string | null;
+  subtotal: number;
+  totalDiscount: number;
+  totalAmount: number;
+  paymentMethod: PaymentMethod;
+  cashPaid: number;
+  cardPaid: number;
+  creditAmount: number;
+  change: number;
+  totalWithInterest: number | null;
+  installmentCount: number | null;
+  /** Veresiye vadesi ve peşinat (POS özeti / fiş). */
+  dueDate?: Date | null;
+  downPayment?: number | null;
+  /** Taksit planı (fişte listelenir). */
+  installments?: { no: number; dueDate: Date; amount: number }[] | null;
 }

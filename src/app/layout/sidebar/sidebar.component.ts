@@ -1,261 +1,198 @@
-import { Component, inject, signal, HostListener, OnInit, computed } from '@angular/core';
-import { RouterLink, RouterLinkActive, Router, NavigationEnd } from '@angular/router';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { TooltipModule } from 'primeng/tooltip';
 import { AuthService } from '../../core/auth/services/auth.service';
-import { SidebarService } from './sidebar.service';
 import { CartStore } from '../../features/pos/store/cart.store';
-import { ThemeService } from '../../core/theme/theme.service';
+import { ProductStore } from '../../features/products/store/product.store';
 import { LangService } from '../../core/i18n/lang.service';
-import { filter } from 'rxjs';
+import { NetworkService } from '../../core/offline/network.service';
+import { LicenseService } from '../../core/license/license.service';
+import { AvatarComponent } from '../../shared/ui/avatar.component';
+import { KbdComponent } from '../../shared/ui/kbd.component';
+import { LogoMarkComponent } from '../../shared/ui/logo-mark.component';
+import { ShellStatusService } from '../shell-status.service';
+import {
+  NavItem, bestMatch, buildNavItems, filterByRole, formatDisplayName, groupNavItems, injectCurrentUrl, roleLabel,
+} from '../nav-items';
 
-interface NavItem { title: string; path: string; icon: string; roles?: string[]; }
+const COLLAPSE_KEY = 'sidebarCollapsed';
 
+/**
+ * Masaüstü (≥1024px) kalıcı koyu kenar menüsü (C "Saha / Komuta"): logo + işletme adı, turuncu
+ * "Hızlı Satış F2", gruplu menü (Operasyon / Analiz / Yönetim) + sayaç rozetleri, altta çevrimiçi
+ * durumu ve kullanıcı. Daraltılabilir (ikon modu; 1366×768'de yer açar). Her iki temada koyu.
+ */
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, TooltipModule],
+  imports: [RouterLink, TooltipModule, AvatarComponent, KbdComponent, LogoMarkComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block h-full shrink-0' },
   template: `
     <aside
-      [style.width]="asideWidth()"
-      [style.transform]="asideTransform()"
-      [style.position]="isMobile() ? 'fixed' : 'relative'"
-      [style.height]="isMobile() ? '100vh' : '100%'"
-      [style.z-index]="isMobile() ? '300' : 'auto'"
-      style="
-        left: 0;
-        top: 0;
-        display: flex;
-        flex-direction: column;
-        background: var(--bg-surface);
-        border-right: 1px solid var(--border);
-        box-shadow: 2px 0 16px rgba(0,0,0,0.08);
-        transition: width 0.22s cubic-bezier(0.4,0,0.2,1), transform 0.26s cubic-bezier(0.4,0,0.2,1);
-        overflow: hidden;
-      "
-    >
-      <!-- Brand -->
-      <div style="display:flex; align-items:center; padding:14px; border-bottom:1px solid var(--border); flex-shrink:0; min-height:60px; gap:10px;">
-        <img
-          src="assets/TarimLogo.png"
-          alt="Tarım Market Logo"
-          (click)="onLogoClick()"
-          [style.cursor]="(!isMobile() && collapsed()) ? 'pointer' : 'default'"
-          style="width:36px; height:36px; object-fit:contain; flex-shrink:0;"
-        />
-        <div [style.opacity]="showText() ? '1' : '0'" style="transition:opacity 0.15s; white-space:nowrap; overflow:hidden; flex:1;">
-          <p style="font-size:13px; font-weight:700; color:var(--text-primary); line-height:1.2;">Tarım Market</p>
-          <p style="font-size:10px; font-weight:600; color:#16a34a; text-transform:uppercase; letter-spacing:1px;">Pro</p>
-        </div>
-        @if (!isMobile() && showText()) {
-          <button
-            (click)="collapse()"
-            style="width:28px; height:28px; border-radius:8px; border:1px solid var(--border-mid); background:var(--bg-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; color:var(--text-secondary);"
-            onmouseenter="this.style.background='var(--bg-page)'"
-            onmouseleave="this.style.background='var(--bg-muted)'"
-          >
-            <i class="pi pi-chevron-left" style="font-size:11px;"></i>
-          </button>
+      class="flex h-full flex-col gap-1 overflow-hidden border-r border-side-line bg-side bg-side-pattern pb-3 pt-3.5 text-side-text transition-[width] duration-200 ease-out"
+      [class]="collapsed() ? 'w-[4.5rem] px-2.5' : 'w-[14.75rem] px-3'"
+      [attr.aria-label]="t().nav.mainMenu">
+
+      <!-- Marka -->
+      <div class="flex items-center gap-[11px] pb-2.5" [class]="collapsed() ? 'justify-center px-0' : 'px-1.5'">
+        <ui-logo-mark [size]="collapsed() ? 40 : 40" />
+        @if (!collapsed()) {
+          <div class="min-w-0 leading-tight">
+            <p class="m-0 truncate font-display text-15.5 font-extrabold tracking-tight">Tarım Market Pro</p>
+            <p class="m-0 truncate text-12.5 text-side-muted">{{ tenantName() || t().shell.heroTagline }}</p>
+          </div>
         }
       </div>
 
-      <!-- Nav -->
-      <nav style="flex:1; overflow-y:auto; overflow-x:hidden; padding:8px 10px; display:flex; flex-direction:column; gap:2px;">
-        @for (item of visibleNavItems(); track item.path) {
-          <a
-            [routerLink]="item.path"
-            routerLinkActive="nav-active"
-            #rla="routerLinkActive"
-            (click)="onNavClick()"
-            [pTooltip]="!showText() ? item.title : ''"
-            tooltipPosition="right"
-            [style]="linkStyle(rla.isActive)"
-          >
-            <div [style]="iconStyle(rla.isActive)" style="position:relative;">
-              <i [class]="'pi ' + item.icon" style="font-size:15px;"></i>
-              @if (item.path === '/pos' && cart.itemCount() > 0) {
-                <span style="position:absolute; top:-5px; right:-5px; background:#ef4444; color:white; border-radius:10px; font-size:9px; font-weight:700; min-width:16px; height:16px; display:flex; align-items:center; justify-content:center; padding:0 3px; line-height:1;">{{ cart.itemCount() }}</span>
-              }
-            </div>
-            <span [style.opacity]="showText() ? '1' : '0'" style="transition:opacity 0.12s; font-size:13px; font-weight:500; white-space:nowrap;">{{ item.title }}</span>
-          </a>
-        }
-      </nav>
-
-      <!-- Footer -->
-      <div style="border-top:1px solid var(--border); padding:8px 10px; flex-shrink:0; display:flex; flex-direction:column; gap:4px;">
-
-        <!-- User + dark toggle + lang toggle yan yana (expanded) -->
-        <div style="display:flex; align-items:center; gap:6px;">
-          <a
-            routerLink="/settings"
-            (click)="onNavClick()"
-            [pTooltip]="!showText() ? t().nav.settings : ''"
-            tooltipPosition="right"
-            style="flex:1; min-width:0; display:flex; align-items:center; gap:10px; padding:6px 4px; border-radius:10px; text-decoration:none; transition:background 0.15s; overflow:hidden;"
-            onmouseenter="this.style.background='var(--bg-muted)'"
-            onmouseleave="this.style.background='transparent'"
-          >
-            <div style="width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#4ade80,#16a34a); display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:12px; flex-shrink:0; letter-spacing:0.5px;">{{ initials() }}</div>
-            <div [style.opacity]="showText() ? '1' : '0'" style="transition:opacity 0.15s; overflow:hidden; white-space:nowrap; min-width:0; flex:1;">
-              <p style="font-size:13px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:0 0 1px;">{{ formattedName() }}</p>
-              <p style="font-size:10px; font-weight:600; color:#16a34a; text-transform:uppercase; letter-spacing:0.5px; margin:0;">{{ roleLabel() }} · {{ t().nav.settings }}</p>
-            </div>
-          </a>
-
-          @if (showText()) {
-            <button
-              (click)="themeSvc.toggle()"
-              [pTooltip]="themeSvc.isDark() ? t().nav.lightMode : t().nav.darkMode"
-              tooltipPosition="top"
-              style="width:36px; height:36px; border-radius:10px; border:none; background:var(--bg-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; transition:background 0.15s;"
-              onmouseenter="this.style.background='var(--border-mid)'"
-              onmouseleave="this.style.background='var(--bg-muted)'"
-            >
-              <i [class]="'pi ' + (themeSvc.isDark() ? 'pi-sun' : 'pi-moon')" style="font-size:15px; color:var(--text-secondary);"></i>
-            </button>
-            <button
-              (click)="langSvc.toggle()"
-              pTooltip="TR / EN"
-              tooltipPosition="top"
-              style="width:36px; height:36px; border-radius:10px; border:none; background:var(--bg-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; font-size:10px; font-weight:700; color:var(--text-secondary); transition:background 0.15s;"
-              onmouseenter="this.style.background='var(--border-mid)'"
-              onmouseleave="this.style.background='var(--bg-muted)'"
-            >{{ langSvc.lang() === 'tr' ? 'EN' : 'TR' }}</button>
+      <!-- Hızlı Satış -->
+      @if (canSell()) {
+        <a routerLink="/pos" aria-keyshortcuts="F2"
+          [attr.aria-label]="collapsed() ? t().shell.quickSale + ' (F2)' : null"
+          [attr.aria-current]="onPos() ? 'page' : null"
+          [pTooltip]="collapsed() ? t().shell.quickSale + ' · F2' : ''" tooltipPosition="right"
+          class="relative mb-1.5 mt-0.5 flex h-12 shrink-0 items-center gap-2.5 rounded-[9px] bg-sale font-display text-15 font-bold text-sale-text no-underline shadow-accent transition-[filter] hover:brightness-110"
+          [class]="collapsed() ? 'justify-center px-0' : 'px-3.5'"
+          [class.ring-2]="onPos()" [class.ring-side-hi]="onPos()">
+          <i class="pi pi-shopping-cart text-17" aria-hidden="true"></i>
+          @if (!collapsed()) {
+            <span class="truncate">{{ t().shell.quickSale }}</span>
+            <ui-kbd tone="inverse" class="ml-auto">F2</ui-kbd>
           }
-        </div>
+          @if (cart.itemCount() > 0) {
+            <span class="num absolute -right-1.5 -top-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-token-sm bg-side-count px-1 text-11 font-bold leading-none text-white">
+              {{ cart.itemCount() }}
+            </span>
+          }
+        </a>
+      }
 
-        <!-- Dark + lang toggle collapsed modunda ayrı satır -->
-        @if (!showText()) {
-          <button
-            (click)="themeSvc.toggle()"
-            [pTooltip]="themeSvc.isDark() ? t().nav.lightMode : t().nav.darkMode"
-            tooltipPosition="right"
-            style="width:36px; height:36px; border-radius:10px; border:none; background:var(--bg-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; margin:0 auto; transition:background 0.15s;"
-            onmouseenter="this.style.background='var(--border-mid)'"
-            onmouseleave="this.style.background='var(--bg-muted)'"
-          >
-            <i [class]="'pi ' + (themeSvc.isDark() ? 'pi-sun' : 'pi-moon')" style="font-size:14px; color:var(--text-secondary);"></i>
-          </button>
-          <button
-            (click)="langSvc.toggle()"
-            pTooltip="TR / EN"
-            tooltipPosition="right"
-            style="width:36px; height:36px; border-radius:10px; border:none; background:var(--bg-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; margin:0 auto; font-size:10px; font-weight:700; color:var(--text-secondary); transition:background 0.15s;"
-            onmouseenter="this.style.background='var(--border-mid)'"
-            onmouseleave="this.style.background='var(--bg-muted)'"
-          >{{ langSvc.lang() === 'tr' ? 'EN' : 'TR' }}</button>
+      <!-- Menü (sığmazsa yalnız bu bölüm kayar; alt kısım sabit) -->
+      <div class="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-1 [scrollbar-width:thin]">
+      @for (g of groups(); track g.key) {
+        @if (collapsed()) {
+          <div class="mx-2 my-2 h-px shrink-0 bg-side-line" aria-hidden="true"></div>
+        } @else {
+          <p class="eyebrow m-0 px-2.5 pb-1 pt-2.5 text-side-muted">{{ g.label }}</p>
         }
+        <nav class="flex flex-col gap-0.5" [attr.aria-label]="g.label">
+          @for (item of g.items; track item.path) {
+            @let active = activePath() === item.path;
+            @let count = countFor(item);
+            <a [routerLink]="item.path"
+               [attr.aria-current]="active ? 'page' : null"
+               [attr.aria-label]="collapsed() ? item.title + (count ? ' (' + count + ')' : '') : null"
+               [pTooltip]="collapsed() ? item.title : ''" tooltipPosition="right"
+               class="relative flex h-10 shrink-0 items-center gap-3 rounded-token-md text-14.5 no-underline transition-colors duration-150"
+               [class]="linkClass(active)">
+              <i class="pi text-16" [class]="item.icon + (active ? ' text-side-hi' : ' text-side-muted')" aria-hidden="true"></i>
+              @if (!collapsed()) {
+                <span class="min-w-0 flex-1 truncate">{{ item.title }}</span>
+              }
+              @if (count) {
+                <span class="num flex h-[22px] min-w-[22px] items-center justify-center rounded-token-sm px-1.5 text-11.5 font-bold leading-none text-white"
+                  [class]="(item.path === '/credit' ? 'bg-side-count-alt' : 'bg-side-count') + (collapsed() ? ' absolute -right-1 -top-1 h-[18px] min-w-[18px] text-10' : '')">
+                  {{ count > 99 ? '99+' : count }}
+                </span>
+              }
+            </a>
+          }
+        </nav>
+      }
 
+      </div>
+
+      <!-- Alt: durum + kullanıcı + daralt -->
+      <div class="flex shrink-0 flex-col gap-1.5 border-t border-side-line pt-2.5">
+        @if (!collapsed()) {
+          <div role="status" class="flex items-center gap-2 rounded-token-md border border-side-line px-2.5 py-1.5 text-xs text-side-muted">
+            <span class="h-2 w-2 shrink-0 rounded-full" [class]="network.isOnline() ? 'bg-side-hi shadow-[0_0_0_3px_rgba(52,211,153,0.18)]' : 'bg-warning shadow-[0_0_0_3px_rgba(251,191,36,0.2)]'" aria-hidden="true"></span>
+            <span class="truncate">{{ network.isOnline() ? t().shell.syncOnline : t().shell.syncOffline }}</span>
+          </div>
+        }
+        <div class="flex items-center gap-2.5 rounded-token-md bg-side-2 p-2" [class.flex-col]="collapsed()" [class.px-1]="collapsed()">
+          <a [routerLink]="accountLink()" [attr.aria-label]="t().nav.account + ': ' + userName()"
+            [pTooltip]="collapsed() ? userName() : ''" tooltipPosition="right"
+            class="flex min-w-0 flex-1 items-center gap-2.5 rounded-token-sm text-side-text no-underline">
+            <ui-avatar [name]="userName()" variant="solid" size="md" />
+            @if (!collapsed()) {
+              <span class="min-w-0 flex-1 leading-tight">
+                <span class="block truncate text-13.5 font-semibold">{{ userName() || t().nav.account }}</span>
+                <span class="block truncate text-xs text-side-muted">{{ role() }}</span>
+              </span>
+            }
+          </a>
+          <button type="button" (click)="logout()" [attr.aria-label]="t().nav.logout"
+            [pTooltip]="t().nav.logout" tooltipPosition="right"
+            class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-token-md border-0 bg-transparent text-side-muted transition-colors hover:bg-side-line hover:text-white">
+            <i class="pi pi-sign-out text-15" aria-hidden="true"></i>
+          </button>
+        </div>
+        <button type="button" (click)="toggle()"
+          [attr.aria-label]="collapsed() ? t().nav.expandMenu : t().nav.collapseMenu"
+          [attr.aria-expanded]="!collapsed()"
+          [pTooltip]="collapsed() ? t().nav.expandMenu : ''" tooltipPosition="right"
+          class="flex h-9 cursor-pointer items-center gap-2.5 rounded-token-md border-0 bg-transparent px-2.5 text-xs font-medium text-side-muted transition-colors hover:bg-side-2 hover:text-side-text"
+          [class.justify-center]="collapsed()">
+          <i class="pi text-sm" [class]="collapsed() ? 'pi-angle-double-right' : 'pi-angle-double-left'" aria-hidden="true"></i>
+          @if (!collapsed()) { <span>{{ t().nav.collapseMenu }}</span> }
+        </button>
       </div>
     </aside>
   `,
-  styles: [`
-    :host {
-      display: block;
-      flex-shrink: 0;
-      transition: width 0.26s cubic-bezier(0.4,0,0.2,1);
-    }
-    .nav-active { background: var(--nav-active-bg) !important; }
-    nav::-webkit-scrollbar { width: 0; }
-  `],
-  host: {
-    '[style.width]': 'hostWidth()',
-  },
 })
-export class SidebarComponent implements OnInit {
-  readonly auth       = inject(AuthService);
-  readonly sidebarSvc = inject(SidebarService);
-  readonly router     = inject(Router);
-  readonly cart       = inject(CartStore);
-  readonly themeSvc   = inject(ThemeService);
-  readonly langSvc    = inject(LangService);
-  readonly t          = this.langSvc.t;
+export class SidebarComponent {
+  private readonly auth = inject(AuthService);
+  private readonly products = inject(ProductStore);
+  private readonly status = inject(ShellStatusService);
+  private readonly license = inject(LicenseService);
+  readonly cart = inject(CartStore);
+  readonly network = inject(NetworkService);
+  readonly t = inject(LangService).t;
+  private readonly url = injectCurrentUrl();
 
-  readonly collapsed = signal(false);
-  readonly isMobile = signal(false);
+  readonly collapsed = signal(readCollapsed());
 
-  private readonly navItems = computed<NavItem[]>(() => {
-    const n = this.t().nav;
-    return [
-      { title: n.dashboard,   path: '/dashboard',   icon: 'pi-home' },
-      { title: n.products,    path: '/products',    icon: 'pi-box' },
-      { title: n.pos,         path: '/pos',         icon: 'pi-shopping-cart', roles: ['admin', 'cashier'] },
-      { title: n.customers,   path: '/customers',   icon: 'pi-users',         roles: ['admin', 'cashier'] },
-      { title: n.credit,      path: '/credit',      icon: 'pi-credit-card',   roles: ['admin'] },
-      { title: n.reports,     path: '/reports',     icon: 'pi-chart-bar',     roles: ['admin'] },
-      { title: n.expenses,    path: '/expenses',    icon: 'pi-wallet',        roles: ['admin'] },
-      { title: n.suppliers,   path: '/suppliers',   icon: 'pi-truck',         roles: ['admin'] },
-      { title: n.stockCount,  path: '/stock-count', icon: 'pi-barcode',       roles: ['admin'] },
-    ];
-  });
+  private readonly all = computed(() => filterByRole(buildNavItems(this.t()), this.auth.currentUser()?.role, this.auth.isSuperAdmin()));
+  /** POS büyük turuncu butonda; listede tekrar etmez. */
+  readonly groups = computed(() => groupNavItems(this.all().filter(i => i.path !== '/pos'), this.t()));
+  readonly activePath = computed(() => bestMatch(this.all(), this.url())?.path ?? '');
+  readonly onPos = computed(() => this.activePath() === '/pos');
+  readonly canSell = computed(() => this.all().some(i => i.path === '/pos'));
 
-  ngOnInit(): void {
-    this.checkMobile();
-    this.router.events
-      .pipe(filter(e => e instanceof NavigationEnd))
-      .subscribe(() => { if (this.isMobile()) this.sidebarSvc.close(); });
+  readonly userName = computed(() => formatDisplayName(this.auth.currentUser()?.displayName));
+  readonly role = computed(() => roleLabel(this.t(), this.auth.currentUser()?.role));
+  readonly tenantName = computed(() => this.license.tenant()?.name ?? '');
+  readonly accountLink = computed(() => (this.auth.currentUser()?.role ?? 'admin') === 'admin' ? '/settings' : '/account');
+
+  private readonly lowStock = computed(() => this.products.lowStockCount());
+
+  countFor(item: NavItem): number {
+    if (item.path === '/products') return this.lowStock();
+    if (item.path === '/credit') return this.status.overdueCustomers() ?? 0;
+    return 0;
   }
 
-  @HostListener('window:resize')
-  checkMobile(): void {
-    this.isMobile.set(window.innerWidth < 1024);
+  toggle(): void {
+    this.collapsed.update(v => !v);
+    try { localStorage.setItem(COLLAPSE_KEY, this.collapsed() ? '1' : '0'); } catch { /* yoksay */ }
   }
 
-  collapse():     void { this.collapsed.set(true); }
-  onLogoClick():  void { if (!this.isMobile() && this.collapsed()) this.collapsed.set(false); }
-  onNavClick():   void { if (this.isMobile()) this.sidebarSvc.close(); }
+  logout(): void { void this.auth.logout(); }
 
-  showText(): boolean {
-    return this.isMobile() ? this.sidebarSvc.mobileOpen() : !this.collapsed();
+  linkClass(active: boolean): string {
+    const pad = this.collapsed() ? 'justify-center px-0' : 'pl-3 pr-2.5';
+    return active
+      ? `${pad} bg-side-active font-semibold text-side-active-text shadow-[inset_3px_0_0_var(--side-hi)]`
+      : `${pad} font-medium text-side-text hover:bg-side-2`;
   }
-
-  asideWidth(): string {
-    if (this.isMobile()) return '260px';
-    return this.collapsed() ? '64px' : '230px';
-  }
-
-  asideTransform(): string {
-    if (this.isMobile()) {
-      return this.sidebarSvc.mobileOpen() ? 'translateX(0)' : 'translateX(-100%)';
-    }
-    return 'translateX(0)';
-  }
-
-  hostWidth(): string {
-    if (this.isMobile()) return '0px';
-    return this.collapsed() ? '64px' : '230px';
-  }
-
-  visibleNavItems(): NavItem[] {
-    const user = this.auth.currentUser();
-    const items = this.navItems();
-    if (!user) return items;
-    return items.filter(i => !i.roles || i.roles.includes(user.role));
-  }
-
-  linkStyle(active: boolean): string {
-    return `display:flex; align-items:center; gap:10px; padding:8px 6px; border-radius:10px; text-decoration:none; color:var(--text-primary); background:${active ? 'var(--nav-active-bg)' : 'transparent'}; transition:background 0.15s;`;
-  }
-
-  iconStyle(active: boolean): string {
-    return `width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:${active ? '#16a34a' : 'var(--icon-bg)'}; color:${active ? 'white' : 'var(--icon-color)'}; transition:background 0.15s;`;
-  }
-
-  formattedName(): string {
-    const name = this.auth.currentUser()?.displayName ?? '';
-    return name.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-  }
-
-  initials(): string {
-    const name = this.auth.currentUser()?.displayName ?? '';
-    return name.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase()).join('').slice(0, 2) || 'U';
-  }
-
-  roleLabel(): string {
-    const n = this.t().nav;
-    const map: Record<string, string> = { admin: n.admin, cashier: n.cashier, staff: n.staff };
-    return map[this.auth.currentUser()?.role ?? ''] ?? '';
-  }
-
 }
 
+/** Kayıtlı tercih yoksa dar ekranlarda (1366×768 vb.) daraltılmış başlar. */
+function readCollapsed(): boolean {
+  try {
+    const v = localStorage.getItem(COLLAPSE_KEY);
+    if (v !== null) return v === '1';
+  } catch { /* yoksay */ }
+  return typeof window !== 'undefined' && window.innerWidth < 1280;
+}

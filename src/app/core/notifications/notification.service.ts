@@ -13,9 +13,12 @@ export class NotificationService {
     const products = this.store.products();
     if (!products.length) return;
 
+    // SKT eşikleri: Ayarlar → Satış (ProductStore üzerinden tek kaynak; varsayılan 7 / 30 gün)
+    const critDays = this.store.expiryCriticalDays();
+    const warnDays = this.store.expiryWarnDays();
     const now = new Date();
-    const in7Days = new Date(now); in7Days.setDate(now.getDate() + 7);
-    const in30Days = new Date(now); in30Days.setDate(now.getDate() + 30);
+    const in7Days = new Date(now); in7Days.setDate(now.getDate() + critDays);
+    const in30Days = new Date(now); in30Days.setDate(now.getDate() + warnDays);
 
     const lowStock = products.filter(p => p.stock > 0 && p.stock <= p.minStock);
     const outOfStock = products.filter(p => p.stock === 0);
@@ -40,14 +43,14 @@ export class NotificationService {
 
     if (expiring7.length > 0) {
       alerts.push({
-        title: '🔴 SKT 7 Günden Az',
+        title: `🔴 SKT ${critDays} Gün İçinde`,
         body: expiring7.slice(0, 3).map(p => p.name).join(', ') + (expiring7.length > 3 ? ` ve ${expiring7.length - 3} ürün daha` : ''),
       });
     }
 
     if (expiring30.length > 0) {
       alerts.push({
-        title: '🟡 SKT 30 Gün İçinde',
+        title: `🟡 SKT ${warnDays} Gün İçinde`,
         body: expiring30.slice(0, 3).map(p => p.name).join(', ') + (expiring30.length > 3 ? ` ve ${expiring30.length - 3} ürün daha` : ''),
       });
     }
@@ -56,7 +59,7 @@ export class NotificationService {
 
     localStorage.setItem(STORAGE_KEY, new Date().toDateString());
 
-    const isTauri = !!(window as any).__TAURI_INTERNALS__;
+    const isTauri = !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 
     if (isTauri) {
       await this.sendTauriNotifications(alerts);

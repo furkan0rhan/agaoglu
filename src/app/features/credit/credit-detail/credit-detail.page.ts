@@ -1,292 +1,246 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
-import { RouterLink, ActivatedRoute } from '@angular/router';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { DatePipe } from '@angular/common';
-import { Firestore, collection, query, where, onSnapshot, doc, writeBatch, serverTimestamp, increment } from '@angular/fire/firestore';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
-import { AuthService } from '../../../core/auth/services/auth.service';
 import { CustomerService } from '../../customers/services/customer.service';
 import { Customer } from '../../../shared/models/customer.model';
 import { CreditTransaction } from '../../../shared/models/credit.model';
-import { CurrencyTrPipe } from '../../../shared/pipes/currency-tr.pipe';
 import { LangService } from '../../../core/i18n/lang.service';
+import { CreditService, OverpaymentError, roundKurus } from '../services/credit.service';
+import {
+  EmptyStateComponent, MoneyComponent, PageHeaderComponent, SegmentedComponent, UiSegmentOption,
+} from '../../../shared/ui';
+import { CartStore } from '../../pos/store/cart.store';
+import { CustomerAccountHeaderComponent } from '../components/customer-account-header.component';
+import { CreditTimelineComponent } from '../components/credit-timeline.component';
+import { InstallmentScheduleComponent } from '../components/installment-schedule.component';
+import { buildSchedule, creditStatus } from '../services/credit.utils';
+
+type PayMethod = 'cash' | 'card';
 
 @Component({
   selector: 'app-credit-detail',
   standalone: true,
-  imports: [RouterLink, FormsModule, DatePipe, CurrencyTrPipe, ButtonModule, DialogModule, InputTextModule, ToastModule],
+  imports: [
+    RouterLink, FormsModule, ButtonModule, DialogModule, InputTextModule, ToastModule,
+    PageHeaderComponent, EmptyStateComponent, MoneyComponent, SegmentedComponent,
+    CustomerAccountHeaderComponent, InstallmentScheduleComponent, CreditTimelineComponent,
+  ],
   providers: [MessageService],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block' },
   template: `
-    <p-toast position="top-right"></p-toast>
+    <p-toast position="top-right" />
 
     <!-- Tahsilat dialog -->
     <p-dialog
-      [header]="paymentMethod === 'cash' ? t().credit.cashCollection : t().credit.cardCollection"
-      [(visible)]="showPaymentDialog"
+      [header]="a().collect"
+      [visible]="showPaymentDialog()"
+      (visibleChange)="showPaymentDialog.set($event)"
       [modal]="true"
       [closable]="true"
-      [style]="{width:'340px'}"
       [draggable]="false"
+      appendTo="body"
+      styleClass="w-[400px] max-w-[95vw]"
     >
-      <div style="display:flex; flex-direction:column; gap:14px; padding:8px 0;">
-        <div>
-          <p style="font-size:12px; color:var(--text-muted); margin:0 0 4px;">{{ t().credit.currentDebt }}</p>
-          <p style="font-size:22px; font-weight:800; color:#ef4444; margin:0;">{{ customer()?.balance | currencyTr }}</p>
+      <form class="flex flex-col gap-4 py-1" (ngSubmit)="savePayment()" novalidate>
+        <div class="rounded-token-lg border border-danger-line bg-danger-soft px-4 py-3">
+          <p class="m-0 text-12.5 font-semibold text-danger-text">{{ t().credit.currentDebt }}</p>
+          <p class="num-xl m-0 mt-0.5 text-26 text-danger-text"><ui-money [value]="customer()?.balance ?? 0" /></p>
         </div>
-        <div style="display:flex; flex-direction:column; gap:6px;">
-          <label style="font-size:12px; font-weight:600; color:#374151;">{{ t().credit.collectionAmount }}</label>
-          <input pInputText type="number" [(ngModel)]="paymentAmount" placeholder="0.00" style="width:100%;" />
+        <div class="flex flex-col gap-1.5">
+          <span id="pay-method-label" class="text-sm font-semibold text-fg-secondary">{{ a().paymentMethod }}</span>
+          <ui-segmented class="w-full" [block]="true" [options]="methodOptions()" [value]="paymentMethod()" (valueChange)="paymentMethod.set($event ?? 'cash')"
+            [ariaLabel]="a().paymentMethod" />
         </div>
-        <div style="display:flex; flex-direction:column; gap:6px;">
-          <label style="font-size:12px; font-weight:600; color:var(--text-secondary);">{{ t().credit.note }} <span style="color:var(--text-muted); font-weight:400;">({{ t().common.optional }})</span></label>
-          <input pInputText [(ngModel)]="paymentNote" [placeholder]="t().credit.notePlaceholder" style="width:100%;" />
+        <div class="flex flex-col gap-1.5">
+          <label for="pay-amount" class="text-sm font-semibold text-fg-secondary">{{ t().credit.collectionAmount }}</label>
+          <input pInputText id="pay-amount" name="amount" type="number" inputmode="decimal" class="num w-full text-lg"
+            [(ngModel)]="paymentAmount" placeholder="0,00" min="0.01" step="0.01" [attr.max]="customer()?.balance ?? 0"
+            [attr.aria-invalid]="amountError() ? true : null" [attr.aria-describedby]="amountError() ? 'pay-amount-err' : null" />
+          @if (amountError(); as err) {
+            <p id="pay-amount-err" class="m-0 text-xs font-medium text-danger-text" role="alert">{{ err }}</p>
+          }
         </div>
-      </div>
+        <div class="flex flex-col gap-1.5">
+          <label for="pay-note" class="text-sm font-semibold text-fg-secondary">
+            {{ t().credit.note }} <span class="font-normal text-fg-muted">({{ t().common.optional }})</span>
+          </label>
+          <input pInputText id="pay-note" name="note" class="w-full" [(ngModel)]="paymentNote" [placeholder]="t().credit.notePlaceholder" />
+        </div>
+      </form>
       <ng-template pTemplate="footer">
-        <p-button [label]="t().common.cancel" severity="secondary" [outlined]="true" (onClick)="showPaymentDialog = false" size="small"></p-button>
+        <p-button [label]="t().common.cancel" severity="secondary" (onClick)="showPaymentDialog.set(false)" />
         <p-button
           [label]="t().common.save"
           icon="pi pi-check"
-          severity="success"
           [loading]="saving()"
-          [disabled]="!paymentAmount || paymentAmount <= 0"
+          [disabled]="!!amountError() || !paymentAmount"
           (onClick)="savePayment()"
-          size="small"
-        ></p-button>
+        />
       </ng-template>
     </p-dialog>
 
-    <div style="display:flex; flex-direction:column; height:100%; background:var(--bg-page); overflow:hidden;">
+    <ui-page-header backLink="/credit" [backLabel]="t().common.back"
+      [title]="customer() ? customer()!.firstName + ' ' + customer()!.lastName : t().credit.title"
+      [subtitle]="t().credit.title" />
 
-      <!-- Header -->
-      <div style="background:var(--bg-surface); border-bottom:1px solid var(--border); padding:14px 20px; display:flex; align-items:center; gap:12px; flex-shrink:0;">
-        <a routerLink="/credit" style="width:36px; height:36px; border-radius:10px; background:var(--bg-muted); display:flex; align-items:center; justify-content:center; text-decoration:none; color:var(--text-secondary); flex-shrink:0;">
-          <i class="pi pi-arrow-left" style="font-size:14px;"></i>
-        </a>
-        @if (customer(); as c) {
-          <div style="display:flex; align-items:center; gap:12px; flex:1;">
-            <div style="width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg,#f87171,#dc2626); display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:14px; flex-shrink:0;">
-              {{ c.firstName.charAt(0) }}{{ c.lastName.charAt(0) }}
-            </div>
-            <div>
-              <h1 style="font-size:17px; font-weight:700; color:var(--text-primary); margin:0;">{{ c.firstName }} {{ c.lastName }}</h1>
-              <p style="font-size:12px; color:var(--text-muted); margin:0;">{{ c.phone }}</p>
-            </div>
-          </div>
-        }
-      </div>
+    <div class="page-body">
+      @if (customer(); as c) {
+        <app-customer-account-header [customer]="c" [schedule]="schedule()" [transactions]="transactions()">
+          @if (c.isActive) {
+            <p-button [label]="a().sale" icon="pi pi-shopping-cart" severity="warn" styleClass="w-full" (onClick)="newSale(c)" />
+          }
+          <p-button [label]="a().collect" icon="pi pi-wallet" styleClass="w-full"
+            [disabled]="c.balance <= 0" (onClick)="openPayment('cash')" />
+          <p-button icon="pi pi-user" [label]="a().customerCard" severity="secondary" styleClass="w-full"
+            [routerLink]="['/customers', customerId]" />
+        </app-customer-account-header>
 
-      <!-- Content -->
-      <div style="flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:16px; max-width:640px; width:100%;">
-
-        @if (customer(); as c) {
-          <!-- Bakiye kartı -->
-          <div style="background:var(--bg-surface); border-radius:20px; border:1px solid var(--border); box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
-            <div style="padding:20px 24px 16px; border-bottom:1px solid var(--border);">
-              <p style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.8px; margin:0 0 6px;">{{ t().customers.totalDebt }}</p>
-              <p style="font-size:34px; font-weight:800; margin:0; color:{{ c.balance > 0 ? '#ef4444' : '#16a34a' }};">{{ c.balance | currencyTr }}</p>
-            </div>
-            <div style="display:flex; gap:0; padding:12px 16px; gap:10px;">
-              <button
-                (click)="openPayment('cash')"
-                style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:11px; cursor:pointer; color:#16a34a; font-size:13px; font-weight:600;"
-                onmouseenter="this.style.background='#dcfce7'"
-                onmouseleave="this.style.background='#f0fdf4'"
-              >
-                <i class="pi pi-wallet" style="font-size:14px;"></i>
-                {{ t().credit.cashCollection }}
-              </button>
-              <button
-                (click)="openPayment('card')"
-                style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:11px; cursor:pointer; color:#2563eb; font-size:13px; font-weight:600;"
-                onmouseenter="this.style.background='#dbeafe'"
-                onmouseleave="this.style.background='#eff6ff'"
-              >
-                <i class="pi pi-credit-card" style="font-size:14px;"></i>
-                {{ t().credit.cardCollection }}
-              </button>
-            </div>
-          </div>
-
-          <!-- Hareketler -->
-          <div style="background:var(--bg-surface); border-radius:16px; border:1px solid var(--border); box-shadow:0 2px 12px rgba(0,0,0,0.04); overflow:hidden;">
-            <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
-              <p style="font-size:14px; font-weight:700; color:var(--text-primary); margin:0;">{{ t().credit.movementHistory }}</p>
-              <span style="font-size:12px; color:var(--text-muted);">{{ transactions().length }} {{ t().credit.records }}</span>
-            </div>
-            @if (transactions().length === 0) {
-              <div style="padding:40px; text-align:center; color:var(--text-muted);">
-                <i class="pi pi-list" style="font-size:32px; opacity:0.3; display:block; margin-bottom:8px;"></i>
-                <p style="font-size:13px; margin:0;">{{ t().credit.noTransactions }}</p>
-              </div>
-            } @else {
-              @for (tx of transactions(); track tx.id) {
-                <div style="display:flex; gap:14px; padding:16px 20px; border-bottom:1px solid var(--border); align-items:flex-start;">
-
-                  <!-- İkon -->
-                  <div style="width:38px; height:38px; border-radius:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center; margin-top:2px;"
-                    [style.background]="tx.type === 'debt' ? '#fff7ed' : '#f0fdf4'">
-                    <i [class]="'pi ' + (tx.type === 'debt' ? 'pi-shopping-cart' : 'pi-check-circle')"
-                      style="font-size:16px;"
-                      [style.color]="tx.type === 'debt' ? '#f97316' : '#16a34a'"></i>
-                  </div>
-
-                  <!-- Detay -->
-                  <div style="flex:1; min-width:0;">
-                    @if (tx.type === 'debt') {
-                      <p style="font-size:14px; font-weight:600; color:var(--text-primary); margin:0 0 4px; line-height:1.5;">
-                        {{ parseProducts(tx.description) }}
-                      </p>
-                      <p style="font-size:11px; color:var(--text-muted); margin:0; font-family:monospace;">
-                        {{ parseSaleRef(tx.description) }}
-                      </p>
-                      @if (tx.installmentCount && tx.installmentCount > 1) {
-                        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
-                          <span style="font-size:11px; font-weight:600; background:#fff7ed; color:#f97316; border:1px solid #fed7aa; padding:2px 8px; border-radius:6px;">
-                            {{ tx.installmentCount }} {{ t().pos.perInstallment }} · {{ tx.installmentAmount | currencyTr }}
-                          </span>
-                          @if (tx.interestRate) {
-                            <span style="font-size:11px; font-weight:600; background:#fef2f2; color:#ef4444; border:1px solid #fecaca; padding:2px 8px; border-radius:6px;">
-                              {{ t().pos.interestAmount }} %{{ tx.interestRate }}
-                            </span>
-                          }
-                        </div>
-                      }
-                    } @else {
-                      <p style="font-size:14px; font-weight:600; color:var(--text-primary); margin:0 0 4px;">
-                        {{ tx.amount | currencyTr }} {{ tx.paymentMethod === 'card' ? t().credit.paidWithCard : t().credit.paidCash }} {{ t().credit.paid }}
-                      </p>
-                      @if (tx.description && tx.description !== t().credit.cashPayDesc && tx.description !== t().credit.cardPayDesc) {
-                        <p style="font-size:12px; color:var(--text-secondary); margin:0 0 4px; font-style:italic;">{{ tx.description }}</p>
-                      }
-                    }
-                    <p style="font-size:11px; color:var(--text-muted); margin:4px 0 0;">
-                      {{ tx.createdAt.toDate() | date:'dd MMMM yyyy, HH:mm':'':'tr' }}
-                    </p>
-                  </div>
-
-                  <!-- Tutar -->
-                  <div style="text-align:right; flex-shrink:0;">
-                    <p style="font-size:15px; font-weight:800; margin:0;"
-                      [style.color]="tx.type === 'debt' ? '#ef4444' : '#16a34a'">
-                      {{ tx.type === 'debt' ? '+' : '-' }}{{ tx.amount | currencyTr }}
-                    </p>
-                    @if (tx.type === 'debt' && tx.originalAmount) {
-                      <p style="font-size:11px; color:var(--text-muted); margin:2px 0 0; text-decoration:line-through;">
-                        {{ tx.originalAmount | currencyTr }}
-                      </p>
-                    }
-                  </div>
-
-                </div>
-              }
-            }
-          </div>
-        }
-      </div>
+        <div class="grid grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-4">
+          <app-installment-schedule [schedule]="schedule()" [status]="status()" [note]="c.notes" />
+          <app-credit-timeline [transactions]="transactions()" [loading]="txLoading()" />
+        </div>
+      } @else if (loadFailed()) {
+        <ui-empty-state icon="pi-exclamation-triangle" tone="danger" [title]="t().customers.loadError">
+          <p-button [label]="t().common.back" icon="pi pi-arrow-left" severity="secondary" routerLink="/credit" />
+        </ui-empty-state>
+      } @else {
+        <div class="h-48 animate-pulse rounded-token-xl bg-surface-muted" aria-hidden="true"></div>
+        <div class="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4" aria-hidden="true">
+          <div class="h-64 animate-pulse rounded-token-xl bg-surface-muted"></div>
+          <div class="h-64 animate-pulse rounded-token-xl bg-surface-muted"></div>
+        </div>
+        <span class="sr-only" role="status">{{ t().common.loading }}</span>
+      }
     </div>
   `,
 })
 export class CreditDetailPage implements OnInit {
-  private readonly firestore = inject(Firestore);
-  private readonly auth = inject(AuthService);
   private readonly customerSvc = inject(CustomerService);
+  private readonly creditSvc = inject(CreditService);
+  private readonly cart = inject(CartStore);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly toast = inject(MessageService);
-  readonly t = inject(LangService).t;
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly lang = inject(LangService);
+  readonly t = this.lang.t;
+  readonly a = computed(() => this.t().acc);
 
   readonly customer = signal<Customer | null>(null);
   readonly transactions = signal<CreditTransaction[]>([]);
   readonly saving = signal(false);
+  readonly txLoading = signal(true);
+  readonly loadFailed = signal(false);
+  readonly showPaymentDialog = signal(false);
+  /** Tahsilatlar en eski vadeden dağıtılmış taksit takvimi. */
+  readonly schedule = computed(() => buildSchedule(this.transactions(), this.customer()?.balance ?? 0));
+  readonly status = computed(() => creditStatus(this.schedule()));
+
+  readonly paymentMethod = signal<PayMethod>('cash');
+  readonly methodOptions = computed<UiSegmentOption<PayMethod>[]>(() => [
+    { value: 'cash', label: this.t().credit.cash, icon: 'pi-wallet' },
+    { value: 'card', label: this.t().credit.card, icon: 'pi-credit-card' },
+  ]);
 
   customerId = '';
-  showPaymentDialog = false;
-  paymentMethod: 'cash' | 'card' = 'cash';
   paymentAmount = 0;
   paymentNote = '';
 
   ngOnInit(): void {
     this.customerId = this.route.snapshot.paramMap.get('customerId') ?? this.route.snapshot.paramMap.get('id') ?? '';
-    this.customerSvc.getById$(this.customerId).subscribe(c => this.customer.set(c));
-    this.loadTransactions();
+    // Müşteri sayfasındaki "Tahsilat Al" kısayolu: ?collect=cash|card → ilk yüklemede dialog açılır.
+    const collect = this.route.snapshot.queryParamMap.get('collect');
+    let autoOpen: PayMethod | null = collect === 'cash' || collect === 'card' ? collect : null;
+    this.customerSvc.watch$(this.customerId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: c => {
+          this.customer.set(c);
+          if (!c) this.loadFailed.set(true);
+          if (c && autoOpen) {
+            const method = autoOpen;
+            autoOpen = null;
+            if (roundKurus(c.balance ?? 0) > 0) this.openPayment(method);
+          }
+        },
+        error: () => { this.customer.set(null); this.loadFailed.set(true); },
+      });
+    this.creditSvc.getByCustomer$(this.customerId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: txs => { this.transactions.set(txs); this.txLoading.set(false); },
+        error: () => { this.transactions.set([]); this.txLoading.set(false); },
+      });
   }
 
-  openPayment(method: 'cash' | 'card'): void {
-    this.paymentMethod = method;
-    this.paymentAmount = this.customer()?.balance ?? 0;
+  /** Tutar alanı doğrulama mesajı (yoksa boş). */
+  amountError(): string {
+    if (this.paymentAmount === null || this.paymentAmount === undefined) return '';
+    if (!(Number(this.paymentAmount) > 0)) return this.t().credit.amountPositive;
+    if (this.isOverpayment()) return this.t().credit.overpayment;
+    return '';
+  }
+
+  isOverpayment(): boolean {
+    return roundKurus(this.paymentAmount || 0) > roundKurus(this.customer()?.balance ?? 0);
+  }
+
+  newSale(c: Customer): void {
+    this.cart.setCustomer(c.id, `${c.firstName} ${c.lastName}`);
+    void this.router.navigate(['/pos']);
+  }
+
+  openPayment(method: PayMethod): void {
+    const balance = roundKurus(this.customer()?.balance ?? 0);
+    if (balance <= 0) {
+      this.toast.add({ severity: 'info', summary: '', detail: this.t().credit.noDebtToCollect, life: 3000 });
+      return;
+    }
+    this.paymentMethod.set(method);
+    this.paymentAmount = balance;
     this.paymentNote = '';
-    this.showPaymentDialog = true;
+    this.showPaymentDialog.set(true);
   }
 
   async savePayment(): Promise<void> {
     const c = this.customer();
-    if (!c || !this.paymentAmount || this.paymentAmount <= 0) return;
+    const amount = roundKurus(this.paymentAmount || 0);
+    if (!c || amount <= 0 || this.saving()) return;
+    if (this.isOverpayment()) {
+      this.toast.add({ severity: 'warn', summary: '', detail: this.t().credit.overpayment, life: 3000 });
+      return;
+    }
+    const method = this.paymentMethod();
     this.saving.set(true);
     try {
-      const batch = writeBatch(this.firestore);
-      const txRef = doc(collection(this.firestore, 'creditTransactions'));
-      batch.set(txRef, {
-        tenantId: this.auth.currentTenantId(),
-        customerId: this.customerId,
-        customerName: `${c.firstName} ${c.lastName}`,
-        saleId: null,
-        type: 'payment',
-        amount: this.paymentAmount,
-        description: this.paymentNote || (this.paymentMethod === 'cash' ? this.t().credit.cashPayDesc : this.t().credit.cardPayDesc),
-        paymentMethod: this.paymentMethod,
-        balance: Math.max(0, c.balance - this.paymentAmount),
-        createdAt: serverTimestamp(),
-        createdBy: this.auth.currentUserId(),
+      const res = await this.creditSvc.recordPayment(c, {
+        amount,
+        method,
+        description: this.paymentNote.trim() || (method === 'cash' ? this.t().credit.cashPayDesc : this.t().credit.cardPayDesc),
       });
-      const customerRef = doc(this.firestore, 'customers', this.customerId);
-      batch.update(customerRef, {
-        totalPaid: increment(this.paymentAmount),
-        balance: Math.max(0, c.balance - this.paymentAmount),
-        updatedAt: serverTimestamp(),
+      this.customer.update(cur => cur ? { ...cur, balance: res.balance, totalPaid: roundKurus((cur.totalPaid ?? 0) + amount) } : null);
+      this.toast.add({
+        severity: 'success', summary: '',
+        detail: res.offline ? this.t().credit.savedOffline : this.t().credit.collected,
+        life: 3000,
       });
-      await batch.commit();
-      const newBalance = Math.max(0, c.balance - this.paymentAmount);
-      this.customer.update(cur => cur ? { ...cur, balance: newBalance } : null);
-      this.toast.add({ severity: 'success', summary: '', detail: this.t().credit.collected, life: 3000 });
-      this.showPaymentDialog = false;
+      this.showPaymentDialog.set(false);
     } catch (err) {
-      console.error(err);
-      this.toast.add({ severity: 'error', summary: '', detail: this.t().credit.saveFailed, life: 3000 });
+      if (err instanceof OverpaymentError) {
+        this.toast.add({ severity: 'warn', summary: '', detail: this.t().credit.overpayment, life: 4000 });
+      } else {
+        console.error(err);
+        this.toast.add({ severity: 'error', summary: '', detail: this.t().credit.collectFailed, life: 3000 });
+      }
     } finally {
       this.saving.set(false);
     }
-  }
-
-  parseSaleRef(description: string): string {
-    const part = description.split(' · ')[0];
-    return part.replace('Satış: ', '').trim();
-  }
-
-  parseProducts(description: string): string {
-    const parts = description.split(' · ');
-    return parts.length > 1 ? parts.slice(1).join(', ') : '-';
-  }
-
-  private loadTransactions(): void {
-    const uid = this.auth.currentUserId();
-    if (!uid) return;
-    const q = query(
-      collection(this.firestore, 'creditTransactions'),
-      where('tenantId', '==', uid),
-    );
-    onSnapshot(q,
-      snap => {
-        const txs = snap.docs
-          .map(d => ({ id: d.id, ...d.data() } as CreditTransaction))
-          .filter(tx => tx.customerId === this.customerId);
-        txs.sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
-        this.transactions.set(txs);
-      },
-      err => console.error('creditTransactions listener error:', err)
-    );
   }
 }

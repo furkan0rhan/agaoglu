@@ -1,7 +1,6 @@
 import { Injectable } from '@angular/core';
 import { environment } from '../../../environments/environment';
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 @Injectable({ providedIn: 'root' })
 export class LoggerService {

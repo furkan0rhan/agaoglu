@@ -1,71 +1,54 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { Firestore, collection, documentId, getDocs, query, where } from '@angular/fire/firestore';
 import { DatePipe } from '@angular/common';
-import { ButtonModule } from 'primeng/button';
 import { SkeletonModule } from 'primeng/skeleton';
 import { ProductService } from '../services/product.service';
 import { ProductStore } from '../store/product.store';
 import { StockMovement } from '../../../shared/models/product.model';
 import { LangService } from '../../../core/i18n/lang.service';
+import { roundQty } from '../../../shared/utils/batch.utils';
+import { formatQty } from '../../../shared/utils/product-form.utils';
+import { EmptyStateComponent, GlassCardComponent, PageHeaderComponent, SegmentedComponent } from '../../../shared/ui';
+import { SumStripComponent, SumStripItem } from '../components/sum-strip.component';
+import { qtyWithUnit } from '../product-unit';
+import { AuthService } from '../../../core/auth/services/auth.service';
+import { LoggerService } from '../../../core/logging/logger.service';
+
+/** Hareketin referans verdiği belge (alış / satış) — ham kimlik yerine belge no + bağlantı. */
+interface MovementRef { kind: 'purchase' | 'sale'; no: string; link: string[] }
+
+/** Firestore `in` sorgusu en fazla 30 değer alır. */
+const IN_CHUNK = 30;
 
 type Filter = 'all' | 'in' | 'out';
+
+/** Sayfada gösterilecek en fazla hareket sayısı (3.5) */
+const MOVEMENT_LIMIT = 200;
 
 @Component({
   selector: 'app-stock-movements',
   standalone: true,
-  imports: [RouterLink, DatePipe, ButtonModule, SkeletonModule],
+  imports: [DatePipe, RouterLink, SkeletonModule, PageHeaderComponent, GlassCardComponent, EmptyStateComponent, SegmentedComponent, SumStripComponent],
+  host: { class: 'block' },
   template: `
-    <div style="display:flex; flex-direction:column; height:100%; background:var(--bg-page); overflow:hidden;">
+    <ui-page-header [title]="t().products.viewMovements" [subtitle]="productName()" icon="pi-history" iconTone="info"
+                    [backLink]="['/products', productId]" [backLabel]="t().common.back" />
 
-      <!-- Header -->
-      <div style="background:var(--bg-surface); border-bottom:1px solid var(--border); padding:16px 24px; display:flex; align-items:center; gap:12px; flex-shrink:0;">
-        <a [routerLink]="['/products', productId]"
-           style="width:36px; height:36px; border-radius:10px; background:var(--bg-page); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--text-secondary); text-decoration:none; flex-shrink:0;">
-          <i class="pi pi-arrow-left" style="font-size:13px;"></i>
-        </a>
-        <div style="flex:1; min-width:0;">
-          <h1 style="font-size:17px; font-weight:700; color:var(--text-primary); margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-            {{ t().products.viewMovements }}
-          </h1>
-          <p style="font-size:12px; color:var(--text-secondary); margin:0;">{{ productName() }}</p>
-        </div>
-      </div>
+    <div class="page-body">
+      <app-sum-strip [items]="summary()" [ariaLabel]="t().products.viewMovements" />
 
-      <!-- Özet kartları -->
-      <div style="padding:16px 24px 0; display:flex; gap:12px; flex-shrink:0;">
-        <div style="flex:1; background:var(--bg-surface); border-radius:14px; border:1px solid var(--border); padding:14px 16px;">
-          <p style="font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin:0 0 4px;">{{ t().products.totalMovements }}</p>
-          <p style="font-size:22px; font-weight:700; color:var(--text-primary); margin:0;">{{ movements().length }}</p>
-        </div>
-        <div style="flex:1; background:#f0fdf4; border-radius:14px; border:1px solid #bbf7d0; padding:14px 16px;">
-          <p style="font-size:11px; font-weight:600; color:#16a34a; text-transform:uppercase; letter-spacing:0.5px; margin:0 0 4px;">{{ t().products.movementsIn }}</p>
-          <p style="font-size:22px; font-weight:700; color:#15803d; margin:0;">+{{ totalIn() }}</p>
-        </div>
-        <div style="flex:1; background:#fff7ed; border-radius:14px; border:1px solid #fed7aa; padding:14px 16px;">
-          <p style="font-size:11px; font-weight:600; color:#ea580c; text-transform:uppercase; letter-spacing:0.5px; margin:0 0 4px;">{{ t().products.movementsOut }}</p>
-          <p style="font-size:22px; font-weight:700; color:#c2410c; margin:0;">-{{ totalOut() }}</p>
-        </div>
-      </div>
-
-      <!-- Filtreler -->
-      <div style="padding:12px 24px; display:flex; gap:8px; flex-shrink:0;">
-        @for (f of filters(); track f.key) {
-          <button
-            (click)="activeFilter.set(f.key)"
-            [style]="filterBtnStyle(f.key)"
-          >{{ f.label }}</button>
-        }
-      </div>
-
-      <!-- Liste -->
-      <div style="flex:1; overflow-y:auto; padding:0 24px 24px;">
-
+      <ui-glass-card [title]="t().inventory.movementsTitle" icon="pi-history" tone="info" padding="none"
+                     [subtitle]="!loading() && movements().length >= limit ? t().products.movementsLimitNote.replace('{n}', '' + limit) : ''">
+        <ui-segmented card-actions size="sm" [options]="filters()" [value]="activeFilter()" (valueChange)="setFilter($event)"
+                      [ariaLabel]="t().common.filters" />
         @if (loading()) {
-          <div style="display:flex; flex-direction:column; gap:10px;">
+          <div class="flex flex-col gap-3 p-4" aria-hidden="true">
             @for (i of [1,2,3,4,5]; track i) {
-              <div style="background:var(--bg-surface); border-radius:14px; border:1px solid var(--border); padding:16px; display:flex; gap:12px; align-items:center;">
-                <p-skeleton shape="circle" size="40px" />
-                <div style="flex:1;">
+              <div class="flex items-center gap-3">
+                <p-skeleton size="40px" />
+                <div class="flex-1">
                   <p-skeleton height="14px" styleClass="mb-2" />
                   <p-skeleton height="12px" width="60%" />
                 </div>
@@ -74,41 +57,73 @@ type Filter = 'all' | 'in' | 'out';
             }
           </div>
         } @else if (filtered().length === 0) {
-          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 0; gap:12px; color:var(--text-muted);">
-            <i class="pi pi-history" style="font-size:40px; opacity:0.3;"></i>
-            <p style="font-size:14px; margin:0;">{{ t().products.noMovements }}</p>
-          </div>
+          <ui-empty-state compact icon="pi-history" [title]="t().products.noMovements" />
         } @else {
-          <div style="display:flex; flex-direction:column; gap:8px;">
+          <!-- Masaüstü: tablo -->
+          <table class="hidden w-full border-collapse text-sm md:table">
+            <thead>
+              <tr class="h-10 border-b border-line bg-surface-muted text-left text-12.5 uppercase tracking-wide text-fg-muted">
+                <th class="px-4 font-bold">{{ t().inventory.colDate }}</th>
+                <th class="px-4 font-bold">{{ t().inventory.colReason }}</th>
+                <th class="px-4 text-right font-bold">{{ t().inventory.colChange }}</th>
+                <th class="px-4 text-right font-bold">{{ t().inventory.colStockAfter }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (m of filtered(); track m.id) {
+                <tr class="list-row h-[52px] border-b border-line last:border-b-0">
+                  <td class="num whitespace-nowrap px-4 text-fg-secondary">{{ m.createdAt?.toDate() | date:'dd.MM.yyyy HH:mm' }}</td>
+                  <td class="px-4">
+                    <span class="inline-flex items-center gap-2.5">
+                      <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-token-md"
+                            [class]="m.type === 'in' ? 'bg-success-soft text-success-text' : 'bg-accent-soft text-accent-text'" aria-hidden="true">
+                        <i class="pi text-13" [class]="m.type === 'in' ? 'pi-arrow-down' : 'pi-arrow-up'"></i>
+                      </span>
+                      <span class="font-semibold text-fg">{{ m.reason || '—' }}</span>
+                      @if (refOf(m); as r) {
+                        <a [routerLink]="r.link" class="num text-xs font-semibold text-brand no-underline hover:underline">{{ refLabel(r) }}</a>
+                      }
+                    </span>
+                  </td>
+                  <td class="num px-4 text-right text-15 font-extrabold" [class]="m.type === 'in' ? 'text-success-text' : 'text-accent-text'">
+                    {{ m.type === 'in' ? '+' : '−' }}{{ fmt(m.quantity) }}
+                  </td>
+                  <td class="num whitespace-nowrap px-4 text-right text-fg-secondary">
+                    <span class="text-fg-muted">{{ fmt(m.previousStock) }} →</span> <b class="font-bold text-fg">{{ withUnit(m.newStock) }}</b>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          <!-- Telefon: liste -->
+          <ul class="m-0 flex list-none flex-col p-0 md:hidden">
             @for (m of filtered(); track m.id) {
-              <div style="background:var(--bg-surface); border-radius:14px; border:1px solid var(--border); padding:14px 16px; display:flex; align-items:center; gap:12px;">
-
-                <!-- İkon -->
-                <div [style]="iconBgStyle(m.type)" style="width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                  <i [class]="'pi ' + iconClass(m.type)" style="font-size:15px;"></i>
+              <li class="flex items-center gap-3 border-b border-line px-3 py-3 last:border-b-0">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-token-md"
+                      [class]="m.type === 'in' ? 'bg-success-soft text-success-text' : 'bg-accent-soft text-accent-text'" aria-hidden="true">
+                  <i class="pi text-15" [class]="m.type === 'in' ? 'pi-arrow-down' : 'pi-arrow-up'"></i>
+                </span>
+                <div class="min-w-0 flex-1">
+                  <p class="m-0 truncate text-sm font-semibold text-fg">{{ m.reason || '—' }}</p>
+                  <p class="num m-0 mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-fg-muted">
+                    <span>{{ m.createdAt?.toDate() | date:'dd.MM.yyyy HH:mm' }}</span>
+                    <span aria-hidden="true">·</span>
+                    <span class="text-fg-secondary">{{ fmt(m.previousStock) }} → {{ withUnit(m.newStock) }}</span>
+                    @if (refOf(m); as r) {
+                      <span aria-hidden="true">·</span>
+                      <a [routerLink]="r.link" class="font-semibold text-brand no-underline hover:underline">{{ refLabel(r) }}</a>
+                    }
+                  </p>
                 </div>
-
-                <!-- Bilgi -->
-                <div style="flex:1; min-width:0;">
-                  <p style="font-size:14px; font-weight:600; color:var(--text-primary); margin:0 0 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ m.reason }}</p>
-                  <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="font-size:12px; color:var(--text-muted);">{{ m.createdAt.toDate() | date:'dd.MM.yyyy HH:mm' }}</span>
-                    <span style="font-size:11px; color:#cbd5e1;">•</span>
-                    <span style="font-size:12px; color:var(--text-secondary);">{{ m.previousStock }} → {{ m.newStock }} {{ t().products.piece }}</span>
-                  </div>
-                </div>
-
-                <!-- Miktar -->
-                <div [style]="qtyStyle(m.type)" style="font-size:15px; font-weight:700; flex-shrink:0;">
-                  {{ m.type === 'in' || m.type === 'return' ? '+' : '-' }}{{ m.quantity }}
-                </div>
-
-              </div>
+                <span class="num shrink-0 text-15 font-extrabold" [class]="m.type === 'in' ? 'text-success-text' : 'text-accent-text'">
+                  {{ m.type === 'in' ? '+' : '−' }}{{ fmt(m.quantity) }}
+                </span>
+              </li>
             }
-          </div>
+          </ul>
         }
-
-      </div>
+      </ui-glass-card>
     </div>
   `,
 })
@@ -116,67 +131,125 @@ export class StockMovementsPage implements OnInit {
   private readonly svc = inject(ProductService);
   private readonly store = inject(ProductStore);
   private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly firestore = inject(Firestore);
+  private readonly auth = inject(AuthService);
+  private readonly logger = inject(LoggerService);
   readonly t = inject(LangService).t;
+
+  /** reference (belge kimliği) → çözümlenmiş belge. Yalnız yeni görülen kimlikler sorgulanır. */
+  private readonly refs = signal<ReadonlyMap<string, MovementRef>>(new Map());
+  private readonly requestedRefs = new Set<string>();
 
   readonly movements = signal<StockMovement[]>([]);
   readonly loading = signal(true);
   readonly activeFilter = signal<Filter>('all');
+  readonly limit = MOVEMENT_LIMIT;
 
   productId = '';
 
-  readonly filters = computed<{ key: Filter; label: string }[]>(() => [
-    { key: 'all', label: this.t().common.all },
-    { key: 'in',  label: this.t().products.movementsIn },
-    { key: 'out', label: this.t().products.movementsOut },
+  readonly filters = computed<{ value: Filter; label: string }[]>(() => [
+    { value: 'all', label: this.t().common.all },
+    { value: 'in',  label: this.t().products.movementsIn },
+    { value: 'out', label: this.t().products.movementsOut },
   ]);
+
+  setFilter(v: unknown): void {
+    if (v === 'all' || v === 'in' || v === 'out') this.activeFilter.set(v);
+  }
+
+  readonly summary = computed<SumStripItem[]>(() => {
+    const pr = this.t().products;
+    const p = this.product();
+    return [
+      { icon: 'pi-list', tone: 'neutral', label: pr.totalMovements, value: this.loading() ? '…' : this.movements().length },
+      { icon: 'pi-arrow-down', tone: 'success', label: pr.movementsIn, value: '+' + this.fmt(this.totalIn()), valueTone: 'success' },
+      { icon: 'pi-arrow-up', tone: 'accent', label: pr.movementsOut, value: '−' + this.fmt(this.totalOut()), valueTone: 'accent' },
+      { icon: 'pi-box', tone: 'brand', label: pr.currentStock, value: p ? this.withUnit(p.stock) : '—' },
+    ];
+  });
 
   readonly filtered = computed(() => {
     const f = this.activeFilter();
     const list = this.movements();
-    if (f === 'all') return list;
-    if (f === 'in')  return list.filter(m => m.type === 'in' || m.type === 'return');
-    return list.filter(m => m.type === 'out' || m.type === 'adjustment');
+    return f === 'all' ? list : list.filter(m => m.type === f);
   });
 
   readonly totalIn = computed(() =>
-    this.movements().filter(m => m.type === 'in' || m.type === 'return').reduce((s, m) => s + m.quantity, 0)
+    roundQty(this.movements().filter(m => m.type === 'in').reduce((s, m) => s + m.quantity, 0))
   );
 
   readonly totalOut = computed(() =>
-    this.movements().filter(m => m.type === 'out' || m.type === 'adjustment').reduce((s, m) => s + m.quantity, 0)
+    roundQty(this.movements().filter(m => m.type === 'out').reduce((s, m) => s + m.quantity, 0))
   );
 
+  private readonly product = computed(() => this.store.products().find(p => p.id === this.productId) ?? null);
+
   productName(): string {
-    return this.store.products().find(p => p.id === this.productId)?.name ?? '';
+    return this.product()?.name ?? this.movements()[0]?.productName ?? '';
   }
 
   ngOnInit(): void {
+    this.store.ensureLoaded();
     this.productId = this.route.snapshot.paramMap.get('id') ?? '';
-    this.svc.getMovements$(this.productId).subscribe(m => {
-      this.movements.set(m);
-      this.loading.set(false);
-    });
+    this.svc.getMovements$(this.productId, this.limit)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: m => {
+          this.movements.set(m);
+          this.loading.set(false);
+          void this.resolveRefs(m);
+        },
+        error: () => this.loading.set(false),
+      });
   }
 
-  iconClass(type: string): string {
-    if (type === 'in')     return 'pi-arrow-down text-green-600';
-    if (type === 'return') return 'pi-undo';
-    return 'pi-arrow-up';
+  fmt(n: number): string {
+    return formatQty(n, this.t().products.locale);
   }
 
-  iconBgStyle(type: string): string {
-    if (type === 'in')     return 'background:#f0fdf4; color:#16a34a;';
-    if (type === 'return') return 'background:#eff6ff; color:#3b82f6;';
-    return 'background:#fff7ed; color:#ea580c;';
+  withUnit(n: number): string {
+    return qtyWithUnit(n, this.product(), this.t().products);
   }
 
-  qtyStyle(type: string): string {
-    if (type === 'in' || type === 'return') return 'color:#16a34a;';
-    return 'color:#ea580c;';
+  refOf(m: StockMovement): MovementRef | null {
+    return m.reference ? this.refs().get(m.reference) ?? null : null;
   }
 
-  filterBtnStyle(key: Filter): string {
-    const active = this.activeFilter() === key;
-    return `padding:6px 16px; border-radius:20px; border:1px solid ${active ? '#16a34a' : 'var(--border-mid)'}; background:${active ? '#f0fdf4' : 'var(--bg-surface)'}; color:${active ? '#15803d' : 'var(--text-secondary)'}; font-size:13px; font-weight:${active ? '600' : '500'}; cursor:pointer; transition:all 0.15s;`;
+  refLabel(r: MovementRef): string {
+    const inv = this.t().inventory;
+    return `${r.kind === 'purchase' ? inv.refPurchase : inv.refSale}: ${r.no}`;
+  }
+
+  /**
+   * Hareketlerdeki belge kimliklerini alış/satış belge numarasına çevirir: kimlik başına okuma (N+1) yerine
+   * 30'arlı `documentId() in` sorguları (tenantId filtresi kurallar için şart). Okunamazsa referans gizlenir.
+   */
+  private async resolveRefs(list: StockMovement[]): Promise<void> {
+    const tenantId = this.auth.currentTenantId();
+    const ids = [...new Set(list.map(m => m.reference).filter((r): r is string => !!r && !this.requestedRefs.has(r)))];
+    if (!tenantId || !ids.length) return;
+    ids.forEach(id => this.requestedRefs.add(id));
+    const found = new Map<string, MovementRef>();
+    const lookup = async (col: 'purchases' | 'sales', chunk: string[]) => {
+      const snap = await getDocs(query(collection(this.firestore, col), where('tenantId', '==', tenantId), where(documentId(), 'in', chunk)));
+      for (const d of snap.docs) {
+        const data = d.data();
+        const no = String((col === 'purchases' ? data['documentNo'] : data['saleNumber']) || d.id.slice(0, 8));
+        found.set(d.id, { kind: col === 'purchases' ? 'purchase' : 'sale', no, link: ['/' + col, d.id] });
+      }
+    };
+    try {
+      for (let i = 0; i < ids.length; i += IN_CHUNK) {
+        const chunk = ids.slice(i, i + IN_CHUNK);
+        await lookup('purchases', chunk);
+        const rest = chunk.filter(id => !found.has(id));
+        if (rest.length) await lookup('sales', rest);
+      }
+    } catch (err) {
+      this.logger.warn('Stok hareketi referansları çözümlenemedi', err);
+      ids.forEach(id => this.requestedRefs.delete(id));
+    }
+    if (found.size) this.refs.update(cur => new Map([...cur, ...found]));
   }
 }

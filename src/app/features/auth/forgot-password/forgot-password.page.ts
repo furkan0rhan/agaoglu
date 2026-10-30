@@ -5,62 +5,63 @@ import { InputTextModule } from 'primeng/inputtext';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { LangService } from '../../../core/i18n/lang.service';
+import { AuthShellComponent } from '../../../shared/ui/auth-shell.component';
+import { IconFieldModule } from 'primeng/iconfield';
+import { InputIconModule } from 'primeng/inputicon';
+import { authErrorMessage } from '../auth-errors';
 
 @Component({
   selector: 'app-forgot-password',
   standalone: true,
-  imports: [RouterLink, FormsModule, ButtonModule, InputTextModule],
+  imports: [RouterLink, FormsModule, ButtonModule, InputTextModule, IconFieldModule, InputIconModule, AuthShellComponent],
   template: `
-    <div class="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center p-4">
-      <div class="w-full max-w-md">
-        <div class="bg-white rounded-3xl shadow-card p-8 border border-gray-100 text-center">
-
-          <div style="width:72px; height:72px; border-radius:20px; background:linear-gradient(135deg,#4ade80,#16a34a); display:flex; align-items:center; justify-content:center; margin:0 auto 20px;">
-            <i class="pi pi-lock" style="color:white; font-size:28px;"></i>
+    <ui-auth-shell [title]="t().auth.forgotTitle" [subtitle]="t().auth.forgotSubtitle" icon="pi-lock">
+      @if (!sent()) {
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-col gap-1.5">
+            <label for="forgot-email" class="text-sm font-semibold text-fg-secondary">{{ t().auth.email }}</label>
+            <p-iconfield class="w-full">
+              <p-inputicon styleClass="pi pi-envelope" />
+              <input
+                pInputText
+                id="forgot-email"
+                [(ngModel)]="email"
+                type="email"
+                autocomplete="email"
+                [placeholder]="t().auth.emailPlaceholder"
+                class="w-full"
+              />
+            </p-iconfield>
           </div>
-
-          <h1 class="text-2xl font-bold text-gray-800 mb-2">{{ t().auth.forgotTitle }}</h1>
-          <p class="text-gray-400 text-sm mb-8">{{ t().auth.forgotSubtitle }}</p>
-
-          @if (!sent()) {
-            <div class="flex flex-col gap-4 text-left">
-              <div class="flex flex-col gap-1.5">
-                <label class="text-sm font-semibold text-gray-700">{{ t().auth.email }}</label>
-                <input
-                  pInputText
-                  [(ngModel)]="email"
-                  type="email"
-                  [placeholder]="t().auth.emailPlaceholder"
-                  class="w-full"
-                />
-              </div>
-              <p-button
-                [label]="t().auth.sendReset"
-                icon="pi pi-send"
-                severity="success"
-                styleClass="w-full"
-                [loading]="loading()"
-                [disabled]="!email.trim()"
-                (onClick)="onSubmit()"
-              ></p-button>
-            </div>
-          } @else {
-            <div class="bg-green-50 border border-green-100 rounded-xl p-4 flex items-center gap-3 text-left mb-4">
-              <i class="pi pi-check-circle text-green-500 text-xl flex-shrink-0"></i>
-              <span class="text-sm text-green-700 font-medium">{{ t().auth.resetSent }}</span>
-            </div>
-          }
-
-          <div class="flex items-center justify-center gap-2 mt-6">
-            <i class="pi pi-arrow-left text-sm text-gray-400"></i>
-            <a [routerLink]="['/auth/login']" class="text-sm text-green-600 font-semibold hover:text-green-700">
-              {{ t().auth.backToLogin }}
-            </a>
-          </div>
-
+      @if (error()) {
+        <div role="alert" class="flex items-start gap-2.5 rounded-token-lg border border-danger-line bg-danger-soft px-3.5 py-3 text-sm text-danger">
+          <i class="pi pi-exclamation-circle mt-0.5 text-sm" aria-hidden="true"></i>
+          <span>{{ error() }}</span>
         </div>
+      }
+          <p-button
+            [label]="t().auth.sendReset"
+            icon="pi pi-send"
+            size="large"
+            styleClass="w-full"
+            [loading]="loading()"
+            [disabled]="!email.trim()"
+            (onClick)="onSubmit()"
+          ></p-button>
+        </div>
+      } @else {
+        <div role="status" class="flex items-center gap-3 rounded-token-lg border border-success-line bg-success-soft p-4 text-sm font-medium text-success">
+          <i class="pi pi-check-circle text-xl" aria-hidden="true"></i>
+          <span>{{ t().auth.resetSent }}</span>
+        </div>
+      }
+
+      <div auth-footer>
+        <a [routerLink]="['/auth/login']" class="inline-flex min-h-[44px] items-center gap-2 font-semibold text-brand no-underline hover:underline">
+          <i class="pi pi-arrow-left text-xs" aria-hidden="true"></i>{{ t().auth.backToLogin }}
+        </a>
       </div>
-    </div>
+    </ui-auth-shell>
   `,
 })
 export class ForgotPasswordPage {
@@ -70,13 +71,22 @@ export class ForgotPasswordPage {
   email = '';
   readonly loading = signal(false);
   readonly sent = signal(false);
+  readonly error = signal('');
 
   async onSubmit(): Promise<void> {
     if (!this.email.trim()) return;
     this.loading.set(true);
+    this.error.set('');
     try {
       await this.authService.resetPassword(this.email.trim());
       this.sent.set(true);
+    } catch (err) {
+      // E-posta numaralandırma koruması açıkken user-not-found dönmez; dönerse de varlığı sızdırmamak için başarı göster.
+      if ((err as { code?: string })?.code === 'auth/user-not-found') {
+        this.sent.set(true);
+      } else {
+        this.error.set(authErrorMessage(err, this.t().auth, this.t().auth.errResetDefault));
+      }
     } finally {
       this.loading.set(false);
     }

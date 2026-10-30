@@ -1,0 +1,140 @@
+// =============================================================================
+// Paylaşılan yardımcı sınıflar (Tailwind `components` katmanı; utility'ler
+// bunları ezebilir). v2 "Saha / Komuta". Kullanım: src/app/shared/ui/README.md
+// =============================================================================
+
+@layer components {
+  /* Kart: opak kâğıt yüzey, ince kenarlık, gölge yok. Köşe: rounded-token-lg. */
+  .ui-card {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    min-width: 0;
+  }
+
+  /* v1 cam sınıfları → v2 opak kart (geriye uyum; yeni kodda .ui-card / <ui-glass-card>) */
+  .glass,
+  .glass-strong,
+  .surface-card {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+  }
+
+  /*
+   * Başlık şeridi: kart üstündeki ince tarla çizgili bant.
+   * <div class="card-head"><span class="card-head-icon">…</span><h3>Başlık</h3><div class="ml-auto">…</div></div>
+   */
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 6px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    background-color: var(--surface-muted);
+    background-image: var(--furrow-pattern);
+    border-top-left-radius: inherit;
+    border-top-right-radius: inherit;
+  }
+  .card-head h2,
+  .card-head h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.9375rem; // 15px
+    line-height: 1.25;
+    color: var(--text-primary);
+  }
+  .card-head-sm { min-height: 40px; padding: 0 14px; }
+  .card-head-icon {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    flex: none;
+    border-radius: 7px;
+  }
+
+  /* Koyu tarla zemini (giriş tanıtım paneli, plan kartı) */
+  .field-dark {
+    background-color: var(--side-bg);
+    color: var(--side-text);
+    background-image: repeating-linear-gradient(-14deg, transparent 0 9px, rgba(52, 211, 153, 0.06) 9px 10px);
+  }
+
+  /* Liste satırı: opak hover */
+  .list-row {
+    transition: background-color 0.15s ease;
+  }
+  .list-row:hover { background: var(--surface-hover); }
+
+  /* Sayfa gövdesi: <ui-page-header> altındaki içerik kabı */
+  .page-body {
+    @apply mx-auto flex w-full max-w-[1600px] flex-col gap-3 px-3 pb-6 pt-3 lg:gap-4 lg:px-6 lg:pb-8 lg:pt-5;
+  }
+
+  /* Dokunma hedefi */
+  .tap { min-height: var(--tap-min); min-width: var(--tap-min); }
+
+  /* Para / stok: Manrope + eşit genişlikte rakam */
+  .num {
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+  /* Büyük rakam (KPI) */
+  .num-xl {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+
+  /* Başlık yazı tipi */
+  .font-display { font-family: var(--font-display); }
+
+  /* Küçük büyük harf etiket (menü grubu, tablo başlığı) */
+  .eyebrow {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.6875rem; // 11px
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* Klavye kısayolu rozeti (bileşeni: <ui-kbd>) */
+  .kbd {
+    display: inline-grid;
+    place-items: center;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--border-strong);
+    background: var(--surface-muted);
+    font: 700 0.71875rem/1 var(--font-mono); // 11.5px
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  /* ui-segmented seçili öğe (iki temada belirgin; tokenlar _tokens.scss --seg-on-*) */
+  .seg-on {
+    background-color: var(--seg-on-bg);
+    color: var(--seg-on-text);
+    box-shadow: 0 0 0 1px var(--seg-on-ring);
+  }
+
+  /*
+   * Tonlu kart (TONE_TINT → .ui-tinted) içindeki yumuşak pill/rozet: zemini kartla aynı olduğundan
+   * ayrışsın diye tonlu halka + biraz koyu zemin.
+   */
+  .ui-tinted :is(.bg-brand-soft, .bg-accent-soft, .bg-success-soft, .bg-warning-soft, .bg-danger-soft, .bg-info-soft, .bg-neutral-soft) {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 42%, transparent);
+    background-image: linear-gradient(color-mix(in srgb, currentColor 9%, transparent), color-mix(in srgb, currentColor 9%, transparent));
+  }
+
+  /* Gradyan zeminler (v2: yalnız logo karesi gradyan; accent düz) */
+  .bg-brand-gradient  { background-image: var(--brand-gradient); }
+  .bg-accent-gradient { background-color: var(--accent); background-image: none; }
+}

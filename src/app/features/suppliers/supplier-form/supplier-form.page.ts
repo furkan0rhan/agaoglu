@@ -1,6 +1,6 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
@@ -8,138 +8,117 @@ import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { SupplierService } from '../services/supplier.service';
 import { LangService } from '../../../core/i18n/lang.service';
+import { GlassCardComponent, PageHeaderComponent } from '../../../shared/ui';
 
 @Component({
   selector: 'app-supplier-form',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, ButtonModule, InputTextModule, TextareaModule, ToastModule],
+  imports: [ReactiveFormsModule, ButtonModule, InputTextModule, TextareaModule, ToastModule, PageHeaderComponent, GlassCardComponent],
   providers: [MessageService],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block' },
   template: `
-    <p-toast></p-toast>
-    <div style="display:flex; flex-direction:column; height:100%; background:var(--bg-page); overflow:hidden;">
+    <p-toast />
 
-      <!-- Header -->
-      <div style="background:var(--bg-surface); border-bottom:1px solid var(--border); padding:14px 20px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <a routerLink="/suppliers" style="width:36px; height:36px; border-radius:10px; background:var(--bg-muted); display:flex; align-items:center; justify-content:center; text-decoration:none; color:var(--text-secondary); flex-shrink:0;">
-            <i class="pi pi-arrow-left" style="font-size:14px;"></i>
-          </a>
-          <div>
-            <h1 style="font-size:17px; font-weight:700; color:var(--text-primary); margin:0;">{{ isEdit ? t().suppliers.editSupplier : t().suppliers.addSupplier }}</h1>
-            <p style="font-size:12px; color:var(--text-muted); margin:0;">{{ isEdit ? t().suppliers.editSubtitle : t().suppliers.addSubtitle }}</p>
-          </div>
-        </div>
-        <p-button
-          [label]="t().common.save"
-          icon="pi pi-check"
-          severity="success"
-          [loading]="saving()"
-          [disabled]="form.invalid"
-          (onClick)="save()"
-          size="small"
-        ></p-button>
-      </div>
+    <ui-page-header [title]="t().suppliers.addSupplier" [subtitle]="t().suppliers.addSubtitle"
+      backLink="/suppliers" [backLabel]="t().common.back">
+      <p-button [label]="t().common.save" icon="pi pi-check" styleClass="hidden sm:inline-flex"
+        [loading]="saving()" (onClick)="save()" />
+    </ui-page-header>
 
-      <!-- Form -->
-      <div style="flex:1; overflow-y:auto; padding:24px;">
-        <form [formGroup]="form">
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; max-width:680px;">
+    <div class="page-body">
+      <form [formGroup]="form" (ngSubmit)="save()" novalidate class="w-full max-w-3xl">
+        <ui-glass-card padding="lg">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
 
-            <!-- Firma Adı -->
-            <div style="grid-column:1/-1; display:flex; flex-direction:column; gap:6px;">
-              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().suppliers.companyName }}</label>
-              <input pInputText formControlName="name" [placeholder]="t().suppliers.companyNamePlaceholder" style="width:100%;" />
-              @if (form.get('name')?.invalid && form.get('name')?.touched) {
-                <p style="font-size:11px; color:#ef4444; margin:0;">{{ t().suppliers.companyNameRequired }}</p>
+            <div class="flex flex-col gap-1.5 sm:col-span-2">
+              <label for="s-name" class="text-sm font-semibold text-fg-secondary">{{ t().suppliers.companyName }}</label>
+              <input pInputText id="s-name" formControlName="name" autocomplete="organization" class="w-full"
+                [placeholder]="t().suppliers.companyNamePlaceholder"
+                [attr.aria-invalid]="showError('name')" [attr.aria-describedby]="showError('name') ? 's-name-err' : null" />
+              @if (showError('name')) {
+                <p id="s-name-err" class="m-0 text-xs font-medium text-danger">{{ t().suppliers.companyNameRequired }}</p>
               }
             </div>
 
-            <!-- Yetkili Kişi -->
-            <div style="display:flex; flex-direction:column; gap:6px;">
-              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().suppliers.contactPerson }}</label>
-              <input pInputText formControlName="contactPerson" [placeholder]="t().suppliers.contactPersonPlaceholder" style="width:100%;" />
+            <div class="flex flex-col gap-1.5">
+              <label for="s-contact" class="text-sm font-semibold text-fg-secondary">{{ t().suppliers.contactPerson }}</label>
+              <input pInputText id="s-contact" formControlName="contactPerson" autocomplete="name" class="w-full"
+                [placeholder]="t().suppliers.contactPersonPlaceholder" />
             </div>
 
-            <!-- Telefon -->
-            <div style="display:flex; flex-direction:column; gap:6px;">
-              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().suppliers.phone }}</label>
-              <input pInputText type="tel" formControlName="phone" [placeholder]="t().suppliers.phonePlaceholder" style="width:100%;" />
+            <div class="flex flex-col gap-1.5">
+              <label for="s-phone" class="text-sm font-semibold text-fg-secondary">{{ t().suppliers.phone }}</label>
+              <input pInputText id="s-phone" type="tel" inputmode="tel" autocomplete="tel" formControlName="phone" class="w-full"
+                [placeholder]="t().suppliers.phonePlaceholder" />
             </div>
 
-            <!-- E-posta -->
-            <div style="display:flex; flex-direction:column; gap:6px;">
-              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().suppliers.email }}</label>
-              <input pInputText type="email" formControlName="email" [placeholder]="t().suppliers.emailPlaceholder" style="width:100%;" />
+            <div class="flex flex-col gap-1.5">
+              <label for="s-email" class="text-sm font-semibold text-fg-secondary">{{ t().suppliers.email }}</label>
+              <input pInputText id="s-email" type="email" inputmode="email" autocomplete="email" formControlName="email" class="w-full"
+                [placeholder]="t().suppliers.emailPlaceholder"
+                [attr.aria-invalid]="showError('email')" [attr.aria-describedby]="showError('email') ? 's-email-err' : null" />
+              @if (showError('email')) {
+                <p id="s-email-err" class="m-0 text-xs font-medium text-danger">{{ t().suppliers.emailInvalid }}</p>
+              }
             </div>
 
-            <!-- Vergi No -->
-            <div style="display:flex; flex-direction:column; gap:6px;">
-              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().suppliers.taxNo }}</label>
-              <input pInputText formControlName="taxNo" [placeholder]="t().suppliers.taxNoPlaceholder" style="width:100%; font-family:monospace;" />
+            <div class="flex flex-col gap-1.5">
+              <label for="s-tax" class="text-sm font-semibold text-fg-secondary">{{ t().suppliers.taxNo }}</label>
+              <input pInputText id="s-tax" inputmode="numeric" autocomplete="off" formControlName="taxNo" class="num w-full font-mono"
+                [placeholder]="t().suppliers.taxNoPlaceholder" />
             </div>
 
-            <!-- Adres -->
-            <div style="grid-column:1/-1; display:flex; flex-direction:column; gap:6px;">
-              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().suppliers.address }}</label>
-              <textarea pTextarea formControlName="address" rows="2" [placeholder]="t().suppliers.addressPlaceholder" style="width:100%; resize:vertical;"></textarea>
+            <div class="flex flex-col gap-1.5 sm:col-span-2">
+              <label for="s-address" class="text-sm font-semibold text-fg-secondary">{{ t().suppliers.address }}</label>
+              <textarea pTextarea id="s-address" formControlName="address" rows="2" autocomplete="street-address"
+                class="w-full resize-y" [placeholder]="t().suppliers.addressPlaceholder"></textarea>
             </div>
 
-            <!-- Notlar -->
-            <div style="grid-column:1/-1; display:flex; flex-direction:column; gap:6px;">
-              <label style="font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.4px;">{{ t().suppliers.notes }}</label>
-              <textarea pTextarea formControlName="notes" rows="2" [placeholder]="t().suppliers.notesPlaceholder" style="width:100%; resize:vertical;"></textarea>
+            <div class="flex flex-col gap-1.5 sm:col-span-2">
+              <label for="s-notes" class="text-sm font-semibold text-fg-secondary">{{ t().suppliers.notes }}</label>
+              <textarea pTextarea id="s-notes" formControlName="notes" rows="3"
+                class="w-full resize-y" [placeholder]="t().suppliers.notesPlaceholder"></textarea>
             </div>
-
           </div>
-        </form>
-      </div>
+
+          <div card-footer class="flex sm:justify-end">
+            <p-button type="submit" [label]="t().common.save" icon="pi pi-check" size="large" styleClass="w-full sm:w-auto"
+              [loading]="saving()" />
+          </div>
+        </ui-glass-card>
+      </form>
     </div>
   `,
 })
-export class SupplierFormPage implements OnInit {
+/** Yalnızca yeni tedarikçi ekleme; düzenleme supplier-detail içinde satır içi yapılır. */
+export class SupplierFormPage {
   private readonly svc = inject(SupplierService);
-  private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(MessageService);
   readonly t = inject(LangService).t;
 
   readonly saving = signal(false);
-  isEdit = false;
-  supplierId = '';
 
   readonly form = this.fb.group({
     name: ['', Validators.required],
     contactPerson: [''],
     phone: [''],
-    email: [''],
+    email: ['', Validators.email],
     taxNo: [''],
     address: [''],
     notes: [''],
   });
 
-  ngOnInit(): void {
-    this.supplierId = this.route.snapshot.paramMap.get('id') ?? '';
-    this.isEdit = !!this.supplierId;
-    if (this.isEdit) {
-      this.svc.getById$(this.supplierId).subscribe(s => {
-        if (s) {
-          this.form.patchValue({
-            name: s.name,
-            contactPerson: s.contactPerson ?? '',
-            phone: s.phone ?? '',
-            email: s.email ?? '',
-            taxNo: s.taxNo ?? '',
-            address: s.address ?? '',
-            notes: s.notes ?? '',
-          });
-        }
-      });
-    }
+  showError(name: string): boolean {
+    const c = this.form.get(name);
+    return !!c && c.invalid && c.touched;
   }
 
   async save(): Promise<void> {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    if (this.saving()) return;
     this.saving.set(true);
     try {
       const v = this.form.value;
@@ -153,8 +132,7 @@ export class SupplierFormPage implements OnInit {
         notes: v.notes?.trim() || null,
         isActive: true,
       };
-      if (this.isEdit) await this.svc.update(this.supplierId, data);
-      else await this.svc.create(data);
+      await this.svc.create(data);
       await this.router.navigate(['/suppliers']);
     } catch {
       this.toast.add({ severity: 'error', summary: this.t().common.error, detail: this.t().suppliers.saveFailed });

@@ -14,8 +14,24 @@ export class BarcodeInputDirective implements OnDestroy {
 
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
-    const activeTag = (document.activeElement as HTMLElement)?.tagName;
-    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
+    // Kısayol tuşları (Ctrl/Cmd/Alt) okuyucu girişi değildir
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+    const active = document.activeElement as HTMLElement | null;
+    const activeTag = active?.tagName;
+    if (
+      activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT' ||
+      activeTag === 'BUTTON' || active?.isContentEditable
+    ) {
+      this.reset();
+      return;
+    }
+
+    // Açık bir dialog varken dinleme (dialog içi Enter'ı çalmasın)
+    if (document.querySelector('.p-dialog-mask')) {
+      this.reset();
+      return;
+    }
 
     const now = Date.now();
     if (now - this.lastKeyTime > 300) this.buffer = '';
@@ -23,9 +39,11 @@ export class BarcodeInputDirective implements OnDestroy {
 
     if (event.key === 'Enter') {
       if (this.buffer.length >= this.barcodeMinLength) {
+        event.preventDefault();
+        event.stopPropagation();
         this.barcodeDetected.emit(this.buffer);
       }
-      this.buffer = '';
+      this.reset();
       return;
     }
 
@@ -33,6 +51,14 @@ export class BarcodeInputDirective implements OnDestroy {
 
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => (this.buffer = ''), 500);
+  }
+
+  private reset(): void {
+    this.buffer = '';
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
   }
 
   ngOnDestroy(): void {

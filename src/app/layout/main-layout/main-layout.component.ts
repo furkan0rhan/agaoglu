@@ -1,7 +1,8 @@
-import { Component, inject, signal, HostListener, OnInit } from '@angular/core';
-import { RouterOutlet, RouterLink, Router } from '@angular/router';
+import { ChangeDetectionStrategy, Component, DestroyRef, HostListener, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { Router, RouterOutlet, RouterLink } from '@angular/router';
 import { SidebarComponent } from '../sidebar/sidebar.component';
-import { SidebarService } from '../sidebar/sidebar.service';
+import { TopbarComponent } from '../topbar/topbar.component';
+import { NotificationBellComponent } from '../topbar/notification-bell.component';
 import { AuthService } from '../../core/auth/services/auth.service';
 import { CartStore } from '../../features/pos/store/cart.store';
 import { NotificationService } from '../../core/notifications/notification.service';
@@ -9,249 +10,238 @@ import { ProductStore } from '../../features/products/store/product.store';
 import { ThemeService } from '../../core/theme/theme.service';
 import { LangService } from '../../core/i18n/lang.service';
 import { NetworkService } from '../../core/offline/network.service';
+import { LicenseService } from '../../core/license/license.service';
+import { AvatarComponent } from '../../shared/ui/avatar.component';
+import { LogoMarkComponent } from '../../shared/ui/logo-mark.component';
+import { PageTitleService } from '../../shared/ui/page-title.service';
+import { SupportBannerComponent } from '../../features/admin/components/support-banner.component';
+import { ShellStatusService } from '../shell-status.service';
+import {
+  NavItem, bestMatch, buildNavItems, filterByRole, formatDisplayName, injectCurrentUrl, isPathActive, roleLabel,
+} from '../nav-items';
 
+/** Alt navigasyonda sabit duran rotalar (rolü uygun olanlar). Kalanlar "Diğer" sheet'inde. */
+const BOTTOM_PATHS = ['/dashboard', '/products', '/pos', '/credit'];
+
+/**
+ * Uygulama kabuğu — tasarım v2 "Saha / Komuta".
+ * - ≥1024px: kalıcı koyu sidebar + üst çubuk (sayfa başlığı, arama, zil, tema/dil, kullanıcı) + içerik.
+ * - <1024px: koyu üst çubuk (başlık + arama + zil) + içerik + koyu alt navigasyon (ortada turuncu
+ *   Satış) + "Diğer" sheet'i (safe-area uyumlu).
+ * - F2: her sayfadan Hızlı Satış'a (POS içinde F2 = kart ödemesi, POS'un kendisi yönetir).
+ * - Sayfa başlığı `<ui-page-header>` → PageTitleService → topbar / mobil üst çubuk.
+ */
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, SidebarComponent],
+  imports: [
+    RouterOutlet, RouterLink, SidebarComponent, TopbarComponent, NotificationBellComponent, AvatarComponent,
+    LogoMarkComponent, SupportBannerComponent,
+  ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'flex h-full overflow-hidden bg-page' },
   template: `
     @if (!isMobile()) {
-      <app-sidebar></app-sidebar>
+      <app-sidebar />
     }
 
-    <div class="main-content" [style.padding-bottom]="isMobile() ? 'calc(72px + env(safe-area-inset-bottom, 0px))' : '0'">
-      @if (!network.isOnline()) {
-        <div style="background:#f59e0b; color:#fff; padding:8px 16px; display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; flex-shrink:0;">
-          <i class="pi pi-wifi" style="font-size:14px;"></i>
-          <span>{{ t().nav.offline }}</span>
-          <span style="font-weight:400; font-size:12px; opacity:0.9;">— {{ t().nav.offlineDesc }}</span>
+    <div class="flex min-w-0 flex-1 flex-col">
+      @if (isMobile()) {
+        <!-- Mobil koyu üst çubuk -->
+        <header class="flex shrink-0 items-center gap-2.5 bg-side pb-1.5 pl-3 pr-2 pt-[calc(6px+var(--safe-top))] text-side-text">
+          @if (page()?.backLink; as back) {
+            <a [routerLink]="back" [attr.aria-label]="page()?.backLabel || t().common.back"
+              class="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[9px] text-side-text no-underline hover:bg-side-2">
+              <i class="pi pi-arrow-left text-base" aria-hidden="true"></i>
+            </a>
+          } @else {
+            <ui-logo-mark [size]="34" />
+          }
+          <div class="min-w-0 flex-1 leading-tight">
+            <p class="m-0 truncate font-display text-17 font-extrabold">{{ mobileTitle() }}</p>
+            <p class="m-0 truncate text-11.5" [class]="network.isOnline() ? 'text-side-muted' : 'text-warning'">{{ mobileSub() }}</p>
+          </div>
+          <a routerLink="/products" [attr.aria-label]="t().common.search"
+            class="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[9px] text-side-text no-underline hover:bg-side-2">
+            <i class="pi pi-search text-17" aria-hidden="true"></i>
+          </a>
+          <app-notification-bell [dark]="true" />
+        </header>
+      }
+
+      <app-support-banner />
+
+      @if (!isMobile()) {
+        <app-topbar />
+      } @else if (!network.isOnline()) {
+        <div role="status" class="flex shrink-0 items-center gap-2 border-b border-warning-line bg-warning-soft px-3 py-2 text-xs font-semibold text-warning-text">
+          <i class="pi pi-wifi text-sm" aria-hidden="true"></i>
+          <span class="shrink-0">{{ t().nav.offline }}</span>
+          <span class="truncate font-normal">— {{ t().nav.offlineDesc }}</span>
         </div>
       }
-      <router-outlet></router-outlet>
+
+      <main id="main-content" class="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
+        <router-outlet />
+      </main>
+
+      @if (isMobile()) {
+        <!-- Alt navigasyon (koyu) -->
+        <nav [attr.aria-label]="t().nav.mainMenu"
+          class="relative z-nav flex shrink-0 items-stretch gap-0.5 border-t border-side-line bg-side px-1 pb-[calc(8px+var(--safe-bottom))] pt-1.5">
+          @for (item of bottomItems(); track item.path) {
+            @let active = activePath() === item.path && !showMore();
+            @let count = countFor(item);
+            @if (item.path === '/pos') {
+              <a routerLink="/pos" (click)="closeMore()" [attr.aria-current]="active ? 'page' : null"
+                class="relative mx-1 flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-[3px] rounded-[10px] bg-sale text-11.5 font-semibold text-sale-text no-underline shadow-accent active:brightness-95"
+                [class.ring-2]="active" [class.ring-side-hi]="active">
+                <i class="pi pi-shopping-cart text-[1.3125rem]" aria-hidden="true"></i>
+                <span class="max-w-full truncate px-0.5">{{ item.short }}</span>
+                @if (cart.itemCount() > 0) {
+                  <span class="num absolute right-1 top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-[5px] bg-side-count px-[3px] text-[0.65625rem] font-bold leading-none text-white">{{ cart.itemCount() }}</span>
+                }
+              </a>
+            } @else {
+              <a [routerLink]="item.path" (click)="closeMore()" [attr.aria-current]="active ? 'page' : null"
+                class="relative flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-[3px] rounded-[10px] text-11.5 font-semibold no-underline"
+                [class]="active ? 'text-side-active-text' : 'text-side-muted'">
+                @if (active) {
+                  <span class="absolute -top-1.5 left-[30%] right-[30%] h-[3px] rounded-b-[3px] bg-side-hi" aria-hidden="true"></span>
+                }
+                <i class="pi text-20" [class]="item.icon" aria-hidden="true"></i>
+                <span class="max-w-full truncate px-0.5">{{ item.short }}</span>
+                @if (count) {
+                  <span class="num absolute right-[calc(50%-24px)] top-0.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-[5px] bg-side-count px-[3px] text-[0.65625rem] font-bold leading-none text-white">{{ count > 99 ? '99+' : count }}</span>
+                }
+              </a>
+            }
+          }
+          <button type="button" (click)="toggleMore()" [attr.aria-expanded]="showMore()" aria-haspopup="dialog"
+            class="relative flex min-h-[52px] min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-[3px] rounded-[10px] border-0 bg-transparent text-11.5 font-semibold"
+            [class]="showMore() || moreActive() ? 'text-side-active-text' : 'text-side-muted'">
+            @if (moreActive() && !showMore()) {
+              <span class="absolute -top-1.5 left-[30%] right-[30%] h-[3px] rounded-b-[3px] bg-side-hi" aria-hidden="true"></span>
+            }
+            <i class="pi text-20" [class]="showMore() ? 'pi-times' : 'pi-ellipsis-h'" aria-hidden="true"></i>
+            <span class="max-w-full truncate px-0.5">{{ t().nav.other }}</span>
+          </button>
+        </nav>
+      }
     </div>
 
-    @if (isMobile()) {
+    @if (isMobile() && showMore()) {
+      <!-- "Diğer" sheet -->
+      <button type="button" tabindex="-1" (click)="closeMore()" [attr.aria-label]="t().common.close"
+        class="fixed inset-0 z-sheet-backdrop animate-fade-in cursor-default border-0 bg-black/45"></button>
 
-      <!-- "Diğer" backdrop -->
-      @if (showMore()) {
-        <div (click)="showMore.set(false)"
-          style="position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:310; backdrop-filter:blur(3px);">
-        </div>
+      <div role="dialog" aria-modal="true" [attr.aria-label]="t().nav.other"
+        class="fixed inset-x-2 bottom-[calc(72px+var(--safe-bottom))] z-sheet max-h-[72vh] animate-sheet-up overflow-y-auto rounded-token-2xl border border-line bg-surface shadow-overlay">
 
-        <!-- "Diğer" sheet -->
-        <div style="position:fixed; left:12px; right:12px; background:var(--bg-surface); border-radius:24px; z-index:320; box-shadow:0 -2px 40px rgba(0,0,0,0.15); padding:16px;"
-          [style.bottom]="'calc(64px + env(safe-area-inset-bottom, 0px) + 8px)'">
-          <div style="width:36px; height:4px; background:var(--border-mid); border-radius:2px; margin:0 auto 16px;"></div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-              <a routerLink="/customers" (click)="showMore.set(false)"
-                style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:16px; text-decoration:none;"
-                [style.background]="sItemBg('/customers')"
-                [style.border]="sItemBorder('/customers')">
-                <div style="width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"
-                  [style.background]="sIconBg('/customers')">
-                  <i class="pi pi-users" style="font-size:15px;" [style.color]="sIconColor('/customers')"></i>
-                </div>
-                <span style="font-size:13px; font-weight:600;" [style.color]="sTextColor('/customers')">{{ t().nav.customers }}</span>
-              </a>
-            @if (isAdmin()) {
-              <a routerLink="/credit" (click)="showMore.set(false)"
-                style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:16px; text-decoration:none;"
-                [style.background]="sItemBg('/credit')"
-                [style.border]="sItemBorder('/credit')">
-                <div style="width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"
-                  [style.background]="sIconBg('/credit')">
-                  <i class="pi pi-credit-card" style="font-size:15px;" [style.color]="sIconColor('/credit')"></i>
-                </div>
-                <span style="font-size:13px; font-weight:600;" [style.color]="sTextColor('/credit')">{{ t().nav.credit }}</span>
-              </a>
-              <a routerLink="/expenses" (click)="showMore.set(false)"
-                style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:16px; text-decoration:none;"
-                [style.background]="sItemBg('/expenses')"
-                [style.border]="sItemBorder('/expenses')">
-                <div style="width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"
-                  [style.background]="sIconBg('/expenses')">
-                  <i class="pi pi-wallet" style="font-size:15px;" [style.color]="sIconColor('/expenses')"></i>
-                </div>
-                <span style="font-size:13px; font-weight:600;" [style.color]="sTextColor('/expenses')">{{ t().nav.expenses }}</span>
-              </a>
-              <a routerLink="/stock-count" (click)="showMore.set(false)"
-                style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:16px; text-decoration:none;"
-                [style.background]="sItemBg('/stock-count')"
-                [style.border]="sItemBorder('/stock-count')">
-                <div style="width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"
-                  [style.background]="sIconBg('/stock-count')">
-                  <i class="pi pi-barcode" style="font-size:15px;" [style.color]="sIconColor('/stock-count')"></i>
-                </div>
-                <span style="font-size:13px; font-weight:600;" [style.color]="sTextColor('/stock-count')">{{ t().nav.stockCount }}</span>
-              </a>
-              <a routerLink="/suppliers" (click)="showMore.set(false)"
-                style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:16px; text-decoration:none;"
-                [style.background]="sItemBg('/suppliers')"
-                [style.border]="sItemBorder('/suppliers')">
-                <div style="width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"
-                  [style.background]="sIconBg('/suppliers')">
-                  <i class="pi pi-truck" style="font-size:15px;" [style.color]="sIconColor('/suppliers')"></i>
-                </div>
-                <span style="font-size:13px; font-weight:600;" [style.color]="sTextColor('/suppliers')">{{ t().nav.suppliers }}</span>
-              </a>
-              <a routerLink="/settings" (click)="showMore.set(false)"
-                style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:16px; text-decoration:none;"
-                [style.background]="sItemBg('/settings')"
-                [style.border]="sItemBorder('/settings')">
-                <div style="width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"
-                  [style.background]="sIconBg('/settings')">
-                  <i class="pi pi-cog" style="font-size:15px;" [style.color]="sIconColor('/settings')"></i>
-                </div>
-                <span style="font-size:13px; font-weight:600;" [style.color]="sTextColor('/settings')">{{ t().nav.settings }}</span>
-              </a>
-            }
-          </div>
-          <div style="margin-top:10px; display:flex; gap:10px;">
-            <button (click)="themeSvc.toggle()"
-              style="flex:1; display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:16px; border:1.5px solid var(--border); background:var(--bg-muted); cursor:pointer;">
-              <div style="width:36px; height:36px; border-radius:10px; background:var(--bg-page); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                <i [class]="'pi ' + (themeSvc.isDark() ? 'pi-sun' : 'pi-moon')" style="font-size:15px; color:var(--text-secondary);"></i>
-              </div>
-              <span style="font-size:13px; font-weight:600; color:var(--text-secondary);">{{ themeSvc.isDark() ? t().nav.lightMode : t().nav.darkMode }}</span>
+        <a [routerLink]="accountLink()" (click)="closeMore()"
+          class="card-head min-h-[60px] gap-3 no-underline">
+          <ui-avatar [name]="userName()" variant="solid" />
+          <span class="min-w-0 flex-1 leading-tight">
+            <span class="block truncate text-sm font-semibold text-fg">{{ userName() || t().nav.account }}</span>
+            <span class="mt-0.5 block truncate text-xs text-fg-muted">{{ role() }} · {{ tenantName() || t().nav.account }}</span>
+          </span>
+          <i class="pi pi-chevron-right text-xs text-fg-muted" aria-hidden="true"></i>
+        </a>
+
+        <div class="p-3">
+          @if (sheetItems().length) {
+            <div class="grid grid-cols-3 gap-2">
+              @for (item of sheetItems(); track item.path) {
+                @let active = activePath() === item.path;
+                <a [routerLink]="item.path" (click)="closeMore()" [attr.aria-current]="active ? 'page' : null"
+                  class="flex min-h-[80px] flex-col items-center justify-center gap-1.5 rounded-token-lg border px-1 py-2.5 text-center text-xs font-semibold no-underline transition-colors"
+                  [class]="active ? 'border-brand-line bg-brand-soft text-brand-text' : 'border-line bg-surface-muted text-fg-secondary hover:text-fg'">
+                  <span class="flex h-9 w-9 items-center justify-center rounded-token-md"
+                    [class]="active ? 'bg-brand text-brand-contrast' : 'bg-surface text-fg-secondary'">
+                    <i class="pi text-15" [class]="item.icon" aria-hidden="true"></i>
+                  </span>
+                  <span class="line-clamp-2 leading-tight">{{ item.short }}</span>
+                </a>
+              }
+            </div>
+            <div class="my-3 h-px bg-line"></div>
+          }
+          <div class="grid grid-cols-3 gap-2">
+            <button type="button" (click)="themeSvc.toggle()" [attr.aria-pressed]="themeSvc.isDark()"
+              class="flex min-h-[64px] cursor-pointer flex-col items-center justify-center gap-1 rounded-token-lg border border-line bg-surface px-1 text-xs font-semibold text-fg-secondary">
+              <i class="pi text-base" [class]="themeSvc.isDark() ? 'pi-sun' : 'pi-moon'" aria-hidden="true"></i>
+              <span class="line-clamp-1">{{ themeSvc.isDark() ? t().nav.lightMode : t().nav.darkMode }}</span>
             </button>
-            <button (click)="langSvc.toggle()"
-              style="flex:1; display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:16px; border:1.5px solid var(--border); background:var(--bg-muted); cursor:pointer;">
-              <div style="width:36px; height:36px; border-radius:10px; background:var(--bg-page); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:11px; font-weight:800; color:var(--text-secondary);">
-                {{ langSvc.lang() === 'tr' ? 'EN' : 'TR' }}
-              </div>
-              <span style="font-size:13px; font-weight:600; color:var(--text-secondary);">{{ langSvc.lang() === 'tr' ? t().nav.switchToEn : t().nav.switchToTr }}</span>
+            <button type="button" (click)="langSvc.toggle()"
+              class="flex min-h-[64px] cursor-pointer flex-col items-center justify-center gap-1 rounded-token-lg border border-line bg-surface px-1 text-xs font-semibold text-fg-secondary">
+              <i class="pi pi-globe text-base" aria-hidden="true"></i>
+              <span class="line-clamp-1">{{ langSvc.lang() === 'tr' ? t().nav.switchToEn : t().nav.switchToTr }}</span>
             </button>
-            <button (click)="logout()"
-              style="flex:1; display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:16px; border:1.5px solid #fee2e2; background:#fef2f2; cursor:pointer;">
-              <div style="width:36px; height:36px; border-radius:10px; background:#fee2e2; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                <i class="pi pi-sign-out" style="font-size:15px; color:#ef4444;"></i>
-              </div>
-              <span style="font-size:13px; font-weight:600; color:#ef4444;">{{ t().settings.logoutBtn }}</span>
+            <button type="button" (click)="logout()"
+              class="flex min-h-[64px] cursor-pointer flex-col items-center justify-center gap-1 rounded-token-lg border border-danger-line bg-danger-soft px-1 text-xs font-semibold text-danger-text">
+              <i class="pi pi-sign-out text-base" aria-hidden="true"></i>
+              <span class="line-clamp-1">{{ t().nav.logout }}</span>
             </button>
           </div>
         </div>
-      }
-
-      <!-- Bottom Nav -->
-      <nav style="position:fixed; bottom:0; left:0; right:0; background:var(--bg-surface); border-top:1px solid var(--border); box-shadow:0 -2px 16px rgba(0,0,0,0.07); z-index:300; display:flex; align-items:center; padding:0 6px; padding-bottom:env(safe-area-inset-bottom, 0px); height:calc(64px + env(safe-area-inset-bottom, 0px));">
-
-        <!-- Dashboard -->
-        <a routerLink="/dashboard" (click)="showMore.set(false)" style="flex:1; display:flex; justify-content:center; align-items:center; text-decoration:none;">
-          <div style="display:flex; align-items:center; gap:0; border-radius:20px; padding:8px 12px; transition:background 0.2s;"
-            [style.background]="isActive('/dashboard') ? '#f0fdf4' : 'transparent'">
-            <i class="pi pi-home" style="font-size:22px; flex-shrink:0; transition:color 0.2s;"
-              [style.color]="isActive('/dashboard') ? '#16a34a' : '#94a3b8'"></i>
-            <span style="white-space:nowrap; font-size:12px; font-weight:700; color:#16a34a; margin-left:6px; overflow:hidden; transition:max-width 0.3s ease, opacity 0.25s ease;"
-              [style.max-width]="isActive('/dashboard') && !showMore() ? '80px' : '0px'"
-              [style.opacity]="isActive('/dashboard') && !showMore() ? '1' : '0'">
-              {{ t().nav.home }}
-            </span>
-          </div>
-        </a>
-
-        <!-- Ürünler -->
-        <a routerLink="/products" (click)="showMore.set(false)" style="flex:1; display:flex; justify-content:center; align-items:center; text-decoration:none;">
-          <div style="display:flex; align-items:center; border-radius:20px; padding:8px 12px; transition:background 0.2s;"
-            [style.background]="isActive('/products') && !showMore() ? '#f0fdf4' : 'transparent'">
-            <i class="pi pi-box" style="font-size:22px; flex-shrink:0; transition:color 0.2s;"
-              [style.color]="isActive('/products') && !showMore() ? '#16a34a' : '#94a3b8'"></i>
-            <span style="white-space:nowrap; font-size:12px; font-weight:700; color:#16a34a; margin-left:6px; overflow:hidden; transition:max-width 0.3s ease, opacity 0.25s ease;"
-              [style.max-width]="isActive('/products') && !showMore() ? '60px' : '0px'"
-              [style.opacity]="isActive('/products') && !showMore() ? '1' : '0'">
-              {{ t().nav.products }}
-            </span>
-          </div>
-        </a>
-
-        <!-- Sepet (POS) -->
-        <a routerLink="/pos" (click)="showMore.set(false)" style="flex:1; display:flex; justify-content:center; align-items:center; text-decoration:none;">
-          <div style="display:flex; align-items:center; border-radius:20px; padding:8px 12px; transition:background 0.2s; position:relative;"
-            [style.background]="isActive('/pos') && !showMore() ? '#fff7ed' : 'transparent'">
-            <i class="pi pi-shopping-cart" style="font-size:22px; flex-shrink:0; transition:color 0.2s;"
-              [style.color]="isActive('/pos') && !showMore() ? '#ea580c' : '#94a3b8'"></i>
-            @if (cart.itemCount() > 0) {
-              <span style="position:absolute; top:2px; right:6px; background:#ef4444; color:white; border-radius:10px; font-size:9px; font-weight:800; min-width:16px; height:16px; display:flex; align-items:center; justify-content:center; padding:0 3px; border:1.5px solid white;">
-                {{ cart.itemCount() }}
-              </span>
-            }
-            <span style="white-space:nowrap; font-size:12px; font-weight:700; color:#ea580c; margin-left:6px; overflow:hidden; transition:max-width 0.3s ease, opacity 0.25s ease;"
-              [style.max-width]="isActive('/pos') && !showMore() ? '50px' : '0px'"
-              [style.opacity]="isActive('/pos') && !showMore() ? '1' : '0'">
-              {{ t().nav.cart }}
-            </span>
-          </div>
-        </a>
-
-        <!-- Raporlar -->
-        <a routerLink="/reports" (click)="showMore.set(false)" style="flex:1; display:flex; justify-content:center; align-items:center; text-decoration:none;">
-          <div style="display:flex; align-items:center; border-radius:20px; padding:8px 12px; transition:background 0.2s;"
-            [style.background]="isActive('/reports') && !showMore() ? '#f0fdf4' : 'transparent'">
-            <i class="pi pi-chart-bar" style="font-size:22px; flex-shrink:0; transition:color 0.2s;"
-              [style.color]="isActive('/reports') && !showMore() ? '#16a34a' : '#94a3b8'"></i>
-            <span style="white-space:nowrap; font-size:12px; font-weight:700; color:#16a34a; margin-left:6px; overflow:hidden; transition:max-width 0.3s ease, opacity 0.25s ease;"
-              [style.max-width]="isActive('/reports') && !showMore() ? '65px' : '0px'"
-              [style.opacity]="isActive('/reports') && !showMore() ? '1' : '0'">
-              {{ t().nav.reports }}
-            </span>
-          </div>
-        </a>
-
-        <!-- Diğer -->
-        <button (click)="showMore.set(!showMore())"
-          style="flex:1; display:flex; justify-content:center; align-items:center; border:none; background:transparent; cursor:pointer;">
-          <div style="display:flex; align-items:center; border-radius:20px; padding:8px 12px; transition:background 0.2s;"
-            [style.background]="showMore() ? '#f1f5f9' : 'transparent'">
-            <i class="pi pi-ellipsis-h" style="font-size:22px; transition:color 0.2s;"
-              [style.color]="showMore() ? '#475569' : '#94a3b8'"></i>
-            <span style="white-space:nowrap; font-size:12px; font-weight:700; color:#475569; margin-left:6px; overflow:hidden; transition:max-width 0.3s ease, opacity 0.25s ease;"
-              [style.max-width]="showMore() ? '45px' : '0px'"
-              [style.opacity]="showMore() ? '1' : '0'">
-              {{ t().nav.other }}
-            </span>
-          </div>
-        </button>
-
-      </nav>
+      </div>
     }
   `,
-  styles: [`
-    :host {
-      display: flex;
-      flex-direction: row;
-      height: 100%;
-      overflow: hidden;
-      padding-top: env(safe-area-inset-top, 0px);
-      box-sizing: border-box;
-    }
-    .main-content {
-      flex: 1;
-      min-width: 0;
-      overflow-y: auto;
-      overflow-x: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-  `],
 })
 export class MainLayoutComponent implements OnInit {
-  readonly sidebarSvc   = inject(SidebarService);
-  readonly auth         = inject(AuthService);
-  readonly cart         = inject(CartStore);
-  readonly themeSvc     = inject(ThemeService);
-  readonly langSvc      = inject(LangService);
-  readonly network      = inject(NetworkService);
-  readonly t            = this.langSvc.t;
-  private readonly router         = inject(Router);
-  private readonly notifSvc       = inject(NotificationService);
-  private readonly productStore   = inject(ProductStore);
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+  readonly cart = inject(CartStore);
+  readonly themeSvc = inject(ThemeService);
+  readonly langSvc = inject(LangService);
+  readonly network = inject(NetworkService);
+  private readonly license = inject(LicenseService);
+  private readonly status = inject(ShellStatusService);
+  readonly t = this.langSvc.t;
+  private readonly notifSvc = inject(NotificationService);
+  private readonly productStore = inject(ProductStore);
+  private readonly pageTitle = inject(PageTitleService);
+  private readonly url = injectCurrentUrl();
 
   readonly isMobile = signal(false);
   readonly showMore = signal(false);
+  readonly page = this.pageTitle.current;
 
-  constructor() { this.checkMobile(); }
+  private readonly items = computed(() => filterByRole(buildNavItems(this.t()), this.auth.currentUser()?.role, this.auth.isSuperAdmin()));
+  readonly bottomItems = computed(() => this.items()
+    .filter(i => BOTTOM_PATHS.includes(i.path))
+    .sort((a, b) => BOTTOM_PATHS.indexOf(a.path) - BOTTOM_PATHS.indexOf(b.path)));
+  readonly sheetItems = computed(() => this.items().filter(i => !BOTTOM_PATHS.includes(i.path)));
+  readonly activePath = computed(() => bestMatch(this.items(), this.url())?.path ?? '');
+  readonly moreActive = computed(() => this.sheetItems().some(i => i.path === this.activePath())
+    || isPathActive(this.url(), '/account') || isPathActive(this.url(), '/license'));
+  private readonly canSell = computed(() => this.items().some(i => i.path === '/pos'));
+
+  readonly userName = computed(() => formatDisplayName(this.auth.currentUser()?.displayName));
+  readonly role = computed(() => roleLabel(this.t(), this.auth.currentUser()?.role));
+  readonly tenantName = computed(() => this.license.tenant()?.name ?? '');
+  readonly accountLink = computed(() => (this.auth.currentUser()?.role ?? 'admin') === 'admin' ? '/settings' : '/account');
+
+  readonly mobileTitle = computed(() => this.page()?.title
+    || bestMatch(buildNavItems(this.t()), this.url())?.title
+    || (isPathActive(this.url(), '/account') ? this.t().nav.account : 'Tarım Market Pro'));
+  readonly mobileSub = computed(() => {
+    if (!this.network.isOnline()) return this.t().shell.syncOffline;
+    const sub = this.page()?.subtitle;
+    if (sub) return sub;
+    return [this.tenantName(), this.t().nav.online].filter(Boolean).join(' · ');
+  });
+
+  constructor() {
+    this.checkMobile();
+    const detach = this.pageTitle.attachHost();
+    inject(DestroyRef).onDestroy(detach);
+    // Sayfa değişince sheet'i kapat
+    effect(() => { this.url(); this.showMore.set(false); });
+  }
 
   ngOnInit(): void {
-    this.productStore.loadProducts(undefined as any);
+    this.productStore.ensureLoaded();
     setTimeout(() => this.notifSvc.checkAndNotify(), 4000);
   }
 
@@ -261,32 +251,30 @@ export class MainLayoutComponent implements OnInit {
     if (!this.isMobile()) this.showMore.set(false);
   }
 
-  isActive(path: string): boolean {
-    return this.router.url.startsWith(path);
+  @HostListener('document:keydown.escape')
+  onEscape(): void { this.closeMore(); }
+
+  /** F2: her sayfadan Hızlı Satış. POS içinde F2 kart ödemesidir (POS yönetir). */
+  @HostListener('document:keydown', ['$event'])
+  onKey(e: KeyboardEvent): void {
+    if (e.key !== 'F2' || e.ctrlKey || e.altKey || e.metaKey) return;
+    if (isPathActive(this.url(), '/pos') || !this.canSell()) return;
+    if (document.querySelector('.p-dialog-mask')) return; // açık dialog varken sayfadan çıkma
+    e.preventDefault();
+    void this.router.navigate(['/pos']);
   }
 
-  sItemBg(path: string): string {
-    return this.isActive(path) ? 'var(--nav-active-bg)' : 'var(--bg-muted)';
-  }
-  sItemBorder(path: string): string {
-    return this.isActive(path) ? '1.5px solid #bbf7d0' : '1.5px solid var(--border)';
-  }
-  sIconBg(path: string): string {
-    return this.isActive(path) ? '#16a34a' : 'var(--icon-bg)';
-  }
-  sIconColor(path: string): string {
-    return this.isActive(path) ? 'white' : 'var(--icon-color)';
-  }
-  sTextColor(path: string): string {
-    return this.isActive(path) ? '#16a34a' : 'var(--text-primary)';
+  countFor(item: NavItem): number {
+    if (item.path === '/products') return this.productStore.lowStockCount();
+    if (item.path === '/credit') return this.status.overdueCustomers() ?? 0;
+    return 0;
   }
 
-  isAdmin(): boolean {
-    return (this.auth.currentUser()?.role ?? 'admin') === 'admin';
-  }
+  toggleMore(): void { this.showMore.update(v => !v); }
+  closeMore(): void { this.showMore.set(false); }
 
   logout(): void {
     this.showMore.set(false);
-    this.auth.logout();
+    void this.auth.logout();
   }
 }

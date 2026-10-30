@@ -13,8 +13,16 @@ import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { ProductStore } from '../products/store/product.store';
 import { ProductService } from '../products/services/product.service';
-import { Product, Batch } from '../../shared/models/product.model';
+import { Product, Batch, isDecimalUnit, productUnit } from '../../shared/models/product.model';
 import { LangService } from '../../core/i18n/lang.service';
+import { firstFEFO, roundQty } from '../../shared/utils/batch.utils';
+import { formatQty } from '../../shared/utils/product-form.utils';
+import {
+  EmptyStateComponent, GlassCardComponent, PageHeaderComponent, StatusBadgeComponent,
+} from '../../shared/ui';
+import { SumStripComponent, SumStripItem } from '../products/components/sum-strip.component';
+import { chipClass, chipCountClass, productIcon } from '../products/inventory-ui';
+import { qtyFractionDigits, qtyWithUnit } from '../products/product-unit';
 
 interface CountRow {
   product: Product;
@@ -28,175 +36,157 @@ interface ConfirmItem {
   affectedBatch: Batch | null;
 }
 
+interface ApplyError {
+  productId: string;
+  name: string;
+  message: string;
+}
+
 @Component({
   selector: 'app-stock-count',
   standalone: true,
-  imports: [RouterLink, DatePipe, FormsModule, ButtonModule, InputNumberModule, IconFieldModule, InputIconModule, InputTextModule, AutoCompleteModule, DialogModule, ToastModule],
+  imports: [
+    RouterLink, DatePipe, FormsModule, ButtonModule, InputNumberModule, IconFieldModule, InputIconModule, InputTextModule,
+    AutoCompleteModule, DialogModule, ToastModule,
+    PageHeaderComponent, GlassCardComponent, EmptyStateComponent, StatusBadgeComponent, SumStripComponent,
+  ],
   providers: [MessageService],
+  host: { class: 'block' },
   template: `
-    <p-toast></p-toast>
+    <p-toast />
 
-    <div style="display:flex; flex-direction:column; height:100%; background:var(--bg-page); overflow:hidden;">
+    <ui-page-header [title]="t().stockCount.title" [subtitle]="t().stockCount.subtitle" icon="pi-barcode" iconTone="info">
+      @if (!completed()) {
+        <p-button [label]="t().stockCount.complete + (changedCount() ? ' (' + changedCount() + ')' : '')" icon="pi pi-check"
+                  [disabled]="changedCount() === 0" (onClick)="openConfirm()" />
+      }
+    </ui-page-header>
 
-      <!-- Header -->
-      <div style="background:var(--bg-surface); border-bottom:1px solid var(--border); padding:16px 24px; display:flex; align-items:center; gap:12px; flex-shrink:0;">
-        <div style="width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg,#8b5cf6,#6d28d9); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-          <i class="pi pi-barcode" style="color:white; font-size:16px;"></i>
-        </div>
-        <div style="flex:1;">
-          <h1 style="font-size:18px; font-weight:700; color:var(--text-primary); margin:0;">{{ t().stockCount.title }}</h1>
-          <p style="font-size:12px; color:var(--text-secondary); margin:0;">{{ t().stockCount.subtitle }}</p>
-        </div>
-        @if (!completed()) {
-          <p-button
-            [label]="t().stockCount.complete"
-            icon="pi pi-check"
-            severity="success"
-            size="small"
-            [disabled]="changedCount() === 0"
-            (onClick)="openConfirm()"
-          />
-        }
-      </div>
-
-      <!-- Tamamlandı ekranı -->
+    <div class="page-body">
       @if (completed()) {
-        <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; padding:40px;">
-          <div style="width:80px; height:80px; border-radius:24px; background:#f0fdf4; display:flex; align-items:center; justify-content:center;">
-            <i class="pi pi-check-circle" style="font-size:40px; color:#16a34a;"></i>
+        <!-- Tamamlandı -->
+        <ui-glass-card padding="lg" class="mx-auto w-full max-w-2xl">
+          <div class="flex flex-col items-center gap-5 py-4 text-center">
+            <span class="flex h-20 w-20 items-center justify-center rounded-token-2xl bg-success-soft text-success-text" aria-hidden="true">
+              <i class="pi pi-check-circle text-4xl"></i>
+            </span>
+            <div>
+              <h2 class="m-0 mb-2 text-xl font-bold text-fg">{{ t().stockCount.completedTitle }}</h2>
+              <p class="m-0 text-sm text-fg-secondary">{{ completionSummary() }}</p>
+            </div>
+            @if (applyErrors().length) {
+              <div class="w-full rounded-token-lg border border-danger-line bg-danger-soft px-4 py-3 text-left" role="alert">
+                <p class="m-0 mb-1.5 text-sm font-bold text-danger-text">{{ t().stockCount.errorsTitle }} ({{ applyErrors().length }})</p>
+                @for (e of applyErrors(); track e.productId) {
+                  <p class="m-0 my-0.5 text-xs text-fg"><b>{{ e.name }}</b> — {{ e.message }}</p>
+                }
+              </div>
+            }
+            <div class="flex flex-wrap justify-center gap-3">
+              @if (applyErrors().length) {
+                <p-button [label]="t().stockCount.retryFailed" icon="pi pi-replay" severity="warn" (onClick)="retryFailed()" />
+              }
+              <p-button [label]="t().stockCount.newCount" icon="pi pi-refresh" severity="secondary" (onClick)="reset()" />
+              <p-button [label]="t().stockCount.goToProducts" icon="pi pi-arrow-right" iconPos="right" routerLink="/products" />
+            </div>
           </div>
-          <div style="text-align:center;">
-            <h2 style="font-size:22px; font-weight:700; color:var(--text-primary); margin:0 0 8px;">{{ t().stockCount.completedTitle }}</h2>
-            <p style="font-size:14px; color:var(--text-secondary); margin:0;">{{ completionSummary() }}</p>
-          </div>
-          <div style="display:flex; gap:12px;">
-            <p-button [label]="t().stockCount.newCount" icon="pi pi-refresh" severity="secondary" [outlined]="true" (onClick)="reset()" />
-            <p-button [label]="t().stockCount.goToProducts" icon="pi pi-arrow-right" routerLink="/products" severity="success" />
-          </div>
-        </div>
-
+        </ui-glass-card>
       } @else {
+        <!-- C özet şeridi -->
+        <app-sum-strip [items]="summary()" [ariaLabel]="t().stockCount.title" />
 
-        <!-- Arama + istatistik bar -->
-        <div style="background:var(--bg-surface); border-bottom:1px solid var(--border); padding:12px 20px; display:flex; align-items:center; gap:12px; flex-shrink:0; flex-wrap:wrap;">
-          <p-iconfield style="flex:1; min-width:180px; display:block;">
-            <p-inputicon styleClass="pi pi-search" />
-            <input pInputText (input)="q.set($any($event.target).value)" [placeholder]="t().stockCount.searchPlaceholder" style="width:100%;" />
-          </p-iconfield>
-          <div style="display:flex; gap:8px; flex-shrink:0;">
-            <div style="background:var(--bg-page); border-radius:10px; padding:6px 12px; text-align:center; min-width:48px;">
-              <p style="font-size:16px; font-weight:700; color:var(--text-primary); margin:0; line-height:1.2;">{{ rows().length }}</p>
-              <p style="font-size:10px; color:var(--text-muted); margin:0;">{{ t().stockCount.productsLabel }}</p>
+        <div class="ui-card overflow-hidden">
+          <header class="card-head">
+            <span class="card-head-icon bg-info-soft text-info-text"><i class="pi pi-check-square text-15" aria-hidden="true"></i></span>
+            <div class="min-w-0 flex-1">
+              <h3 class="truncate">{{ inv().countList }}</h3>
+              <p class="m-0 hidden truncate font-sans text-13 font-normal text-fg-muted sm:block">{{ inv().countHint }}</p>
             </div>
-            <div style="background:#fffbeb; border-radius:10px; padding:6px 12px; text-align:center; min-width:48px;">
-              <p style="font-size:16px; font-weight:700; color:#d97706; margin:0; line-height:1.2;">{{ changedCount() }}</p>
-              <p style="font-size:10px; color:#d97706; margin:0;">{{ t().stockCount.changesLabel }}</p>
-            </div>
-            <div style="background:#fef2f2; border-radius:10px; padding:6px 12px; text-align:center; min-width:48px;">
-              <p style="font-size:16px; font-weight:700; color:#ef4444; margin:0; line-height:1.2;">{{ shortageCount() }}</p>
-              <p style="font-size:10px; color:#ef4444; margin:0;">{{ t().stockCount.shortage }}</p>
-            </div>
-            <div style="background:#f0fdf4; border-radius:10px; padding:6px 12px; text-align:center; min-width:48px;">
-              <p style="font-size:16px; font-weight:700; color:#16a34a; margin:0; line-height:1.2;">{{ surplusCount() }}</p>
-              <p style="font-size:10px; color:#16a34a; margin:0;">{{ t().stockCount.surplus }}</p>
+          </header>
+          <div class="flex flex-col gap-2.5 border-b border-line p-3 sm:px-4 md:flex-row md:items-center">
+            <p-iconfield class="block w-full md:w-80">
+              <p-inputicon styleClass="pi pi-search" />
+              <input pInputText type="search" [value]="q()" (input)="q.set($any($event.target).value)"
+                     [placeholder]="t().stockCount.searchPlaceholder" [attr.aria-label]="t().common.search" class="w-full" />
+            </p-iconfield>
+            <div class="-mx-3 flex gap-2 overflow-x-auto px-3 [scrollbar-width:none] md:mx-0 md:px-0" role="toolbar" [attr.aria-label]="t().common.filters">
+              @for (f of viewFilters(); track f.key) {
+                <button type="button" [class]="chip(view() === f.key, f.key === 'diff')" [attr.aria-pressed]="view() === f.key" (click)="view.set(f.key)">
+                  {{ f.label }} <b [class]="chipCount(view() === f.key)">{{ f.count }}</b>
+                </button>
+              }
             </div>
           </div>
-        </div>
-
-        <!-- Ürün listesi -->
-        <div style="flex:1; overflow-y:auto; padding:12px 16px; display:flex; flex-direction:column; gap:8px;">
 
           @if (filteredRows().length === 0) {
-            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; gap:10px;">
-              <i class="pi pi-box" style="font-size:40px; color:#cbd5e1;"></i>
-              <p style="font-size:14px; color:var(--text-muted); margin:0;">{{ t().products.noProducts }}</p>
-            </div>
-          }
+            <ui-empty-state compact icon="pi-box" [title]="t().products.noProducts" />
+          } @else {
+            <ul class="m-0 flex list-none flex-col p-0">
+              @for (row of filteredRows(); track row.product.id) {
+                <li class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-3 py-2.5 last:border-b-0 sm:flex-nowrap sm:px-4"
+                    [class]="rowEdge(row)">
+                  <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-token-md bg-surface-muted text-fg-secondary" aria-hidden="true">
+                    <i class="pi text-base" [class]="icon(row.product)"></i>
+                  </span>
+                  <div class="min-w-0 flex-1 basis-40">
+                    <p class="m-0 truncate text-sm font-semibold text-fg">{{ row.product.name }}</p>
+                    <p class="m-0 mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-fg-secondary">
+                      @if (row.product.category) {
+                        <span>{{ row.product.category }}</span>
+                        <span class="text-fg-muted" aria-hidden="true">·</span>
+                      }
+                      <span>{{ t().stockCount.system }}: <b class="num text-fg">{{ qtyText(row.product.stock, row.product) }}</b></span>
+                    </p>
+                  </div>
 
-          @for (row of filteredRows(); track row.product.id) {
-            <div style="background:var(--bg-surface); border-radius:14px; border:1px solid var(--border); padding:12px 16px; display:flex; align-items:center; gap:12px; transition:border-color 0.15s;"
-              [style.border-color]="row.counted !== null && diff(row) !== 0 ? (diff(row) < 0 ? '#fecaca' : '#bbf7d0') : 'var(--border)'"
-              [style.background]="diffBg(row)">
-
-              <!-- İkon -->
-              <div style="width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-weight:700; font-size:15px; color:white;"
-                [style.background]="row.counted !== null && diff(row) < 0 ? 'linear-gradient(135deg,#f87171,#ef4444)' : row.counted !== null && diff(row) > 0 ? 'linear-gradient(135deg,#4ade80,#16a34a)' : 'linear-gradient(135deg,#a78bfa,#7c3aed)'">
-                {{ row.product.name.charAt(0).toUpperCase() }}
-              </div>
-
-              <!-- Bilgi -->
-              <div style="flex:1; min-width:0;">
-                <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ row.product.name }}</p>
-                <div style="display:flex; align-items:center; gap:8px; margin-top:3px;">
-                  <span style="font-size:11px; color:var(--text-secondary);">{{ row.product.category }}</span>
-                  <span style="font-size:11px; font-weight:600; color:var(--text-muted);">·</span>
-                  <span style="font-size:11px; color:var(--text-secondary);">{{ t().stockCount.system }}: <b style="color:var(--text-primary);">{{ row.product.stock }}</b></span>
-                </div>
-              </div>
-
-              <!-- Sayım input -->
-              <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
-                <p-inputNumber
-                  [(ngModel)]="row.counted"
-                  (ngModelChange)="countVersion.update(v => v + 1)"
-                  [min]="0"
-                  [showButtons]="true"
-                  buttonLayout="horizontal"
-                  incrementButtonIcon="pi pi-plus"
-                  decrementButtonIcon="pi pi-minus"
-                  [inputStyle]="{ width: '48px', textAlign: 'center', fontSize: '14px', fontWeight: '700', padding: '6px 2px' }"
-                  [style]="{ fontSize: '13px' }"
-                />
-
-                <!-- Fark badge -->
-                <div style="width:44px; text-align:center;">
-                  @if (row.counted !== null && diff(row) !== 0) {
-                    <span style="font-size:12px; font-weight:700; padding:3px 8px; border-radius:8px; display:inline-block;"
-                      [style.background]="diff(row) < 0 ? '#fef2f2' : '#f0fdf4'"
-                      [style.color]="diff(row) < 0 ? '#ef4444' : '#16a34a'">
-                      {{ diff(row) > 0 ? '+' : '' }}{{ diff(row) }}
+                  <div class="ml-auto flex shrink-0 items-center gap-2">
+                    <p-inputNumber [ngModel]="row.counted" (ngModelChange)="setCount(row.product, $event)" [min]="0"
+                                   [maxFractionDigits]="digits(row.product)" [locale]="t().products.locale"
+                                   [showButtons]="true" buttonLayout="horizontal" incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus"
+                                   inputStyleClass="w-16 text-center font-bold num" placeholder="—"
+                                   [ariaLabel]="t().stockCount.countedLabel + ': ' + row.product.name" />
+                    <span class="flex w-24 justify-center">
+                      @if (row.counted === null) {
+                        <span class="text-sm text-fg-muted" aria-hidden="true">—</span>
+                      } @else if (diff(row) === 0) {
+                        <ui-status-badge tone="success" size="sm" icon="pi-check">{{ t().stockCount.matched }}</ui-status-badge>
+                      } @else {
+                        <ui-status-badge [tone]="diff(row) < 0 ? 'danger' : 'warning'" size="sm">
+                          <span class="num">{{ diff(row) > 0 ? '+' : '' }}{{ fmt(diff(row)) }}</span>
+                        </ui-status-badge>
+                      }
                     </span>
-                  } @else if (row.counted !== null) {
-                    <span style="font-size:12px; font-weight:700; padding:3px 8px; border-radius:8px; background:#f0fdf4; color:#16a34a; display:inline-block;">✓</span>
-                  } @else {
-                    <span style="font-size:13px; color:#cbd5e1;">—</span>
-                  }
-                </div>
-              </div>
-
-            </div>
+                  </div>
+                </li>
+              }
+            </ul>
           }
         </div>
       }
     </div>
 
-    <!-- Onay Dialog -->
-    <p-dialog
-      [(visible)]="confirmVisible"
-      [header]="t().stockCount.reasonsTitle"
-      [modal]="true"
-      [style]="{ width: '520px', maxWidth: '95vw' }"
-      [draggable]="false"
-    >
-      <p style="font-size:13px; color:var(--text-secondary); margin:0 0 16px;">{{ confirmItems().length }} {{ t().stockCount.productsLabel }} · {{ t().stockCount.confirmSubtitle }}</p>
+    <!-- Fark nedenleri / onay -->
+    <p-dialog [(visible)]="confirmVisible" [header]="t().stockCount.reasonsTitle" [modal]="true" [draggable]="false"
+              styleClass="w-[95vw] max-w-[32.5rem]">
+      <p class="m-0 mb-4 text-sm text-fg-secondary">{{ confirmItems().length }} {{ t().stockCount.productsLabel }} · {{ t().stockCount.confirmSubtitle }}</p>
 
-      <div style="display:flex; flex-direction:column; gap:10px; max-height:400px; overflow-y:auto;">
+      <ul class="m-0 flex max-h-[400px] list-none flex-col gap-2.5 overflow-y-auto p-0">
         @for (item of confirmItems(); track item.product.id) {
-          <div style="background:var(--bg-page); border-radius:14px; padding:14px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-            <div style="flex:1; min-width:140px;">
-              <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0;">{{ item.product.name }}</p>
-              <p style="font-size:12px; margin:4px 0 0;" [style.color]="item.delta < 0 ? '#ef4444' : '#16a34a'">
-                <i [class]="item.delta < 0 ? 'pi pi-arrow-down' : 'pi pi-arrow-up'" style="font-size:10px; margin-right:4px;"></i>
-                {{ item.product.stock }} → {{ item.product.stock + item.delta }} {{ t().products.piece }}
-                <span style="font-weight:700; margin-left:4px;">({{ item.delta > 0 ? '+' : '' }}{{ item.delta }})</span>
+          <li class="flex flex-wrap items-center gap-3 rounded-token-lg border border-line bg-surface-muted p-3">
+            <div class="min-w-[140px] flex-1">
+              <p class="m-0 text-sm font-semibold text-fg">{{ item.product.name }}</p>
+              <p class="num m-0 mt-1 text-xs font-medium" [class]="item.delta < 0 ? 'text-danger-text' : 'text-warning-text'">
+                <i class="pi mr-1 text-10" [class]="item.delta < 0 ? 'pi-arrow-down' : 'pi-arrow-up'" aria-hidden="true"></i>
+                {{ fmt(item.product.stock) }} → {{ qtyText(item.product.stock + item.delta, item.product) }}
+                <span class="ml-1 font-bold">({{ item.delta > 0 ? '+' : '' }}{{ fmt(item.delta) }})</span>
               </p>
               @if (item.delta < 0 && item.affectedBatch) {
-                <p style="font-size:11px; color:var(--text-muted); margin:4px 0 0; display:flex; align-items:center; gap:4px;">
-                  <i class="pi pi-box" style="font-size:10px;"></i>
-                  FEFO ·
+                <p class="m-0 mt-1 flex flex-wrap items-center gap-1 text-11 text-fg-muted">
+                  <i class="pi pi-box text-10" aria-hidden="true"></i>
+                  {{ t().stockCount.fefoLabel }} ·
                   @if (item.affectedBatch.expiryDate) {
                     {{ t().stockCount.expiryPrefix }} {{ item.affectedBatch.expiryDate.toDate() | date:'dd.MM.yyyy' }}
-                    ({{ item.affectedBatch.quantity }} {{ t().products.piece }})
+                    ({{ qtyText(item.affectedBatch.quantity, item.product) }})
                   } @else {
                     {{ t().stockCount.noExpiry }}
                   }
@@ -206,24 +196,30 @@ interface ConfirmItem {
                 </p>
               }
             </div>
-            <p-autocomplete
-              [(ngModel)]="item.reason"
-              [suggestions]="reasonSuggestions"
-              (completeMethod)="searchReasons($event, item.delta < 0 ? 'shortage' : 'surplus')"
-              [forceSelection]="false"
-              [dropdown]="true"
-              appendTo="body"
-              styleClass="w-full"
-              [style]="{ minWidth: '200px' }"
-              [placeholder]="t().stockCount.reason"
-            />
-          </div>
+            <p-autocomplete [(ngModel)]="item.reason" [suggestions]="reasonSuggestions"
+                            (completeMethod)="searchReasons($event, item.delta < 0 ? 'shortage' : 'surplus')"
+                            [forceSelection]="false" [dropdown]="true" appendTo="body" styleClass="w-full sm:w-56"
+                            [placeholder]="t().stockCount.reason" [ariaLabel]="t().stockCount.reason + ': ' + item.product.name" />
+          </li>
         }
-      </div>
+      </ul>
+
+      @if (progress(); as pg) {
+        <div class="mt-3.5">
+          <p class="num m-0 mb-1.5 text-xs text-fg-secondary">
+            {{ t().stockCount.applying }}: {{ pg.done }} / {{ pg.total }}
+            @if (applyErrors().length) { · <span class="text-danger-text">{{ applyErrors().length }} {{ t().common.error }}</span> }
+          </p>
+          <div class="h-1.5 overflow-hidden rounded-full bg-surface-muted" role="progressbar" [attr.aria-label]="t().stockCount.applying"
+               [attr.aria-valuenow]="pg.done" aria-valuemin="0" [attr.aria-valuemax]="pg.total">
+            <div class="h-full rounded-full bg-brand transition-[width] duration-200" [style.width.%]="pg.total ? (pg.done / pg.total) * 100 : 0"></div>
+          </div>
+        </div>
+      }
 
       <ng-template pTemplate="footer">
-        <p-button [label]="t().common.cancel" severity="secondary" [outlined]="true" (onClick)="confirmVisible = false" />
-        <p-button [label]="t().stockCount.apply" icon="pi pi-check" severity="success" [loading]="saving()" (onClick)="doComplete()" />
+        <p-button [label]="t().common.cancel" severity="secondary" [disabled]="saving()" (onClick)="confirmVisible = false" />
+        <p-button [label]="t().stockCount.apply" icon="pi pi-check" [loading]="saving()" (onClick)="doComplete()" />
       </ng-template>
     </p-dialog>
   `,
@@ -250,7 +246,7 @@ export class StockCountPage implements OnInit {
     const saved = this.savedReasons(type);
     if (!saved.includes(reason)) {
       saved.unshift(reason);
-      localStorage.setItem(key, JSON.stringify(saved.slice(0, 20)));
+      try { localStorage.setItem(key, JSON.stringify(saved.slice(0, 20))); } catch { /* depolama yok */ }
     }
   }
 
@@ -264,111 +260,193 @@ export class StockCountPage implements OnInit {
   readonly saving = signal(false);
   readonly completed = signal(false);
   readonly completionSummary = signal('');
-  readonly countVersion = signal(0);
   confirmVisible = false;
   readonly confirmItems = signal<ConfirmItem[]>([]);
+  readonly progress = signal<{ done: number; total: number } | null>(null);
+  readonly applyErrors = signal<ApplyError[]>([]);
 
-  readonly rows = computed<CountRow[]>(() =>
-    this.store.products().map(p => ({ product: p, counted: null }))
-  );
+  /**
+   * 2.17: Sayılan değerler ürün snapshot'larından bağımsız tutulur —
+   * Firestore'dan yeni snapshot gelince (rows yeniden hesaplanınca) girilen değerler kaybolmaz.
+   */
+  readonly counted = signal<Map<string, number>>(new Map());
+
+  readonly rows = computed<CountRow[]>(() => {
+    const counted = this.counted();
+    return this.store.products().map(p => ({ product: p, counted: counted.get(p.id) ?? null }));
+  });
+
+  /** Liste görünümü: tümü / yalnız farklar / sayılmayanlar */
+  readonly view = signal<'all' | 'diff' | 'uncounted'>('all');
 
   readonly filteredRows = computed(() => {
     const search = this.q().toLowerCase().trim();
-    if (!search) return this.rows();
-    return this.rows().filter(r =>
-      r.product.name.toLowerCase().includes(search) ||
+    const v = this.view();
+    let rows = this.rows();
+    if (v === 'diff') rows = rows.filter(r => r.counted !== null && r.counted !== r.product.stock);
+    else if (v === 'uncounted') rows = rows.filter(r => r.counted === null);
+    if (!search) return rows;
+    return rows.filter(r =>
+      (r.product.name ?? '').toLowerCase().includes(search) ||
       (r.product.category ?? '').toLowerCase().includes(search)
     );
   });
 
-  readonly changedCount = computed(() => { this.countVersion(); return this.rows().filter(r => r.counted !== null && r.counted !== r.product.stock).length; });
-  readonly shortageCount = computed(() => { this.countVersion(); return this.rows().filter(r => r.counted !== null && r.counted < r.product.stock).length; });
-  readonly surplusCount = computed(() => { this.countVersion(); return this.rows().filter(r => r.counted !== null && r.counted > r.product.stock).length; });
+  readonly changedCount = computed(() => this.rows().filter(r => r.counted !== null && r.counted !== r.product.stock).length);
+  readonly shortageCount = computed(() => this.rows().filter(r => r.counted !== null && r.counted < r.product.stock).length);
+  readonly surplusCount = computed(() => this.rows().filter(r => r.counted !== null && r.counted > r.product.stock).length);
+
+
+  readonly inv = computed(() => this.t().inventory);
+
+  /** C özet şeridi: sayılan / fark var / eksik / fazla */
+  readonly summary = computed<SumStripItem[]>(() => {
+    const sc = this.t().stockCount;
+    const counted = this.rows().filter(r => r.counted !== null).length;
+    const sh = this.shortageCount();
+    const su = this.surplusCount();
+    return [
+      { icon: 'pi-check-square', tone: 'brand', label: this.inv().counted, value: `${counted} / ${this.rows().length}` },
+      { icon: 'pi-sliders-h', tone: 'info', label: sc.changesLabel, value: this.changedCount() },
+      { icon: 'pi-arrow-down', tone: 'danger', label: sc.shortage, value: sh, valueTone: sh ? 'danger' : null },
+      { icon: 'pi-arrow-up', tone: 'warning', label: sc.surplus, value: su, valueTone: su ? 'warning' : null },
+    ];
+  });
+
+  readonly viewFilters = computed(() => {
+    const i = this.inv();
+    const uncounted = this.rows().filter(r => r.counted === null).length;
+    return [
+      { key: 'all' as const, label: this.t().common.all, count: this.rows().length },
+      { key: 'diff' as const, label: i.onlyDiff, count: this.changedCount() },
+      { key: 'uncounted' as const, label: i.uncounted, count: uncounted },
+    ];
+  });
+
+  chip(active: boolean, danger = false): string { return chipClass(active, danger); }
+  chipCount(active: boolean): string { return chipCountClass(active); }
+  icon(p: Product): string { return productIcon(p); }
 
   ngOnInit(): void {
-    this.store.loadProducts(undefined as any);
+    this.store.ensureLoaded();
+  }
+
+  /** Sayılan değer: adet birimde tam sayı, kg / lt / metre'de en fazla 3 ondalık. `null` → sayım silinir. */
+  setCount(product: Pick<Product, 'id' | 'unit'> | string, value: number | null | undefined): void {
+    const id = typeof product === 'string' ? product : product.id;
+    const decimal = typeof product !== 'string' && isDecimalUnit(productUnit(product));
+    this.counted.update(prev => {
+      const next = new Map(prev);
+      if (value == null || !Number.isFinite(value)) next.delete(id);
+      else next.set(id, decimal ? roundQty(Math.max(0, value)) : Math.max(0, Math.floor(value)));
+      return next;
+    });
   }
 
   diff(row: CountRow): number {
-    return (row.counted ?? 0) - row.product.stock;
+    return roundQty((row.counted ?? 0) - row.product.stock);
   }
 
-  diffBg(row: CountRow): string {
-    if (row.counted === null) return 'transparent';
+  /** Satır sol kenarı (C): eksik kırmızı, fazla sarı, tutan yeşil; zemin opak kalır (koyu temada okunur) */
+  rowEdge(row: CountRow): string {
+    if (row.counted === null) return '';
     const d = this.diff(row);
-    if (d === 0) return '#f0fdf4';
-    return d < 0 ? '#fef2f2' : '#fffbeb';
+    if (d === 0) return 'shadow-[inset_3px_0_0_var(--success)]';
+    return d < 0 ? 'shadow-[inset_3px_0_0_var(--danger)]' : 'shadow-[inset_3px_0_0_var(--warning)]';
   }
 
-  diffStyle(row: CountRow): string {
-    const d = this.diff(row);
-    if (d === 0) return 'font-size:13px; font-weight:700; color:#16a34a;';
-    return d < 0
-      ? 'font-size:13px; font-weight:700; color:#ef4444;'
-      : 'font-size:13px; font-weight:700; color:#f59e0b;';
+  digits(product: Product): number {
+    return qtyFractionDigits(product);
   }
 
-  openConfirm(): void {
+  fmt(n: number): string {
+    return formatQty(n, this.t().products.locale);
+  }
+
+  qtyText(n: number, product: Product): string {
+    return qtyWithUnit(n, product, this.t().products);
+  }
+
+  openConfirm(onlyIds?: Set<string>): void {
     const items = this.rows()
       .filter(r => r.counted !== null && r.counted !== r.product.stock)
+      .filter(r => !onlyIds || onlyIds.has(r.product.id))
       .map(r => {
-        const delta = (r.counted ?? 0) - r.product.stock;
-        const affectedBatch = delta < 0 ? this.firstFefo(r.product.batches ?? []) : null;
+        const delta = roundQty((r.counted ?? 0) - r.product.stock);
         return {
           product: r.product,
           delta,
           reason: '',
-          affectedBatch,
+          affectedBatch: delta < 0 ? firstFEFO(r.product.batches ?? []) : null,
         };
       });
     this.confirmItems.set(items);
+    this.progress.set(null);
+    this.applyErrors.set([]);
     this.confirmVisible = true;
   }
 
-  private firstFefo(batches: Batch[]): Batch | null {
-    const active = batches.filter(b => b.quantity > 0);
-    if (!active.length) return null;
-    return [...active].sort((a, b) => {
-      if (!a.expiryDate && !b.expiryDate) return 0;
-      if (!a.expiryDate) return 1;
-      if (!b.expiryDate) return -1;
-      return a.expiryDate.toMillis() - b.expiryDate.toMillis();
-    })[0];
-  }
-
+  /**
+   * Düzeltmeleri sırayla uygular. Ürünler arası atomik değildir; her ürün ayrı yazma grubudur
+   * (ürün + hareket kendi içinde atomik). Her üründen sonra ilerleme ve hata listesi güncellenir.
+   */
   async doComplete(): Promise<void> {
     const items = this.confirmItems();
-    if (!items.length) return;
+    if (!items.length || this.saving()) return;
     this.saving.set(true);
+    this.applyErrors.set([]);
+    this.progress.set({ done: 0, total: items.length });
+    const sc = this.t().stockCount;
     let ok = 0;
-    let err = 0;
+    let shortage = 0;
+    let surplus = 0;
     for (const item of items) {
+      // Onay ekranı açıkken stok değişmiş olabilir: güncel ürünle farkı yeniden hesapla
+      const latest = this.store.products().find(p => p.id === item.product.id) ?? item.product;
+      const target = this.counted().get(latest.id);
+      const delta = target != null ? roundQty(target - latest.stock) : item.delta;
       try {
-        await this.svc.adjustStock(item.product, item.delta, item.reason);
-        this.saveReason(item.delta < 0 ? 'shortage' : 'surplus', item.reason);
+        if (delta !== 0) {
+          // Hareket listesinde başlık boş kalmasın: "Stok sayımı (neden)"
+          const reason = `${sc.movementReason} (${item.reason?.trim() || (delta < 0 ? sc.shortage : sc.surplus)})`;
+          await this.svc.adjustStock(latest, delta, reason);
+          if (item.reason?.trim()) this.saveReason(delta < 0 ? 'shortage' : 'surplus', item.reason.trim());
+          if (delta < 0) shortage++; else surplus++;
+        }
         ok++;
-      } catch {
-        err++;
+        this.setCount(latest.id, null);
+      } catch (e: unknown) {
+        const message = (e as { message?: string } | null)?.message ?? sc.failed;
+        this.applyErrors.update(list => [...list, { productId: latest.id, name: latest.name, message }]);
       }
+      this.progress.update(p => (p ? { ...p, done: p.done + 1 } : p));
     }
     this.saving.set(false);
     this.confirmVisible = false;
-    if (err > 0) {
-      const sc = this.t().stockCount;
-      this.toast.add({ severity: 'warn', summary: sc.partialError, detail: `${ok} ${sc.updated}, ${err} ${this.t().common.error}` });
+    const errCount = this.applyErrors().length;
+    if (errCount > 0) {
+      this.toast.add({ severity: 'warn', summary: sc.partialError, detail: `${ok} ${sc.updated}, ${errCount} ${this.t().common.error}` });
     }
-    const shortage = items.filter(i => i.delta < 0).length;
-    const surplus = items.filter(i => i.delta > 0).length;
-    const sc = this.t().stockCount;
     this.completionSummary.set(
       `${ok} ${sc.productsLabel} ${sc.updated}.${shortage ? ` ${shortage} ${sc.shortage.toLowerCase()}` : ''}${surplus ? ` ${surplus} ${sc.surplus.toLowerCase()}` : ''} ${sc.corrected}.`
     );
     this.completed.set(true);
   }
 
+  /** Hata alan ürünleri (sayılan değerleri korunmuştur) yeniden onaya getir */
+  retryFailed(): void {
+    const ids = new Set(this.applyErrors().map(e => e.productId));
+    this.completed.set(false);
+    this.openConfirm(ids);
+  }
+
   reset(): void {
     this.completed.set(false);
     this.q.set('');
+    this.view.set('all');
     this.confirmItems.set([]);
+    this.counted.set(new Map());
+    this.progress.set(null);
+    this.applyErrors.set([]);
   }
 }

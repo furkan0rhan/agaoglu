@@ -9,90 +9,80 @@ import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { LangService } from '../../../core/i18n/lang.service';
+import { AuthShellComponent } from '../../../shared/ui/auth-shell.component';
+import { authErrorMessage } from '../auth-errors';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, ButtonModule, InputTextModule, PasswordModule, CheckboxModule, IconFieldModule, InputIconModule],
+  imports: [ReactiveFormsModule, RouterLink, ButtonModule, InputTextModule, PasswordModule, CheckboxModule, IconFieldModule, InputIconModule, AuthShellComponent],
   template: `
-    <div class="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center p-4">
-      <div class="w-full max-w-md">
-        <div class="bg-white rounded-3xl shadow-card p-8 border border-gray-100">
-
-          <!-- Brand -->
-          <div class="text-center mb-8">
-            <img src="assets/TarimLogo.png" alt="Tarım Market Logo" class="w-20 h-20 mx-auto mb-4 object-contain" />
-            <h1 class="text-2xl font-bold text-gray-800">Tarım Market Pro</h1>
-            <p class="text-gray-400 text-sm mt-1">{{ t().auth.loginTitle }}</p>
-          </div>
-
-          <!-- Form -->
-          <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
-
-            <div class="flex flex-col gap-1.5">
-              <label class="text-sm font-semibold text-gray-700">{{ t().auth.email }}</label>
-              <p-iconfield class="w-full">
-                <p-inputicon styleClass="pi pi-envelope" />
-                <input pInputText type="email" formControlName="email" [placeholder]="t().auth.emailPlaceholder" class="w-full" autocomplete="email" />
-              </p-iconfield>
-              @if (form.get('email')?.invalid && form.get('email')?.touched) {
-                <p class="text-xs text-red-500">{{ t().auth.emailInvalid }}</p>
-              }
-            </div>
-
-            <div class="flex flex-col gap-1.5">
-              <label class="text-sm font-semibold text-gray-700">{{ t().auth.password }}</label>
-              <p-password
-                formControlName="password"
-                [feedback]="false"
-                [toggleMask]="true"
-                [placeholder]="t().auth.passwordPlaceholder"
-                styleClass="w-full"
-                inputStyleClass="w-full"
-                autocomplete="current-password"
-              ></p-password>
-              @if (form.get('password')?.invalid && form.get('password')?.touched) {
-                <p class="text-xs text-red-500">{{ t().auth.passwordRequired }}</p>
-              }
-            </div>
-
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <p-checkbox formControlName="rememberMe" [binary]="true" inputId="remember"></p-checkbox>
-                <label for="remember" class="text-sm text-gray-600 cursor-pointer select-none">{{ t().auth.rememberMe }}</label>
-              </div>
-              <a [routerLink]="['/auth/forgot-password']" class="text-sm text-green-600 font-medium hover:text-green-700 transition-colors">
-                {{ t().auth.forgotPassword }}
-              </a>
-            </div>
-
-            @if (error()) {
-              <div class="bg-red-50 border border-red-100 rounded-xl px-4 py-3 flex items-center gap-2">
-                <i class="pi pi-exclamation-circle text-red-500 text-sm"></i>
-                <span class="text-sm text-red-600">{{ error() }}</span>
-              </div>
-            }
-
-            <p-button
-              type="submit"
-              [label]="t().auth.login"
-              icon="pi pi-sign-in"
-              [loading]="loading()"
-              [disabled]="form.invalid"
-              styleClass="w-full mt-2"
-              severity="success"
-            ></p-button>
-
-          </form>
-
-          <div class="flex justify-center gap-2 mt-6 text-sm text-gray-400">
-            <span>{{ t().auth.noAccount }}</span>
-            <a [routerLink]="['/auth/register']" class="text-green-600 font-semibold hover:text-green-700 transition-colors">{{ t().auth.register }}</a>
-          </div>
-
+    <ui-auth-shell [title]="t().auth.login" [subtitle]="t().auth.loginTitle">
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-4" novalidate>
+        <div class="flex flex-col gap-1.5">
+          <label for="login-email" class="text-sm font-semibold text-fg-secondary">{{ t().auth.email }}</label>
+          <p-iconfield class="w-full">
+            <p-inputicon styleClass="pi pi-envelope" />
+            <input pInputText id="login-email" type="email" formControlName="email" [placeholder]="t().auth.emailPlaceholder" class="w-full" autocomplete="email" />
+          </p-iconfield>
+          @if (form.get('email')?.invalid && form.get('email')?.touched) {
+            <p class="m-0 text-xs font-medium text-danger">{{ t().auth.emailInvalid }}</p>
+          }
         </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label for="login-password" class="text-sm font-semibold text-fg-secondary">{{ t().auth.password }}</label>
+          <p-password
+            inputId="login-password"
+            formControlName="password"
+            [feedback]="false"
+            [toggleMask]="true"
+            [placeholder]="t().auth.passwordPlaceholder"
+            styleClass="w-full"
+            inputStyleClass="w-full"
+            autocomplete="current-password"
+          ></p-password>
+          @if (form.get('password')?.invalid && form.get('password')?.touched) {
+            <p class="m-0 text-xs font-medium text-danger">{{ t().auth.passwordRequired }}</p>
+          }
+        </div>
+
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex min-h-[44px] items-center gap-2">
+            <p-checkbox formControlName="rememberMe" [binary]="true" inputId="remember"></p-checkbox>
+            <label for="remember" class="cursor-pointer select-none text-sm text-fg-secondary">{{ t().auth.rememberMe }}</label>
+          </div>
+          <a [routerLink]="['/auth/forgot-password']" class="text-sm font-semibold text-brand no-underline hover:underline">
+            {{ t().auth.forgotPassword }}
+          </a>
+        </div>
+
+      @if (error()) {
+        <div role="alert" class="mb-4 flex items-start gap-2.5 rounded-token-lg border border-danger-line bg-danger-soft px-3.5 py-3 text-sm text-danger">
+          <i class="pi pi-exclamation-circle mt-0.5 text-sm" aria-hidden="true"></i>
+          <span class="flex-1">{{ error() }}</span>
+          @if (canRetry()) {
+            <p-button type="button" [label]="t().auth.retryProfile" icon="pi pi-refresh" size="small" severity="danger"
+              [outlined]="true" [loading]="retrying()" (onClick)="retry()"></p-button>
+          }
+        </div>
+      }
+        <p-button
+          type="submit"
+          [label]="t().auth.login"
+          icon="pi pi-sign-in"
+          size="large"
+          [loading]="loading()"
+          [disabled]="form.invalid"
+          styleClass="w-full"
+        ></p-button>
+      </form>
+
+      <div auth-footer class="flex flex-wrap justify-center gap-1.5">
+        <span>{{ t().auth.noAccount }}</span>
+        <a [routerLink]="['/auth/register']" class="font-semibold text-brand no-underline hover:underline">{{ t().auth.register }}</a>
       </div>
-    </div>
+    </ui-auth-shell>
   `,
 })
 export class LoginPage {
@@ -101,7 +91,10 @@ export class LoginPage {
   readonly t = inject(LangService).t;
 
   readonly loading = signal(false);
-  readonly error = signal('');
+  readonly retrying = signal(false);
+  readonly error = signal(this.noticeMessage());
+  /** Oturum açık ama profil geçici hatayla yüklenemedi: "Tekrar dene" göster. */
+  readonly canRetry = signal(this.authService.authNotice() === 'profile-retry');
 
   readonly form = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
@@ -109,32 +102,42 @@ export class LoginPage {
     rememberMe: [false],
   });
 
+  /** Oturum zorla kapatıldıysa (pasif hesap / profil okunamadı) nedenini göster (2.36, 2.39). */
+  private noticeMessage(): string {
+    const notice = this.authService.authNotice();
+    if (notice === 'inactive') return this.t().auth.errAccountInactive;
+    if (notice === 'profile-unavailable') return this.t().auth.errProfileUnavailable;
+    if (notice === 'profile-retry') return this.t().auth.errProfileRetry;
+    return '';
+  }
+
+  async retry(): Promise<void> {
+    this.retrying.set(true);
+    try {
+      if (await this.authService.retryProfileLoad()) { this.error.set(''); this.canRetry.set(false); return; }
+      const notice = this.authService.authNotice();
+      this.canRetry.set(notice === 'profile-retry' && this.authService.hasFirebaseSession());
+      this.error.set(this.noticeMessage() || this.t().auth.errProfileUnavailable);
+    } catch (err: unknown) {
+      this.error.set(authErrorMessage(err, this.t().auth));
+    } finally {
+      this.retrying.set(false);
+    }
+  }
+
   async onSubmit(): Promise<void> {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.loading.set(true);
     this.error.set('');
+    this.canRetry.set(false);
     try {
       const { email, password, rememberMe } = this.form.value;
       await this.authService.login(email!, password!, rememberMe ?? false);
     } catch (err: unknown) {
-      this.error.set(this.getErrorMessage(err));
+      this.error.set(authErrorMessage(err, this.t().auth));
+      this.canRetry.set(this.authService.authNotice() === 'profile-retry' && this.authService.hasFirebaseSession());
     } finally {
       this.loading.set(false);
     }
-  }
-
-  private getErrorMessage(err: unknown): string {
-    if (err && typeof err === 'object' && 'code' in err) {
-      const code = (err as { code: string }).code;
-      const a = this.t().auth;
-      const messages: Record<string, string> = {
-        'auth/user-not-found': a.errUserNotFound,
-        'auth/wrong-password': a.errWrongPassword,
-        'auth/too-many-requests': a.errTooManyRequests,
-        'auth/invalid-credential': a.errInvalidCredential,
-      };
-      return messages[code] ?? a.errDefault;
-    }
-    return this.t().auth.errDefault;
   }
 }

@@ -1,413 +1,693 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
-import { Firestore, collection, query, where, limit, getDocs } from '@angular/fire/firestore';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal, ViewEncapsulation } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { AuthService } from '../../../core/auth/services/auth.service';
-import { Sale } from '../../../shared/models/sale.model';
-import { CurrencyTrPipe } from '../../../shared/pipes/currency-tr.pipe';
-import { SkeletonModule } from 'primeng/skeleton';
 import { ChartModule } from 'primeng/chart';
-import { ExpenseService } from '../../expenses/services/expense.service';
+import { ButtonModule } from 'primeng/button';
+import { TableModule } from 'primeng/table';
+import { MessageService } from 'primeng/api';
+import { ToastModule } from 'primeng/toast';
+import { Sale, PaymentMethod } from '../../../shared/models/sale.model';
+import { CreditTransaction } from '../../../shared/models/credit.model';
+import { Expense } from '../../../shared/models/expense.model';
+import { CurrencyTrPipe } from '../../../shared/pipes/currency-tr.pipe';
 import { LangService } from '../../../core/i18n/lang.service';
+import { ThemeService } from '../../../core/theme/theme.service';
+import { ProductStore } from '../../products/store/product.store';
+import { Period, getPeriodRange } from '../../../shared/utils/date-range.util';
+import { ReportDataService } from '../services/report-data.service';
+import {
+  summarizeSales, summarizeCollections, sumExpenses, topProducts, salesByCategory,
+  trendBuckets, productMap, readChartColors, saleCost, saleInterest, toDate, round2,
+} from '../services/report-calc';
+import { exportExcel, exportPdf, ExportTable } from '../services/report-export';
+import { TenantInfoService } from '../../settings/business/tenant-info.service';
+import {
+  EmptyStateComponent, GlassCardComponent, IconButtonComponent, MoneyComponent, PageHeaderComponent,
+  SegmentedComponent, StatCardComponent, StatusBadgeComponent, TONE_SOFT, UiSegmentOption, UiTone,
+} from '../../../shared/ui';
+import { PurchaseService } from '../../purchases/services/purchase.service';
+import { PurchaseSummary } from '../../purchases/services/purchase.utils';
+import { injectReportTexts } from '../reports.i18n';
 
-type Period = 'today' | 'week' | 'month';
+interface ChainStep {
+  key: string;
+  op: string;
+  label: string;
+  value: number;
+  /** Çubuğun başlangıcı ve genişliği (%), şelale ekseninde. */
+  left: number;
+  width: number;
+  bar: string;
+  total: boolean;
+}
+
+interface RegisterRow { label: string; value: number; icon: string; tone: UiTone; sign: '' | '−' }
+
+/** CSS değişkeni oku (grafik teması; tema değişince yeniden okunur). */
+function cssVar(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
 
 @Component({
   selector: 'app-sales-report',
   standalone: true,
-  imports: [CurrencyTrPipe, SkeletonModule, RouterLink, ChartModule],
+  imports: [
+    CurrencyTrPipe, RouterLink, ChartModule, ButtonModule, TableModule, ToastModule,
+    PageHeaderComponent, GlassCardComponent, StatCardComponent, EmptyStateComponent,
+    StatusBadgeComponent, MoneyComponent, IconButtonComponent, SegmentedComponent,
+  ],
+  providers: [MessageService],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block' },
+  // Yazdırma: yalnızca kasa özeti kartı basılır (body:has ile bu sayfaya sınırlı).
+  encapsulation: ViewEncapsulation.None,
+  styles: [`
+    @media print {
+      body:has(.cash-print) * { visibility: hidden !important; }
+      body:has(.cash-print) .cash-print,
+      body:has(.cash-print) .cash-print * { visibility: visible !important; }
+      body:has(.cash-print) .cash-print {
+        position: fixed; inset: 0 0 auto 0; margin: 0;
+        background: white !important; box-shadow: none !important;
+        -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+        border: 1px solid gray !important;
+      }
+      body:has(.cash-print) .cash-print * { color: black !important; background: transparent !important; }
+    }
+  `],
   template: `
-    <div class="flex flex-col h-full bg-gray-50">
+    <p-toast />
 
-      <!-- Header -->
-      <div style="background:var(--bg-surface); border-bottom:1px solid var(--border); padding:16px 24px; display:flex; align-items:center; gap:12px; flex-shrink:0;">
-        <div style="width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg,#3b82f6,#1d4ed8); display:flex; align-items:center; justify-content:center;">
-          <i class="pi pi-chart-bar" style="color:white; font-size:16px;"></i>
-        </div>
-        <div>
-          <h1 style="font-size:18px; font-weight:700; color:var(--text-primary); margin:0;">{{ t().reports.title }}</h1>
-          <p style="font-size:12px; color:var(--text-secondary); margin:0;">{{ t().reports.subtitle }}</p>
-        </div>
+    <ui-page-header [title]="t().reports.title" [subtitle]="t().reports.subtitle" icon="pi-chart-bar" iconTone="info">
+      <p-button icon="pi pi-file-excel" [label]="t().reports.exportExcel" severity="secondary"
+        [loading]="exporting() === 'xlsx'" [disabled]="loading() || !!exporting()" (onClick)="export('xlsx')" />
+      <p-button icon="pi pi-file-pdf" [label]="t().reports.exportPdf" severity="secondary"
+        [loading]="exporting() === 'pdf'" [disabled]="loading() || !!exporting()" (onClick)="export('pdf')" />
+    </ui-page-header>
+
+    <div class="page-body">
+
+      <!-- Dönem seçici + tarih aralığı -->
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <ui-segmented class="w-full sm:w-auto" [block]="true" [options]="periods()" [value]="period()" (valueChange)="setPeriod($event!)"
+          [ariaLabel]="t().reports.period" />
+        <span class="num text-13 text-fg-muted">{{ rangeText() }}</span>
       </div>
 
-      <!-- Period selector -->
-      <div style="background:var(--bg-surface); border-bottom:1px solid var(--border); padding:12px 24px; display:flex; gap:8px; flex-shrink:0;">
-        @for (p of periods(); track p.value) {
-          <button
-            (click)="setPeriod(p.value)"
-            [style]="period() === p.value
-              ? 'padding:6px 18px; border-radius:20px; border:none; background:#3b82f6; color:#fff; font-size:13px; font-weight:600; cursor:pointer;'
-              : 'padding:6px 18px; border-radius:20px; border:1px solid var(--border-mid); background:var(--bg-surface); color:var(--text-secondary); font-size:13px; font-weight:500; cursor:pointer;'"
-          >{{ p.label }}</button>
-        }
+      <!-- KPI (C durum blokları) -->
+      <div class="grid grid-cols-2 gap-3 lg:gap-4 xl:grid-cols-4">
+        <ui-stat-card icon="pi-wallet" tone="info" [label]="t().reports.totalRevenue"
+          [value]="summary().revenue | currencyTr"
+          [hint]="rx().avgHint(summary().saleCount, money(avgBasket()))" [loading]="loading()" />
+        <ui-stat-card icon="pi-chart-line" [tone]="summary().grossProfit < 0 ? 'danger' : 'brand'" [label]="t().reports.grossProfit"
+          [value]="summary().grossProfit | currencyTr"
+          [hint]="summary().costEstimated ? '* ' + t().dashboard.estimated : marginText()"
+          [tinted]="summary().grossProfit < 0" [loading]="loading()" />
+        <ui-stat-card icon="pi-calculator" [tone]="netProfit() < 0 ? 'danger' : 'success'" [label]="t().reports.netProfit"
+          [value]="netProfit() | currencyTr" [hint]="rx().netProfitHint(money(expenseTotal()))"
+          [tinted]="netProfit() < 0" [loading]="loading()" />
+        <ui-stat-card icon="pi-download" tone="accent" [label]="t().reports.collections"
+          [value]="collections().total | currencyTr"
+          [hint]="collections().count + ' ' + t().dashboard.transactions" [loading]="loading()" />
       </div>
 
-      <!-- Content -->
-      <div style="flex:1; overflow-y:auto; padding:20px 24px; display:flex; flex-direction:column; gap:16px;">
+      @if (loading()) {
+        <div class="ui-card flex flex-col gap-4 p-5" aria-hidden="true">
+          @for (i of [1, 2, 3, 4, 5]; track i) {
+            <div class="h-6 animate-pulse rounded-token-sm bg-surface-muted"></div>
+          }
+        </div>
+      } @else {
 
-        @if (loading()) {
-          <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px;">
-            @for (i of [1,2,3]; track i) {
-              <div style="background:var(--bg-surface); border-radius:16px; padding:20px; border:1px solid var(--border);">
-                <p-skeleton height="16px" styleClass="mb-3" width="60%"></p-skeleton>
-                <p-skeleton height="28px" width="80%"></p-skeleton>
-              </div>
+        <!-- Kâr zinciri (şelale) -->
+        <ui-glass-card [title]="t().reports.profitChain" icon="pi-sitemap" iconTone="brand" [subtitle]="marginText()">
+          <a card-actions routerLink="/expenses" class="text-13.5 font-semibold text-brand-text no-underline hover:underline">{{ t().nav.expenses }} ›</a>
+          <ol class="m-0 flex list-none flex-col gap-3 p-0">
+            @for (s of chain(); track s.key) {
+              <li class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 md:grid-cols-[170px_minmax(0,1fr)_150px]"
+                [class]="s.total ? 'rounded-token-md bg-surface-muted px-3 py-2' : 'px-3'">
+                <span class="order-1 truncate text-sm" [class]="s.total ? 'font-semibold text-fg' : 'font-medium text-fg-secondary'">
+                  <span class="num mr-1 inline-block w-3 text-fg-muted" aria-hidden="true">{{ s.op }}</span>{{ s.label }}
+                </span>
+                <div class="relative order-3 col-span-2 h-2.5 overflow-hidden rounded-full bg-surface-hover md:order-2 md:col-span-1" aria-hidden="true">
+                  <div class="absolute inset-y-0 rounded-full transition-[left,width] duration-500" [class]="s.bar"
+                    [style.left.%]="s.left" [style.width.%]="s.width"></div>
+                </div>
+                <ui-money class="order-2 text-right text-sm md:order-3" [class]="s.total ? 'text-base font-bold' : 'font-semibold text-fg'"
+                  [value]="s.op === '−' ? -s.value : s.value" [colorize]="s.total" />
+              </li>
             }
-          </div>
-        } @else {
-
-          <!-- Stat cards -->
-          <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px;">
-            <div style="background:var(--bg-surface); border-radius:16px; padding:20px; border:1px solid var(--border);">
-              <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-                <div style="width:32px; height:32px; border-radius:8px; background:#f0fdf4; display:flex; align-items:center; justify-content:center;">
-                  <i class="pi pi-dollar" style="font-size:14px; color:#16a34a;"></i>
-                </div>
-                <span style="font-size:12px; color:var(--text-secondary); font-weight:500;">{{ t().reports.totalRevenue }}</span>
-              </div>
-              <p style="font-size:22px; font-weight:700; color:var(--text-primary); margin:0;">{{ totalRevenue() | currencyTr }}</p>
-            </div>
-
-            <div style="background:var(--bg-surface); border-radius:16px; padding:20px; border:1px solid var(--border);">
-              <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-                <div style="width:32px; height:32px; border-radius:8px; background:#eff6ff; display:flex; align-items:center; justify-content:center;">
-                  <i class="pi pi-receipt" style="font-size:14px; color:#3b82f6;"></i>
-                </div>
-                <span style="font-size:12px; color:var(--text-secondary); font-weight:500;">{{ t().reports.saleCount }}</span>
-              </div>
-              <p style="font-size:22px; font-weight:700; color:var(--text-primary); margin:0;">{{ sales().length }}</p>
-            </div>
-
-            <div style="background:var(--bg-surface); border-radius:16px; padding:20px; border:1px solid var(--border);">
-              <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-                <div style="width:32px; height:32px; border-radius:8px; background:#fff7ed; display:flex; align-items:center; justify-content:center;">
-                  <i class="pi pi-wallet" style="font-size:14px; color:#f97316;"></i>
-                </div>
-                <span style="font-size:12px; color:var(--text-secondary); font-weight:500;">{{ t().reports.avgSale }}</span>
-              </div>
-              <p style="font-size:22px; font-weight:700; color:var(--text-primary); margin:0;">{{ avgBasket() | currencyTr }}</p>
-            </div>
-          </div>
-
-          <!-- Satış Trendi -->
-          <div style="background:var(--bg-surface); border-radius:16px; padding:20px; border:1px solid var(--border);">
-            <h3 style="font-size:14px; font-weight:600; color:var(--text-primary); margin:0 0 16px;">
-              {{ t().reports.salesTrend }}
-              <span style="font-size:11px; font-weight:400; color:var(--text-muted); margin-left:8px;">{{ trendLabel() }}</span>
-            </h3>
-            <p-chart type="bar" [data]="trendChartData()" [options]="trendChartOptions" style="display:block;" />
-          </div>
-
-          <!-- Kâr özeti -->
-          <div style="background:var(--bg-surface); border-radius:16px; padding:20px; border:1px solid var(--border); display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-            <div style="flex:1; min-width:140px;">
-              <p style="font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin:0 0 6px;">{{ t().reports.totalRevenue }}</p>
-              <p style="font-size:20px; font-weight:700; color:var(--text-primary); margin:0;">{{ totalRevenue() | currencyTr }}</p>
-            </div>
-            <i class="pi pi-minus" style="color:#cbd5e1; font-size:12px;"></i>
-            <div style="flex:1; min-width:140px;">
-              <div style="display:flex; align-items:center; justify-content:space-between;">
-                <p style="font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin:0 0 6px;">{{ t().reports.expenseTotal }}</p>
-                <a routerLink="/expenses" style="font-size:11px; color:#f97316; text-decoration:none; font-weight:600;">→</a>
-              </div>
-              <p style="font-size:20px; font-weight:700; color:#ea580c; margin:0;">{{ totalExpenses() | currencyTr }}</p>
-            </div>
-            <i class="pi pi-equals" style="color:#cbd5e1; font-size:12px;"></i>
-            <div style="flex:1; min-width:140px; background:#f0fdf4; border-radius:12px; padding:12px 16px;">
-              <p style="font-size:11px; font-weight:600; color:#16a34a; text-transform:uppercase; letter-spacing:0.5px; margin:0 0 6px;">{{ t().reports.netProfit }}</p>
-              <p style="font-size:22px; font-weight:700; margin:0;" [style.color]="profit() >= 0 ? '#15803d' : '#dc2626'">{{ profit() | currencyTr }}</p>
-            </div>
-          </div>
-
-          <!-- Payment breakdown + Doughnut -->
-          <div style="background:var(--bg-surface); border-radius:16px; padding:20px; border:1px solid var(--border); display:flex; gap:24px; align-items:center; flex-wrap:wrap;">
-            <div style="flex:1; min-width:240px;">
-              <h3 style="font-size:14px; font-weight:600; color:var(--text-primary); margin:0 0 14px;">{{ t().reports.paymentTypes }}</h3>
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                <div style="text-align:center; padding:14px 8px; background:#f0fdf4; border-radius:12px;">
-                  <i class="pi pi-money-bill" style="font-size:20px; color:#16a34a; display:block; margin-bottom:6px;"></i>
-                  <p style="font-size:15px; font-weight:700; color:#15803d; margin:0;">{{ cashTotal() | currencyTr }}</p>
-                  <p style="font-size:11px; color:#16a34a; margin:4px 0 0;">{{ t().reports.cash }}</p>
-                </div>
-                <div style="text-align:center; padding:14px 8px; background:#eff6ff; border-radius:12px;">
-                  <i class="pi pi-credit-card" style="font-size:20px; color:#3b82f6; display:block; margin-bottom:6px;"></i>
-                  <p style="font-size:15px; font-weight:700; color:#1d4ed8; margin:0;">{{ cardTotal() | currencyTr }}</p>
-                  <p style="font-size:11px; color:#3b82f6; margin:4px 0 0;">{{ t().reports.card }}</p>
-                </div>
-                <div style="text-align:center; padding:14px 8px; background:#fef2f2; border-radius:12px;">
-                  <i class="pi pi-users" style="font-size:20px; color:#ef4444; display:block; margin-bottom:6px;"></i>
-                  <p style="font-size:15px; font-weight:700; color:#dc2626; margin:0;">{{ creditTotal() | currencyTr }}</p>
-                  <p style="font-size:11px; color:#ef4444; margin:4px 0 0;">{{ t().reports.credit }}</p>
-                </div>
-                <div style="text-align:center; padding:14px 8px; background:#fdf4ff; border-radius:12px;">
-                  <i class="pi pi-sync" style="font-size:20px; color:#a855f7; display:block; margin-bottom:6px;"></i>
-                  <p style="font-size:15px; font-weight:700; color:#9333ea; margin:0;">{{ mixedTotal() | currencyTr }}</p>
-                  <p style="font-size:11px; color:#a855f7; margin:4px 0 0;">{{ t().reports.mixed }}</p>
-                </div>
-              </div>
-            </div>
-            @if (totalRevenue() > 0) {
-              <div style="width:200px; flex-shrink:0; display:flex; justify-content:center;">
-                <p-chart type="doughnut" [data]="paymentChartData()" [options]="paymentChartOptions" style="width:180px;" />
-              </div>
-            }
-          </div>
-
-          <!-- Sales list -->
-          <div style="background:var(--bg-surface); border-radius:16px; border:1px solid var(--border); overflow:hidden;">
-            <div style="padding:14px 20px; border-bottom:1px solid var(--border);">
-              <h3 style="font-size:14px; font-weight:600; color:var(--text-primary); margin:0;">{{ t().reports.sale }} ({{ sales().length }})</h3>
-            </div>
-
-            @if (sales().length === 0) {
-              <div style="padding:48px 20px; text-align:center;">
-                <i class="pi pi-inbox" style="font-size:40px; color:#cbd5e1; display:block; margin-bottom:12px;"></i>
-                <p style="color:var(--text-muted); margin:0; font-size:14px;">{{ t().reports.noData }}</p>
-              </div>
-            } @else {
-              @for (sale of sales(); track sale.id; let last = $last) {
-                <div [style]="'padding:14px 20px; display:flex; align-items:center; justify-content:space-between;' + (last ? '' : 'border-bottom:1px solid var(--border);')">
-                  <div style="display:flex; align-items:center; gap:12px;">
-                    <div [style]="'width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0;' + paymentBg(sale.paymentMethod)">
-                      <i [class]="'pi ' + paymentIcon(sale.paymentMethod)" [style]="'font-size:15px;' + paymentColor(sale.paymentMethod)"></i>
-                    </div>
-                    <div>
-                      <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0;">{{ sale.saleNumber }}</p>
-                      <p style="font-size:11px; color:var(--text-muted); margin:2px 0 0;">{{ sale.customerName || t().reports.cashCustomer }} · {{ formatTime(sale.createdAt) }}</p>
-                    </div>
-                  </div>
-                  <div style="text-align:right; flex-shrink:0;">
-                    <p style="font-size:14px; font-weight:700; color:var(--text-primary); margin:0 0 3px;">{{ (sale.totalWithInterest ?? sale.totalAmount) | currencyTr }}</p>
-                    <span [style]="'font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px;' + paymentBadge(sale.paymentMethod)">{{ paymentLabel(sale.paymentMethod) }}</span>
-                  </div>
+          </ol>
+          @if (summary().interestIncome > 0 || summary().costEstimated) {
+            <div class="mt-4 flex flex-col gap-2 border-0 border-t border-solid border-line pt-3">
+              @if (summary().interestIncome > 0) {
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <span class="text-sm text-fg-secondary">
+                    <i class="pi pi-percentage mr-1 text-info-text" aria-hidden="true"></i>{{ t().reports.interestIncome }}
+                    <span class="text-xs text-fg-muted"> — {{ t().reports.interestIncomeNote }}</span>
+                  </span>
+                  <ui-money class="font-bold text-info-text" [value]="summary().interestIncome" />
                 </div>
               }
-            }
-          </div>
+              @if (summary().costEstimated) {
+                <p class="m-0 text-xs text-warning-text">* {{ t().reports.costEstimatedNote }}</p>
+              }
+            </div>
+          }
+        </ui-glass-card>
 
-        }
-      </div>
+        <!-- Satış trendi -->
+        <ui-glass-card [title]="t().reports.salesTrend" [subtitle]="trendLabel()" icon="pi-chart-bar" iconTone="info">
+          <p-chart type="bar" [data]="trendChartData()" [options]="trendChartOptions()" height="260px" />
+        </ui-glass-card>
+
+        <!-- Alışlar & tedarikçi borcu (PurchaseService.summary) -->
+        <ui-glass-card [title]="rx().purchasesTitle" [subtitle]="rx().purchasesDesc" icon="pi-truck" tone="accent" padding="none" clip>
+          <a card-actions routerLink="/purchases" class="text-13.5 font-semibold text-brand-text no-underline hover:underline">{{ rx().allPurchases }} ›</a>
+          @if (purchaseError()) {
+            <p class="m-0 p-4 text-sm text-danger-text" role="alert">{{ rx().purchasesFailed }}</p>
+          } @else {
+            <div class="grid grid-cols-2 lg:grid-cols-4">
+              <div class="border-0 border-b border-r border-solid border-line px-4 py-3 lg:border-b-0">
+                <p class="eyebrow m-0 text-fg-muted">{{ rx().purchasesTotal }}</p>
+                <ui-money class="mt-1 block font-display text-xl font-extrabold text-fg" [value]="purchases()?.totalPurchases ?? 0" />
+                <p class="m-0 mt-0.5 text-xs text-fg-muted">{{ rx().purchasesCount(purchases()?.purchaseCount ?? 0) }}</p>
+              </div>
+              <div class="border-0 border-b border-solid border-line px-4 py-3 lg:border-b-0 lg:border-r">
+                <p class="eyebrow m-0 text-fg-muted">{{ rx().supplierPaid }}</p>
+                <ui-money class="mt-1 block font-display text-xl font-extrabold text-fg" [value]="purchases()?.totalPaid ?? 0" />
+              </div>
+              <div class="border-0 border-r border-solid border-line px-4 py-3" [class.bg-warning-soft]="(purchases()?.supplierDebt ?? 0) > 0">
+                <p class="eyebrow m-0" [class]="(purchases()?.supplierDebt ?? 0) > 0 ? 'text-warning-text' : 'text-fg-muted'">{{ rx().supplierDebt }}</p>
+                <ui-money class="mt-1 block font-display text-xl font-extrabold text-fg" [value]="purchases()?.supplierDebt ?? 0" />
+                <a routerLink="/suppliers" class="text-xs font-semibold text-brand-text no-underline hover:underline" [title]="rx().supplierDebtNote">{{ rx().allSuppliers }} ›</a>
+              </div>
+              <div class="px-4 py-3">
+                <p class="eyebrow m-0 text-fg-muted">{{ rx().purchaseVsRevenue }}</p>
+                <p class="num m-0 mt-1 font-display text-xl font-extrabold text-fg">{{ purchaseRatioText() }}</p>
+                <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-strong" aria-hidden="true">
+                  <div class="h-full rounded-full bg-accent transition-[width] duration-500" [style.width.%]="purchaseRatio()"></div>
+                </div>
+              </div>
+            </div>
+          }
+        </ui-glass-card>
+
+        <!-- Kasa özeti + ödeme dağılımı -->
+        <div class="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:gap-4">
+          <ui-glass-card class="cash-print lg:col-span-2" [title]="t().reports.cashRegister" icon="pi-calculator" iconTone="success"
+            [subtitle]="periodLabel() + ' · ' + rangeText()">
+            <p-button card-actions class="hidden sm:block print:hidden" icon="pi pi-print" [label]="t().reports.printCash"
+              severity="secondary" size="small" (onClick)="printCash()" />
+            <ui-icon-button card-actions class="sm:hidden print:hidden" icon="pi-print" variant="outline" size="sm"
+              [ariaLabel]="t().reports.printCash" (click)="printCash()" />
+
+            <div class="mb-3 hidden print:block">
+              @if (businessName()) {
+                <p class="m-0 text-base font-bold">{{ businessName() }}</p>
+              }
+              <p class="m-0 text-xs">{{ t().reports.printedAt }}: {{ printedAt() }}</p>
+            </div>
+
+            <dl class="m-0 flex flex-col">
+              @for (r of registerRows(); track r.label) {
+                <div class="flex items-center justify-between gap-3 border-0 border-b border-solid border-line py-2.5">
+                  <dt class="flex min-w-0 items-center gap-2.5 text-sm text-fg-secondary">
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-token-sm print:hidden" [class]="toneSoft[r.tone]">
+                      <i class="pi text-sm" [class]="r.icon" aria-hidden="true"></i>
+                    </span>
+                    <span class="truncate">{{ r.label }}</span>
+                  </dt>
+                  <dd class="m-0 shrink-0 text-sm font-semibold text-fg">
+                    <span class="num">{{ r.sign }}</span><ui-money [value]="r.value" />
+                  </dd>
+                </div>
+              }
+              <div class="mt-2 flex items-center justify-between gap-3 rounded-token-md bg-brand-soft px-3 py-3">
+                <dt class="min-w-0 text-sm font-bold text-fg">
+                  {{ t().reports.netCash }}
+                  <span class="block text-xs font-normal text-fg-muted sm:inline">({{ t().reports.netCashNote }})</span>
+                </dt>
+                <dd class="m-0 shrink-0"><ui-money class="text-lg font-bold" [value]="netCash()" colorize /></dd>
+              </div>
+            </dl>
+          </ui-glass-card>
+
+          <ui-glass-card [title]="t().reports.paymentTypes" icon="pi-credit-card" iconTone="info">
+            @if (summary().revenue > 0) {
+              <div class="relative mx-auto w-full max-w-[280px]">
+                <p-chart type="doughnut" [data]="paymentChartData()" [options]="paymentChartOptions()" height="240px" />
+              </div>
+            } @else {
+              <ui-empty-state compact icon="pi-chart-pie" [title]="t().reports.noData" />
+            }
+          </ui-glass-card>
+        </div>
+
+        <!-- En çok satanlar + kategori -->
+        <div class="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4">
+          <ui-glass-card [title]="t().reports.topProducts" icon="pi-star" iconTone="warning" padding="none" clip>
+            @if (top().length === 0) {
+              <ui-empty-state compact icon="pi-box" [title]="t().reports.noData" />
+            } @else {
+              <!-- Masaüstü: tablo -->
+              <div class="hidden md:block">
+                <p-table [value]="top()" size="small">
+                  <ng-template #header>
+                    <tr>
+                      <th scope="col">#</th>
+                      <th scope="col">{{ t().reports.product }}</th>
+                      <th scope="col" class="text-right">{{ t().reports.quantity }}</th>
+                      <th scope="col" class="text-right">{{ t().reports.revenue }}</th>
+                    </tr>
+                  </ng-template>
+                  <ng-template #body let-r let-i="rowIndex">
+                    <tr>
+                      <td class="num text-fg-muted">{{ i + 1 }}</td>
+                      <td class="text-fg">{{ r.name }}</td>
+                      <td class="num text-right text-fg-secondary">{{ r.quantity }}</td>
+                      <td class="text-right"><ui-money class="num font-extrabold text-fg" [value]="r.revenue" /></td>
+                    </tr>
+                  </ng-template>
+                </p-table>
+              </div>
+              <!-- Mobil: kart listesi -->
+              <ol class="m-0 flex list-none flex-col p-0 md:hidden">
+                @for (r of top(); track r.productId || r.name; let i = $index) {
+                  <li class="list-row flex items-center gap-3 border-0 border-b border-solid border-line px-4 py-3 last:border-b-0">
+                    <span class="num flex h-8 w-8 shrink-0 items-center justify-center rounded-token-sm text-xs font-bold"
+                      [class]="i < 3 ? toneSoft.warning : toneSoft.neutral">{{ i + 1 }}</span>
+                    <div class="min-w-0 flex-1">
+                      <p class="m-0 truncate text-sm font-semibold text-fg">{{ r.name }}</p>
+                      <p class="num m-0 mt-0.5 text-xs text-fg-muted">{{ r.quantity }} {{ t().common.piece }}</p>
+                    </div>
+                    <ui-money class="shrink-0 text-sm font-bold text-fg" [value]="r.revenue" />
+                  </li>
+                }
+              </ol>
+            }
+          </ui-glass-card>
+
+          <ui-glass-card [title]="t().reports.byCategory" icon="pi-tags" iconTone="brand">
+            @if (categories().length === 0) {
+              <ui-empty-state compact icon="pi-tags" [title]="t().reports.noData" />
+            } @else {
+              <ul class="m-0 flex list-none flex-col gap-4 p-0">
+                @for (c of categories(); track c.category) {
+                  <li class="flex flex-col gap-1.5">
+                    <div class="flex items-baseline justify-between gap-3 text-sm">
+                      <span class="min-w-0 truncate text-fg">{{ c.category }}
+                        <span class="num text-xs text-fg-muted">· {{ c.quantity }} {{ t().common.piece }}</span></span>
+                      <ui-money class="shrink-0 font-semibold text-fg" [value]="c.revenue" />
+                    </div>
+                    <div class="h-2 overflow-hidden rounded-full bg-surface-muted" aria-hidden="true">
+                      <div class="h-full rounded-full bg-brand transition-[width] duration-500" [style.width.%]="categoryPct(c.revenue)"></div>
+                    </div>
+                  </li>
+                }
+              </ul>
+            }
+          </ui-glass-card>
+        </div>
+
+        <!-- Satış listesi -->
+        <ui-glass-card [title]="t().reports.salesList" [subtitle]="summary().saleCount + ' ' + t().reports.sale"
+          icon="pi-list" iconTone="neutral" padding="none" clip>
+          @if (sales().length === 0) {
+            <ui-empty-state icon="pi-inbox" [title]="t().reports.noData" />
+          } @else {
+            <ul class="m-0 flex list-none flex-col p-0">
+              @for (sale of sales(); track sale.id) {
+                <li class="list-row flex items-center gap-3 border-0 border-b border-solid border-line px-4 py-3 last:border-b-0">
+                  <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-token-md" [class]="toneSoft[payTone(sale.paymentMethod)]" aria-hidden="true">
+                    <i class="pi text-base" [class]="paymentIcon(sale.paymentMethod)"></i>
+                  </span>
+                  <div class="min-w-0 flex-1">
+                    <p class="num m-0 truncate text-sm font-semibold text-fg">{{ sale.saleNumber }}</p>
+                    <p class="m-0 mt-0.5 truncate text-xs text-fg-muted">{{ sale.customerName || t().reports.cashCustomer }} · <span class="num">{{ formatTime(sale.createdAt) }}</span></p>
+                  </div>
+                  <div class="flex shrink-0 flex-col items-end gap-1">
+                    <ui-money class="text-sm font-bold text-fg" [value]="sale.totalAmount" />
+                    <ui-status-badge size="sm" [tone]="payTone(sale.paymentMethod)">{{ paymentLabel(sale.paymentMethod) }}</ui-status-badge>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        </ui-glass-card>
+      }
     </div>
   `,
 })
 export class SalesReportPage implements OnInit {
-  private readonly firestore = inject(Firestore);
-  private readonly auth = inject(AuthService);
-  private readonly expenseSvc = inject(ExpenseService);
+  private readonly data = inject(ReportDataService);
+  private readonly productStore = inject(ProductStore);
+  private readonly theme = inject(ThemeService);
+  private readonly toast = inject(MessageService);
+  private readonly tenantInfo = inject(TenantInfoService);
+  private readonly purchaseSvc = inject(PurchaseService);
   readonly t = inject(LangService).t;
+  readonly rx = injectReportTexts();
+  readonly toneSoft = TONE_SOFT;
 
   readonly period = signal<Period>('today');
   readonly loading = signal(false);
+  readonly exporting = signal<'xlsx' | 'pdf' | null>(null);
   readonly sales = signal<Sale[]>([]);
-  readonly allExpenses = signal<{ amount: number; date: any }[]>([]);
+  readonly payments = signal<CreditTransaction[]>([]);
+  readonly expenses = signal<Expense[]>([]);
+  readonly businessName = signal('');
+  readonly purchases = signal<PurchaseSummary | null>(null);
+  readonly purchaseError = signal(false);
+  readonly printedAt = signal('');
+  private loadSeq = 0;
 
-  readonly periods = computed(() => {
+  readonly periods = computed<UiSegmentOption<Period>[]>(() => {
     const r = this.t().reports;
     return [
       { value: 'today' as Period, label: r.today },
       { value: 'week' as Period, label: r.thisWeek },
       { value: 'month' as Period, label: r.thisMonth },
+      { value: 'year' as Period, label: r.thisYear },
     ];
   });
 
-  private effectiveAmount(s: Sale): number { return s.totalWithInterest ?? s.totalAmount; }
-  readonly totalRevenue = computed(() => this.sales().reduce((sum, x) => sum + this.effectiveAmount(x), 0));
-  readonly avgBasket = computed(() => this.sales().length ? this.totalRevenue() / this.sales().length : 0);
-  readonly cashTotal = computed(() => this.sales().reduce((s, x) => s + (x.cashPaid ?? 0), 0));
-  readonly cardTotal = computed(() => this.sales().reduce((s, x) => s + (x.cardPaid ?? 0), 0));
-  readonly creditTotal = computed(() => this.sales().filter(x => x.paymentMethod === 'credit').reduce((s, x) => s + this.effectiveAmount(x), 0));
-  readonly mixedTotal = computed(() => this.sales()
-    .filter(x => x.paymentMethod === 'mixed')
-    .reduce((s, x) => s + this.effectiveAmount(x), 0));
+  readonly periodLabel = computed(() => this.periods().find(p => p.value === this.period())?.label ?? '');
+
+  readonly rangeText = computed(() => {
+    const { start, end } = getPeriodRange(this.period());
+    const loc = this.t().reports.dateLocale;
+    const f = (d: Date) => d.toLocaleDateString(loc, { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return this.period() === 'today' ? f(start) : `${f(start)} – ${f(end)}`;
+  });
+
+  private readonly products = computed(() => productMap(this.productStore.products()));
+  readonly summary = computed(() => summarizeSales(this.sales(), this.products()));
+  readonly collections = computed(() => summarizeCollections(this.payments()));
+  readonly expenseTotal = computed(() => sumExpenses(this.expenses()));
+  readonly netProfit = computed(() => round2(this.summary().grossProfit - this.expenseTotal()));
+  readonly avgBasket = computed(() => this.summary().saleCount ? this.summary().revenue / this.summary().saleCount : 0);
+  readonly netCash = computed(() => round2(this.summary().cash + this.collections().cash - this.expenseTotal()));
+  readonly top = computed(() => topProducts(this.sales(), 10));
+  readonly categories = computed(() => salesByCategory(this.sales(), this.products(), this.t().reports.uncategorized));
+  private readonly maxCategory = computed(() => Math.max(1, ...this.categories().map(c => c.revenue)));
+
+  /** Alış / ciro oranı (%; çubuk için 0–100). */
+  readonly purchaseRatio = computed(() => {
+    const rev = this.summary().revenue, p = this.purchases()?.totalPurchases ?? 0;
+    return rev > 0 ? Math.min(100, (p / rev) * 100) : (p > 0 ? 100 : 0);
+  });
+  readonly purchaseRatioText = computed(() => {
+    const rev = this.summary().revenue, p = this.purchases()?.totalPurchases ?? 0;
+    if (!rev) return '–';
+    return `%${((p / rev) * 100).toLocaleString(this.t().reports.dateLocale, { maximumFractionDigits: 1 })}`;
+  });
+
+  readonly marginText = computed(() => {
+    const s = this.summary();
+    if (!s.revenue) return '';
+    const pct = (s.grossProfit / s.revenue) * 100;
+    return `${this.t().reports.grossMargin} %${pct.toLocaleString(this.t().reports.dateLocale, { maximumFractionDigits: 1 })}`;
+  });
+
+  /** Ciro → Maliyet → Brüt → Gider → Net şelalesi. Eksen [min(0, brüt, net), max(ciro, 0)]. */
+  readonly chain = computed<ChainStep[]>(() => {
+    const r = this.t().reports, s = this.summary(), exp = this.expenseTotal(), net = this.netProfit();
+    const min = Math.min(0, s.grossProfit, net);
+    const max = Math.max(s.revenue, s.grossProfit, 0);
+    const span = max - min || 1;
+    const seg = (a: number, b: number) => {
+      const lo = Math.min(a, b), hi = Math.max(a, b);
+      return { left: ((lo - min) / span) * 100, width: Math.max(((hi - lo) / span) * 100, hi > lo ? 0.8 : 0) };
+    };
+    return [
+      { key: 'rev', op: '', label: r.totalRevenue, value: s.revenue, ...seg(0, s.revenue), bar: 'bg-info', total: false },
+      { key: 'cost', op: '−', label: r.cost + (s.costEstimated ? ' *' : ''), value: s.cost, ...seg(s.revenue, s.grossProfit), bar: 'bg-danger', total: false },
+      { key: 'gross', op: '=', label: r.grossProfit, value: s.grossProfit, ...seg(0, s.grossProfit), bar: s.grossProfit >= 0 ? 'bg-brand' : 'bg-danger', total: true },
+      { key: 'exp', op: '−', label: r.expenseTotal, value: exp, ...seg(s.grossProfit, net), bar: 'bg-accent', total: false },
+      { key: 'net', op: '=', label: r.netProfit, value: net, ...seg(0, net), bar: net >= 0 ? 'bg-success' : 'bg-danger', total: true },
+    ];
+  });
+
+  readonly registerRows = computed<RegisterRow[]>(() => {
+    const r = this.t().reports, s = this.summary(), c = this.collections();
+    return [
+      { label: r.cashSales, value: s.cash, icon: 'pi-money-bill', tone: 'success', sign: '' },
+      { label: r.cardSales, value: s.card, icon: 'pi-credit-card', tone: 'info', sign: '' },
+      { label: r.creditSales, value: s.credit, icon: 'pi-users', tone: 'warning', sign: '' },
+      { label: r.collectionsCash, value: c.cash, icon: 'pi-wallet', tone: 'success', sign: '' },
+      { label: r.collectionsCard, value: c.card, icon: 'pi-wallet', tone: 'info', sign: '' },
+      { label: r.expenseTotal, value: this.expenseTotal(), icon: 'pi-arrow-down', tone: 'accent', sign: '−' },
+    ];
+  });
+
   readonly trendLabel = computed(() => {
     const r = this.t().reports;
-    const map: Record<Period, string> = { today: r.hourly, week: r.daily, month: r.daily };
+    const map: Record<Period, string> = { today: r.hourly, week: r.daily, month: r.daily, year: r.thisYear };
     return map[this.period()];
+  });
+
+  /** Grafik teması: seri renkleri report-calc'tan, ızgara/tooltip camı tokenlardan. */
+  private readonly chartTheme = computed(() => {
+    this.theme.isDark(); // tema değişince yeniden oku
+    const c = readChartColors();
+    return {
+      ...c,
+      grid: cssVar('--border-subtle') || c.grid,
+      tooltip: {
+        backgroundColor: cssVar('--surface-overlay') || c.grid,
+        borderColor: cssVar('--border-strong') || c.grid,
+        borderWidth: 1,
+        titleColor: cssVar('--text-primary') || c.text,
+        bodyColor: cssVar('--text-secondary') || c.text,
+        cornerRadius: 10,
+        padding: 10,
+        boxPadding: 4,
+        titleFont: { weight: 600 },
+      },
+    };
   });
 
   readonly trendChartData = computed(() => {
     const p = this.period();
-    const salesList = this.sales();
-    let labels: string[] = [];
-    let values: number[] = [];
-
-    if (p === 'today') {
-      labels = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
-      values = Array(24).fill(0);
-      salesList.forEach(s => {
-        const h = s.createdAt?.toDate?.()?.getHours?.() ?? 0;
-        values[h] += s.totalAmount;
-      });
-    } else if (p === 'week') {
-      labels = this.t().reports.weekDays.split(',');
-      values = Array(7).fill(0);
-      salesList.forEach(s => {
-        const d = s.createdAt?.toDate?.();
-        if (!d) return;
-        const day = d.getDay();
-        const idx = day === 0 ? 6 : day - 1;
-        values[idx] += s.totalAmount;
-      });
-    } else {
-      const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-      labels = Array.from({ length: daysInMonth }, (_, i) => String(i + 1));
-      values = Array(daysInMonth).fill(0);
-      salesList.forEach(s => {
-        const d = s.createdAt?.toDate?.();
-        if (!d) return;
-        values[d.getDate() - 1] += s.totalAmount;
-      });
+    const start = getPeriodRange(p).start;
+    const values = trendBuckets(this.sales(), p, start);
+    const r = this.t().reports;
+    let labels: string[];
+    switch (p) {
+      case 'today': labels = values.map((_, i) => `${String(i).padStart(2, '0')}:00`); break;
+      case 'week': labels = r.weekDays.split(','); break;
+      case 'month': labels = values.map((_, i) => String(i + 1)); break;
+      case 'year': labels = r.monthsShort.split(','); break;
     }
-
+    const c = this.chartTheme().series[0];
     return {
       labels,
       datasets: [{
-        label: this.t().reports.chartSales + ' (₺)',
+        label: r.chartSales,
         data: values,
-        backgroundColor: 'rgba(22, 163, 74, 0.15)',
-        borderColor: '#16a34a',
-        borderWidth: 2,
+        backgroundColor: c,
+        hoverBackgroundColor: c,
         borderRadius: 6,
-        hoverBackgroundColor: 'rgba(22, 163, 74, 0.3)',
+        borderSkipped: false,
+        maxBarThickness: 36,
       }],
     };
   });
 
-  readonly trendChartOptions = {
-    responsive: true,
-    maintainAspectRatio: true,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        callbacks: {
-          label: (ctx: any) => `₺${ctx.raw.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`,
-        },
+  readonly trendChartOptions = computed(() => {
+    const c = this.chartTheme();
+    const fmt = this.money;
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { ...c.tooltip, displayColors: false, callbacks: { label: (ctx: { raw: unknown }) => fmt(Number(ctx.raw)) } },
       },
-    },
-    scales: {
-      x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#94a3b8' } },
-      y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, color: '#94a3b8', callback: (v: any) => `₺${v.toLocaleString('tr-TR')}` } },
-    },
-  };
-
-  readonly paymentChartData = computed(() => ({
-    labels: [this.t().reports.cash, this.t().reports.card, this.t().reports.credit, this.t().reports.mixed],
-    datasets: [{
-      data: [this.cashTotal(), this.cardTotal(), this.creditTotal(), this.mixedTotal()],
-      backgroundColor: ['#16a34a', '#3b82f6', '#ef4444', '#a855f7'],
-      hoverBackgroundColor: ['#15803d', '#1d4ed8', '#dc2626', '#9333ea'],
-      borderWidth: 0,
-    }],
-  }));
-
-  readonly paymentChartOptions = {
-    responsive: true,
-    maintainAspectRatio: true,
-    plugins: {
-      legend: { position: 'bottom', labels: { font: { size: 11 }, color: '#64748b', padding: 12, usePointStyle: true } },
-      tooltip: {
-        callbacks: {
-          label: (ctx: any) => ` ₺${ctx.raw.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`,
-        },
+      scales: {
+        x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11 }, color: c.text, maxRotation: 0, autoSkipPadding: 8 } },
+        y: { grid: { color: c.grid }, border: { display: false }, ticks: { font: { size: 11 }, color: c.text, maxTicksLimit: 6 } },
       },
-    },
-    cutout: '65%',
-  };
-
-  readonly totalExpenses = computed(() => {
-    const startMs = this.getStartDate().getTime();
-    return this.allExpenses()
-      .filter(e => (e.date?.toMillis?.() ?? 0) >= startMs)
-      .reduce((s, e) => s + e.amount, 0);
+    };
   });
-  readonly profit = computed(() => this.totalRevenue() - this.totalExpenses());
+
+  readonly paymentChartData = computed(() => {
+    const r = this.t().reports, s = this.summary(), c = this.chartTheme().series;
+    return {
+      labels: [r.cash, r.card, r.credit],
+      datasets: [{ data: [s.cash, s.card, s.credit], backgroundColor: [c[0], c[1], c[3]], borderWidth: 0, hoverOffset: 6 }],
+    };
+  });
+
+  readonly paymentChartOptions = computed(() => {
+    const c = this.chartTheme();
+    const fmt = this.money;
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 12 }, color: c.text, padding: 14, usePointStyle: true, pointStyle: 'circle' } },
+        tooltip: { ...c.tooltip, callbacks: { label: (ctx: { raw: unknown }) => ' ' + fmt(Number(ctx.raw)) } },
+      },
+      cutout: '68%',
+    };
+  });
+
+  private readonly pipe = new CurrencyTrPipe();
+  readonly money = (v: number) => this.pipe.transform(v);
 
   ngOnInit(): void {
+    this.productStore.ensureLoaded(); // maliyet tahmini ve kategori için
     this.load();
-    this.expenseSvc.getAll$().subscribe(list => this.allExpenses.set(list));
+    // Yazdırılan kasa raporu başlığı için işletme adı (hata olursa sessizce boş kalır)
+    this.tenantInfo.get().then(i => this.businessName.set(i.name)).catch(() => undefined);
   }
 
-  async setPeriod(p: Period): Promise<void> {
+  setPeriod(p: Period): void {
+    if (this.period() === p) return;
     this.period.set(p);
-    await this.load();
+    this.load();
+  }
+
+  printCash(): void {
+    this.printedAt.set(new Date().toLocaleString(this.t().reports.dateLocale, {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    }));
+    // Tarih alanının DOM'a yansıması için bir kare bekle
+    requestAnimationFrame(() => window.print());
   }
 
   private async load(): Promise<void> {
+    const seq = ++this.loadSeq;
     this.loading.set(true);
     try {
-      const tenantId = this.auth.currentTenantId();
-      const startMs = this.getStartDate().getTime();
-
-      const snap = await getDocs(
-        query(
-          collection(this.firestore, 'sales'),
-          where('tenantId', '==', tenantId),
-          limit(1000)
-        )
+      const range = getPeriodRange(this.period());
+      // Alış özeti ayrı: hata olursa (ör. indeks yok) satış raporu yine görünsün
+      this.purchaseError.set(false);
+      void this.purchaseSvc.summary(range.start, range.end).then(
+        p => { if (seq === this.loadSeq) this.purchases.set(p); },
+        err => {
+          console.error('[Reports] purchase summary error:', err);
+          if (seq === this.loadSeq) { this.purchases.set(null); this.purchaseError.set(true); }
+        },
       );
-
-      const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as Sale));
-      const filtered = all
-        .filter(s => (s.createdAt?.toMillis?.() ?? 0) >= startMs)
-        .sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
-
-      this.sales.set(filtered);
+      const [sales, payments, expenses] = await Promise.all([
+        this.data.getSales(range),
+        this.data.getCollections(range),
+        this.data.getExpenses(range),
+      ]);
+      if (seq !== this.loadSeq) return; // daha yeni bir dönem seçildi
+      this.sales.set(sales);
+      this.payments.set(payments);
+      this.expenses.set(expenses);
     } catch (e) {
       console.error('[Reports] load error:', e);
+      if (seq === this.loadSeq) {
+        this.toast.add({ severity: 'error', summary: '', detail: this.t().reports.loadError, life: 4000 });
+      }
     } finally {
-      this.loading.set(false);
+      if (seq === this.loadSeq) this.loading.set(false);
     }
   }
 
-  private getStartDate(): Date {
-    const d = new Date();
-    if (this.period() === 'today') {
-      d.setHours(0, 0, 0, 0);
-    } else if (this.period() === 'week') {
-      const day = d.getDay();
-      const diff = day === 0 ? 6 : day - 1;
-      d.setDate(d.getDate() - diff);
-      d.setHours(0, 0, 0, 0);
-    } else {
-      d.setDate(1);
-      d.setHours(0, 0, 0, 0);
-    }
-    return d;
+  categoryPct(v: number): number {
+    return Math.round((v / this.maxCategory()) * 100);
   }
 
-  formatTime(ts: any): string {
-    if (!ts) return '';
-    const d = ts.toDate ? ts.toDate() : new Date(ts);
-    return d.toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  formatTime(ts: unknown): string {
+    const d = toDate(ts);
+    if (!d) return '';
+    return d.toLocaleString(this.t().reports.dateLocale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   }
 
-  paymentIcon(method: string): string {
+  paymentIcon(method: PaymentMethod): string {
     const m: Record<string, string> = { cash: 'pi-money-bill', card: 'pi-credit-card', credit: 'pi-users', mixed: 'pi-sync' };
     return m[method] ?? 'pi-dollar';
   }
 
-  paymentBg(method: string): string {
-    const m: Record<string, string> = { cash: 'background:#f0fdf4;', card: 'background:#eff6ff;', credit: 'background:#fef2f2;', mixed: 'background:#fdf4ff;' };
-    return m[method] ?? 'background:var(--bg-page);';
+  payTone(method: PaymentMethod): UiTone {
+    const m: Record<string, UiTone> = { cash: 'success', card: 'info', credit: 'warning', mixed: 'neutral' };
+    return m[method] ?? 'neutral';
   }
 
-  paymentColor(method: string): string {
-    const m: Record<string, string> = { cash: 'color:#16a34a;', card: 'color:#3b82f6;', credit: 'color:#ef4444;', mixed: 'color:#a855f7;' };
-    return m[method] ?? 'color:var(--text-secondary);';
-  }
-
-  paymentBadge(method: string): string {
-    const m: Record<string, string> = {
-      cash: 'background:#f0fdf4; color:#16a34a;',
-      card: 'background:#eff6ff; color:#3b82f6;',
-      credit: 'background:#fef2f2; color:#ef4444;',
-      mixed: 'background:#fdf4ff; color:#a855f7;',
-    };
-    return m[method] ?? 'background:var(--bg-muted); color:var(--text-secondary);';
-  }
-
-  paymentLabel(method: string): string {
+  paymentLabel(method: PaymentMethod): string {
     const r = this.t().reports;
     const m: Record<string, string> = { cash: r.cash, card: r.card, credit: r.credit, mixed: r.mixed };
     return m[method] ?? method;
+  }
+
+  // ── Dışa aktarma ──────────────────────────────────────────────
+
+  private buildExportTables(): ExportTable[] {
+    const r = this.t().reports, s = this.summary(), c = this.collections(), pm = this.products();
+    const summaryRows: (string | number)[][] = [
+      [r.totalRevenue, s.revenue],
+      [r.saleCount, s.saleCount],
+      [r.cost + (s.costEstimated ? ' *' : ''), s.cost],
+      [r.grossProfit, s.grossProfit],
+      [r.expenseTotal, this.expenseTotal()],
+      [r.netProfit, this.netProfit()],
+      [r.interestIncome, s.interestIncome],
+      [r.cashSales, s.cash],
+      [r.cardSales, s.card],
+      [r.creditSales, s.credit],
+      [r.collectionsCash, c.cash],
+      [r.collectionsCard, c.card],
+      [r.netCash, this.netCash()],
+    ];
+    if (s.costEstimated) summaryRows.push(['*', r.costEstimatedNote]);
+    return [
+      { title: r.summary, headers: ['', r.amount], rows: summaryRows },
+      {
+        title: r.sale,
+        headers: ['No', r.date, r.customer, r.payment, r.amount, r.cost, r.grossProfit, r.interestIncome],
+        rows: this.sales().map(x => {
+          const cost = round2(saleCost(x, pm).cost);
+          return [
+            x.saleNumber, this.formatTime(x.createdAt), x.customerName || r.cashCustomer, this.paymentLabel(x.paymentMethod),
+            x.totalAmount, cost, round2(x.totalAmount - cost), round2(saleInterest(x)),
+          ];
+        }),
+      },
+      {
+        title: r.topProducts,
+        headers: ['#', r.product, r.quantity, r.revenue],
+        rows: this.top().map((p, i) => [i + 1, p.name, p.quantity, p.revenue]),
+      },
+      {
+        title: r.byCategory,
+        headers: [r.category, r.quantity, r.revenue],
+        rows: this.categories().map(x => [x.category, x.quantity, x.revenue]),
+      },
+    ];
+  }
+
+  async export(kind: 'xlsx' | 'pdf'): Promise<void> {
+    this.exporting.set(kind);
+    try {
+      const label = this.periodLabel();
+      const range = getPeriodRange(this.period());
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const day = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const fileName = `rapor-${day(range.start)}_${day(range.end)}`;
+      const tables = this.buildExportTables();
+      if (kind === 'xlsx') {
+        await exportExcel(fileName, tables);
+      } else {
+        await exportPdf(fileName, `${this.t().reports.title} — ${label}`, tables.map(tb => ({
+          ...tb,
+          rows: tb.rows.map(row => row.map(v => typeof v === 'number' && tb.headers.length > 1 ? this.fmtNum(v) : v)),
+        })));
+      }
+    } catch (e) {
+      console.error('[Reports] export error:', e);
+      this.toast.add({ severity: 'error', summary: '', detail: this.t().reports.exportFailed, life: 4000 });
+    } finally {
+      this.exporting.set(null);
+    }
+  }
+
+  private fmtNum(v: number): string {
+    return Number.isInteger(v) ? String(v) : v.toLocaleString(this.t().reports.dateLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 }

@@ -1,0 +1,268 @@
+// =============================================================================
+// Tasarım tokenları — v2 "Saha / Komuta Merkezi" (docs/design/c-saha-komuta).
+// Açık tema :root (kâğıt), koyu tema html.dark (kömür). Sidebar her iki temada koyu.
+// Bileşenlerde hex renk YAZMAYIN; bu değişkenleri ya da Tailwind karşılıklarını
+// (tailwind.config.js) kullanın. Liste ve kullanım: src/app/shared/ui/README.md
+//
+// v1'den kalan isimler (glass, blob, blur…) geriye uyum için DURUYOR ama artık
+// opak / etkisiz değerler taşıyor: cam ve blur tasarımdan tamamen çıktı.
+// =============================================================================
+
+:root {
+  color-scheme: light;
+
+  // ---- Marka (zümrüt) -------------------------------------------------------
+  --brand:            #047857;  // dolu buton, aktif öğe (beyaz metinle 5.5:1)
+  --brand-hover:      #065f46;
+  --brand-contrast:   #ffffff;  // --brand üstündeki metin
+  --brand-soft:       #e2f2e9;  // yumuşak zemin (rozet, ikon karesi, seçili satır)
+  --brand-soft-hover: #cfe8da;
+  --brand-line:       #a8d5bd;
+  --brand-text:       #03644a;  // yumuşak zemin üstündeki marka metni (AA)
+  --brand-gradient:   linear-gradient(135deg, #10b981 0%, #047857 100%); // yalnız logo karesi
+
+  // ---- Vurgu (yanık turuncu: satış, sepet, Hızlı Satış) --------------------
+  --accent:           #c2410c;
+  --accent-hover:     #9a3412;
+  --accent-contrast:  #ffffff;
+  --accent-soft:      #fbeadc;
+  --accent-line:      #efc3a3;
+  --accent-text:      #9f350a;
+  --accent-gradient:  linear-gradient(var(--accent), var(--accent)); // v2: düz renk
+
+  // ---- Durum renkleri (dolu / yumuşak zemin / kenarlık / yumuşak üstü metin) -
+  --success:          #047857;
+  --success-soft:     #e2f2e9;
+  --success-line:     #a8d5bd;
+  --success-text:     #03644a;
+  --warning:          #b45309;
+  --warning-soft:     #faeed6;
+  --warning-line:     #ebcf98;
+  --warning-text:     #8a3f0a;
+  --danger:           #dc2626;
+  --danger-soft:      #fbe6e2;
+  --danger-line:      #f1bdb4;
+  --danger-text:      #b42318;
+  --info:             #1d4ed8;
+  --info-soft:        #e5ebfa;
+  --info-line:        #c0cff3;
+  --info-text:        #1d4ed8;
+  --neutral:          #454a41;
+  --neutral-soft:     #e8e4d9;
+  --neutral-line:     #c9c2b2;
+  --neutral-text:     #454a41;
+
+  // ---- Yüzeyler (kâğıt) -----------------------------------------------------
+  --bg-page:          #f6f4ee;  // uygulama zemini
+  --surface:          #fffefb;  // kart / tablo / topbar
+  --surface-raised:   #fffefb;  // menü, popover, dialog
+  --surface-muted:    #f1eee6;  // başlık şeridi, tablo başlığı, ikincil zemin
+  --surface-hover:    #f1eee6;  // satır / öğe hover
+  --surface-strong:   #e8e4d9;  // nötr rozet, ilerleme izi
+  --surface-overlay:  #fffefb;  // dialog / select paneli (opak)
+  --field-bg:         #fffefb;
+  --table-head-bg:    #f1eee6;
+  // v1 cam isimleri → opak
+  --surface-glass:        var(--surface);
+  --surface-glass-strong: var(--surface);
+
+  // ---- Metin ---------------------------------------------------------------
+  --text-primary:   #1b1e19;
+  --text-secondary: #454a41;
+  --text-muted:     #62685c;
+  --text-inverse:   #ffffff;
+
+  // ---- Kenarlık ------------------------------------------------------------
+  --border-subtle: #e2ddd1;
+  --border-strong: #c9c2b2;
+  --border-glass:  var(--border-subtle);
+  --border-glass-outer: transparent;
+
+  // ---- Bölümlü seçici (ui-segmented) seçili öğe ---------------------------------
+  --seg-on-bg:   var(--surface);
+  --seg-on-ring: var(--border-strong);
+  --seg-on-text: var(--text-primary);
+
+  // ---- Kalıcı koyu sidebar / mobil üst-alt çubuk (her iki temada koyu) ------
+  --side-bg:     #16211c;
+  --side-2:      #1f2c26;  // hover, kullanıcı kutusu
+  --side-line:   #2b3b33;
+  --side-text:   #e7ede9;
+  --side-muted:  #a3b2a9;
+  --side-hi:     #34d399;  // aktif öğe çizgisi / ikonu
+  --side-active: rgba(52, 211, 153, 0.13);
+  --side-active-text: #c4f7df;
+  --side-avatar: #2c4a3c;     // kullanıcı avatarı (solid)
+  --side-avatar-text: #c4f7df;
+  --side-em:     #5fe0ae;     // koyu panel vurgu metni (giriş başlığı)
+  --side-soft:   #b3c1b9;     // koyu panel ikincil metin
+  --side-danger: #fca5a5;     // koyu panel üstünde negatif değer
+  --side-danger-soft: rgba(239, 68, 68, 0.2);
+  --side-count:  #b91c1c;     // sidebar sayaç rozeti (kritik)
+  --side-count-alt: #c2410c; // sidebar sayaç rozeti (veresiye)
+  --sale:        #c2410c;  // sidebar/alt nav "Hızlı Satış" butonu
+  --sale-text:   #ffffff;
+
+  // ---- Tarla çizgisi deseni (başlık şeridi) ---------------------------------
+  --furrow:         rgba(4, 120, 87, 0.07);
+  --furrow-pattern: repeating-linear-gradient(-14deg, transparent 0 9px, var(--furrow) 9px 10px);
+  --side-pattern:   repeating-linear-gradient(168deg, transparent 0 11px, rgba(255, 255, 255, 0.018) 11px 12px);
+
+  // v1 blob'ları kaldırıldı (geriye uyum: şeffaf)
+  --blob-1: transparent;
+  --blob-2: transparent;
+  --blob-3: transparent;
+  --blob-4: transparent;
+
+  // ---- Grafik paleti (raporlar okuyor: report-calc.readChartColors) --------
+  --chart-1: #047857;
+  --chart-2: #1d4ed8;
+  --chart-3: #dc2626;
+  --chart-4: #c2410c;
+  --chart-5: #7c3aed;
+  --chart-6: #0f766e;
+  --chart-grid: #e4dfd3;
+
+  // ---- Yarıçap (C: düz, keskin) --------------------------------------------
+  --radius-xs:   5px;   // kbd
+  --radius-sm:   6px;   // pill / rozet
+  --radius-md:   8px;   // input, buton, ikon karesi
+  --radius-lg:   10px;  // kart
+  --radius-xl:   10px;  // kart (v1 adı)
+  --radius-2xl:  12px;  // dialog, sheet, büyük logo
+  --radius-pill: 9999px;
+
+  // ---- Gölge (C düzdür; gölge yalnız açılır katmanlarda) --------------------
+  --shadow-xs:       0 1px 2px rgba(27, 30, 25, 0.06);
+  --shadow-glass:    none;
+  --shadow-overlay:  0 12px 32px -8px rgba(27, 30, 25, 0.24), 0 2px 6px rgba(27, 30, 25, 0.08);
+  --shadow-glass-lg: var(--shadow-overlay);
+  --shadow-brand:    inset 0 -2px 0 rgba(0, 0, 0, 0.18);
+  --shadow-accent:   inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+  --focus-ring:      0 0 0 3px rgba(4, 120, 87, 0.32);
+
+  // ---- Blur (v2'de yok; eski sınıflar etkisiz kalsın) ------------------------
+  --blur-sm: 0px;
+  --blur-md: 0px;
+  --blur-lg: 0px;
+
+  // ---- Boşluk / ölçü ---------------------------------------------------------
+  --space-page-x:    0.75rem;  // mobil sayfa yan boşluğu (12px)
+  --space-page-x-lg: 1.5rem;   // ≥1024px
+  --tap-min:         44px;
+  --topbar-h:        64px;
+  --mtop-h:          56px;     // mobil koyu üst çubuk
+  --bottom-nav-h:    64px;
+  --sidebar-w:       14.75rem; // 236px, yazı boyutuyla büyür
+  --sidebar-w-collapsed: 4.5rem; // 72px
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  // ---- Z-index ---------------------------------------------------------------
+  --z-sticky:         20;
+  --z-topbar:         200;
+  --z-sidebar:        250;
+  --z-nav:            300;
+  --z-sheet-backdrop: 310;
+  --z-sheet:          320;
+  // PrimeNG overlay/dialog'ları kendi z-index'ini (1100+) kullanır.
+
+  // ---- Tipografi -------------------------------------------------------------
+  --font-sans:    'Inter Variable', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: 'Manrope Variable', 'Manrope', 'Inter Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-mono:    ui-monospace, 'Cascadia Mono', Consolas, monospace;
+
+  // ---- Eski isimler (dönüştürülmemiş sayfalar için alias — SİLMEYİN) --------
+  --bg-surface:    var(--surface);
+  --bg-muted:      var(--surface-muted);
+  --border:        var(--border-subtle);
+  --border-mid:    var(--border-strong);
+  --nav-active-bg: var(--brand-soft);
+  --icon-bg:       var(--surface-muted);
+  --icon-color:    var(--text-secondary);
+}
+
+html.dark {
+  color-scheme: dark;
+
+  --brand:            #34d399;
+  --brand-hover:      #6ee7b7;
+  --brand-contrast:   #04281d;
+  --brand-soft:       rgba(52, 211, 153, 0.12);
+  --brand-soft-hover: rgba(52, 211, 153, 0.2);
+  --brand-line:       rgba(52, 211, 153, 0.32);
+  --brand-text:       #5fe0ae;
+
+  --accent:           #fb923c;
+  --accent-hover:     #fdba74;
+  --accent-contrast:  #2b1204;
+  --accent-soft:      rgba(251, 146, 60, 0.13);
+  --accent-line:      rgba(251, 146, 60, 0.34);
+  --accent-text:      #fdac70;
+
+  --success:      #34d399;
+  --success-soft: rgba(52, 211, 153, 0.12);
+  --success-line: rgba(52, 211, 153, 0.32);
+  --success-text: #5fe0ae;
+  --warning:      #fbbf24;
+  --warning-soft: rgba(245, 158, 11, 0.14);
+  --warning-line: rgba(245, 158, 11, 0.34);
+  --warning-text: #fcc94d;
+  --danger:       #f87171;
+  --danger-soft:  rgba(239, 68, 68, 0.15);
+  --danger-line:  rgba(239, 68, 68, 0.36);
+  --danger-text:  #fb8f8f;
+  --info:         #93b4fb;
+  --info-soft:    rgba(96, 140, 250, 0.15);
+  --info-line:    rgba(96, 140, 250, 0.36);
+  --info-text:    #a5c0fc;
+  --neutral:      #c3c4b9;
+  --neutral-soft: #2a2f2a;
+  --neutral-line: #454b44;
+  --neutral-text: #c3c4b9;
+
+  --bg-page:          #121412;
+  --surface:          #1a1d1a;
+  --surface-raised:   #212521;
+  --surface-muted:    #212521;
+  --surface-hover:    #262b26;
+  --surface-strong:   #2a2f2a;
+  --surface-overlay:  #212521;
+  --field-bg:         #161916;
+  --table-head-bg:    #212521;
+
+  --text-primary:   #ecebe4;
+  --text-secondary: #c3c4b9;
+  --text-muted:     #9fa296;
+  --text-inverse:   #121412;
+
+  --border-subtle: #2f342f;
+  --border-strong: #454b44;
+
+  // Seçili segment: koyuda kart (#1a1d1a) ile şerit (#212521) neredeyse aynı → belirgin açık zemin + halka
+  --seg-on-bg:   #3a423c;
+  --seg-on-ring: #66736a;
+  --seg-on-text: #ffffff;
+
+  --side-bg:     #0b0e0c;
+  --side-2:      #161b18;
+  --side-line:   #222a25;
+  --side-text:   #e7ede9;
+  --side-muted:  #9aa89f;
+  --sale:        #ea6a22;
+  --sale-text:   #1d0b02;
+
+  --furrow: rgba(52, 211, 153, 0.045);
+
+  --chart-1: #34d399;
+  --chart-2: #93b4fb;
+  --chart-3: #f87171;
+  --chart-4: #fb923c;
+  --chart-5: #c4b5fd;
+  --chart-6: #5eead4;
+  --chart-grid: #2c312c;
+
+  --shadow-xs:       0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-overlay:  0 16px 40px -10px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --focus-ring:      0 0 0 3px rgba(52, 211, 153, 0.35);
+}

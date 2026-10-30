@@ -2,6 +2,8 @@ import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/guards/auth.guard';
 import { guestGuard } from './core/auth/guards/guest.guard';
 import { roleGuard } from './core/auth/guards/role.guard';
+import { superAdminGuard } from './core/auth/guards/super-admin.guard';
+import { licenseGuard } from './core/license/license.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -15,6 +17,16 @@ export const routes: Routes = [
     path: 'verify-email',
     canActivate: [authGuard],
     loadComponent: () => import('./features/auth/verify-email/verify-email.page').then(m => m.VerifyEmailPage),
+  },
+  // Çiftçi modülü: ayrı kabuk + kendi guard'ları (features/farmer/farmer.routes.ts)
+  { path: 'ciftci', loadChildren: () => import('./features/farmer/farmer.routes').then(m => m.farmerRoutes) },
+
+  {
+    // Platform yöneticisi (superadmin) paneli: kendi yalın kabuğu, işletme verisi yüklemez
+    path: 'admin',
+    canActivate: [superAdminGuard],
+    loadComponent: () => import('./features/admin/admin-shell.component').then(m => m.AdminShellComponent),
+    loadChildren: () => import('./features/admin/admin.routes').then(m => m.adminRoutes),
   },
 
   {
@@ -32,9 +44,15 @@ export const routes: Routes = [
       },
       {
         path: 'pos',
-        canActivate: [roleGuard],
+        canActivate: [roleGuard, licenseGuard],
         data: { roles: ['admin', 'cashier'] },
         loadComponent: () => import('./features/pos/pos.page').then(m => m.PosPage),
+      },
+      {
+        path: 'sales',
+        canActivate: [roleGuard],
+        data: { roles: ['admin', 'cashier'] },
+        loadChildren: () => import('./features/sales/sales.routes').then(m => m.salesRoutes),
       },
       {
         path: 'customers',
@@ -45,7 +63,7 @@ export const routes: Routes = [
       {
         path: 'credit',
         canActivate: [roleGuard],
-        data: { roles: ['admin'] },
+        data: { roles: ['admin', 'cashier'] },
         loadChildren: () => import('./features/credit/credit.routes').then(m => m.creditRoutes),
       },
       {
@@ -67,6 +85,12 @@ export const routes: Routes = [
         loadChildren: () => import('./features/suppliers/suppliers.routes').then(m => m.supplierRoutes),
       },
       {
+        path: 'purchases',
+        canActivate: [roleGuard],
+        data: { roles: ['admin'] },
+        loadChildren: () => import('./features/purchases/purchases.routes').then(m => m.purchaseRoutes),
+      },
+      {
         path: 'stock-count',
         canActivate: [roleGuard],
         data: { roles: ['admin'] },
@@ -75,8 +99,18 @@ export const routes: Routes = [
       {
         path: 'settings',
         canActivate: [roleGuard],
-        data: { roles: ['admin'] },
+        data: { roles: ['admin'], fallback: '/account' },
         loadChildren: () => import('./features/settings/settings.routes').then(m => m.settingRoutes),
+      },
+      {
+        // Lisans durumu / süresi doldu ekranı
+        path: 'license',
+        loadComponent: () => import('./core/license/license-expired.page').then(m => m.LicenseExpiredPage),
+      },
+      {
+        // Tüm roller: kendi profil/şifre (5.2)
+        path: 'account',
+        loadComponent: () => import('./features/settings/profile/profile.page').then(m => m.ProfilePage),
       },
     ],
   },

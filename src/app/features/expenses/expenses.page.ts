@@ -1,23 +1,43 @@
-import { Component, inject, OnInit, signal, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit, signal, computed, viewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
-import { AutoCompleteModule } from 'primeng/autocomplete';
+import { AutoComplete, AutoCompleteModule } from 'primeng/autocomplete';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { DatePickerModule } from 'primeng/datepicker';
 import { ToastModule } from 'primeng/toast';
-import { SkeletonModule } from 'primeng/skeleton';
-import { MessageService, ConfirmationService } from 'primeng/api';
+import { MessageService, ConfirmationService, ConfirmEventType } from 'primeng/api';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ExpenseService } from './services/expense.service';
-import { Expense } from '../../shared/models/expense.model';
+import { Expense, EXPENSE_CATEGORIES } from '../../shared/models/expense.model';
+import { getPeriodRange, isInRange } from '../../shared/utils/date-range.util';
 import { CurrencyTrPipe } from '../../shared/pipes/currency-tr.pipe';
 import { LangService } from '../../core/i18n/lang.service';
+import {
+  EmptyStateComponent, GlassCardComponent, IconButtonComponent, MoneyComponent, PageHeaderComponent, SegmentedComponent,
+  StatCardComponent, StatusBadgeComponent, TONE_SOFT, UiSegmentOption, UiTone,
+} from '../../shared/ui';
 
-type Period = 'month' | 'week' | 'all';
+type ExpensePeriod = 'month' | 'week' | 'all';
+
+/** Gider kategorisi → ikon + ton (renkler token sınıflarından, bkz. shared/ui/tone.ts). */
+const CATEGORY_STYLE: Record<string, { icon: string; tone: UiTone }> = {
+  'Kira': { icon: 'pi-home', tone: 'brand' },
+  'Elektrik': { icon: 'pi-bolt', tone: 'warning' },
+  'Su': { icon: 'pi-cloud', tone: 'info' },
+  'Doğalgaz': { icon: 'pi-sun', tone: 'accent' },
+  'İnternet': { icon: 'pi-wifi', tone: 'info' },
+  'Personel': { icon: 'pi-users', tone: 'brand' },
+  'Nakliye': { icon: 'pi-truck', tone: 'success' },
+  'Bakım & Onarım': { icon: 'pi-wrench', tone: 'danger' },
+  'Vergi': { icon: 'pi-file', tone: 'neutral' },
+  'Diğer': { icon: 'pi-ellipsis-h', tone: 'neutral' },
+};
+const DEFAULT_CATEGORY_STYLE: { icon: string; tone: UiTone } = { icon: 'pi-money-bill', tone: 'accent' };
 
 @Component({
   selector: 'app-expenses',
@@ -25,115 +45,170 @@ type Period = 'month' | 'week' | 'all';
   imports: [
     FormsModule, DatePipe, CurrencyTrPipe,
     ButtonModule, DialogModule, InputTextModule, InputNumberModule,
-    AutoCompleteModule, DatePickerModule, ToastModule, SkeletonModule, ConfirmDialogModule, ToggleSwitchModule,
+    AutoCompleteModule, DatePickerModule, ToastModule, ConfirmDialogModule, ToggleSwitchModule,
+    PageHeaderComponent, StatCardComponent, EmptyStateComponent, StatusBadgeComponent, IconButtonComponent, MoneyComponent,
+    GlassCardComponent, SegmentedComponent,
   ],
   providers: [MessageService, ConfirmationService],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block' },
   template: `
     <p-toast position="top-right" />
     <p-confirmDialog />
 
-    <div style="display:flex; flex-direction:column; height:100%; background:var(--bg-page); overflow:hidden;">
+    <ui-page-header [title]="t().expenses.title" [subtitle]="t().expenses.subtitle" icon="pi-wallet" iconTone="accent">
+      <p-button [label]="t().expenses.addExpense" icon="pi pi-plus" (onClick)="openDialog()" />
+    </ui-page-header>
 
-      <!-- Header -->
-      <div style="background:var(--bg-surface); border-bottom:1px solid var(--border); padding:16px 24px; display:flex; align-items:center; gap:12px; flex-shrink:0;">
-        <div style="width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg,#f97316,#ea580c); display:flex; align-items:center; justify-content:center;">
-          <i class="pi pi-wallet" style="color:white; font-size:16px;"></i>
-        </div>
-        <div style="flex:1;">
-          <h1 style="font-size:18px; font-weight:700; color:var(--text-primary); margin:0;">{{ t().expenses.title }}</h1>
-          <p style="font-size:12px; color:var(--text-secondary); margin:0;">{{ t().expenses.subtitle }}</p>
-        </div>
-        <p-button [label]="t().expenses.addExpense" icon="pi pi-plus" severity="warn" size="small" (onClick)="openDialog()" />
+    <div class="page-body">
+      <!-- Dönem -->
+      <ui-segmented [options]="periods()" [value]="period()" (valueChange)="period.set($event ?? 'month')"
+        [ariaLabel]="t().common.filters" />
+
+      <!-- Özet -->
+      <div class="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+        <ui-stat-card icon="pi-wallet" tone="accent" [highlight]="true" [label]="a().periodTotal" [hint]="periodLabel()"
+          [value]="totalFiltered() | currencyTr" [loading]="loading()" />
+        <ui-stat-card icon="pi-list" tone="neutral" [label]="t().expenses.recordCount" [value]="filtered().length"
+          [hint]="recurringCount() + ' ' + t().expenses.recurringBadge" [loading]="loading()" />
+        <ui-stat-card [icon]="topCategory() ? catIcon(topCategory()!.name) : 'pi-tag'" [tone]="topCategory() ? catTone(topCategory()!.name) : 'neutral'"
+          [label]="a().topCategory" [value]="topCategory()?.name ?? '–'"
+          [hint]="topCategory() ? (topCategory()!.amount | currencyTr) + ' · %' + topCategory()!.pct : ''" [loading]="loading()" />
+        <ui-stat-card icon="pi-chart-bar" tone="info" [label]="a().avgPerRecord" [value]="avgAmount() | currencyTr" [loading]="loading()" />
       </div>
 
-      <!-- Period + total -->
-      <div style="background:var(--bg-surface); border-bottom:1px solid var(--border); padding:12px 24px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; gap:12px;">
-        <div style="display:flex; gap:8px;">
-          @for (p of periods(); track p.value) {
-            <button
-              (click)="period.set(p.value)"
-              [style]="period() === p.value
-                ? 'padding:6px 16px; border-radius:20px; border:none; background:#f97316; color:#fff; font-size:13px; font-weight:600; cursor:pointer;'
-                : 'padding:6px 16px; border-radius:20px; border:1px solid var(--border-mid); background:var(--bg-surface); color:var(--text-secondary); font-size:13px; font-weight:500; cursor:pointer;'"
-            >{{ p.label }}</button>
-          }
-        </div>
-        <div style="display:flex; align-items:center; gap:6px; background:#fff7ed; border-radius:10px; padding:8px 14px; flex-shrink:0;">
-          <i class="pi pi-wallet" style="font-size:13px; color:#ea580c;"></i>
-          <span style="font-size:13px; font-weight:700; color:#ea580c;">{{ totalFiltered() | currencyTr }}</span>
-        </div>
-      </div>
-
-      <!-- List -->
-      <div style="flex:1; overflow-y:auto; padding:16px 24px;">
-
-        @if (loading()) {
-          <div style="display:flex; flex-direction:column; gap:10px;">
-            @for (i of [1,2,3,4]; track i) {
-              <div style="background:var(--bg-surface); border-radius:14px; border:1px solid var(--border); padding:16px; display:flex; gap:12px; align-items:center;">
-                <p-skeleton shape="circle" size="40px" />
-                <div style="flex:1;"><p-skeleton height="14px" styleClass="mb-2" /><p-skeleton height="12px" width="50%" /></div>
-                <p-skeleton height="18px" width="70px" />
-              </div>
-            }
-          </div>
-        } @else if (filtered().length === 0) {
-          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:80px 0; gap:10px; color:var(--text-muted);">
-            <i class="pi pi-wallet" style="font-size:48px; opacity:0.2;"></i>
-            <p style="font-size:15px; margin:0; font-weight:600; color:var(--text-secondary);">{{ t().expenses.noExpenses }}</p>
-            <p style="font-size:13px; margin:0; color:var(--text-muted);">{{ t().expenses.subtitle }}</p>
-            <div style="margin-top:8px;">
-              <p-button [label]="t().expenses.addExpense" icon="pi pi-plus" severity="warn" [outlined]="true" size="small" (onClick)="openDialog()" />
+      <div class="grid grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-4">
+        <!-- Kayıtlar -->
+        <ui-glass-card [title]="a().expensesTitle" icon="pi-receipt" tone="accent" padding="none" clip
+          [subtitle]="loading() ? '' : filtered().length + ' ' + t().credit.records">
+          @if (loading()) {
+            <div class="flex flex-col gap-3 p-4" aria-hidden="true">
+              @for (i of [1, 2, 3, 4]; track i) { <div class="h-10 animate-pulse rounded-token-md bg-surface-muted"></div> }
             </div>
-          </div>
-        } @else {
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            @for (e of filtered(); track e.id) {
-              <div style="background:var(--bg-surface); border-radius:14px; border:1px solid var(--border); padding:14px 16px; display:flex; align-items:center; gap:12px;">
-                <div [style]="catIconBg(e.category)" style="width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                  <i [class]="'pi ' + catIcon(e.category)" style="font-size:16px;"></i>
-                </div>
-                <div style="flex:1; min-width:0;">
-                  <p style="font-size:14px; font-weight:600; color:var(--text-primary); margin:0 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ e.title }}</p>
-                  <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px; background:#fff7ed; color:#ea580c;">{{ e.category }}</span>
-                    <span style="font-size:12px; color:var(--text-muted);">{{ e.date.toDate() | date:'dd.MM.yyyy' }}</span>
-                    @if (e.note) {
-                      <span style="font-size:12px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;">{{ e.note }}</span>
-                    }
-                  </div>
-                </div>
-                <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
-                  <span style="font-size:15px; font-weight:700; color:#ea580c;">{{ e.amount | currencyTr }}</span>
-                  <button
-                    (click)="confirmDelete(e)"
-                    style="width:30px; height:30px; border-radius:8px; border:none; background:#fef2f2; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#ef4444;"
-                  ><i class="pi pi-trash" style="font-size:12px;"></i></button>
-                </div>
-              </div>
-            }
-          </div>
-        }
+          } @else if (filtered().length === 0) {
+            <ui-empty-state compact icon="pi-wallet" tone="accent" [title]="t().expenses.noExpenses" [description]="t().expenses.subtitle">
+              <p-button [label]="t().expenses.addExpense" icon="pi pi-plus" severity="secondary" (onClick)="openDialog()" />
+            </ui-empty-state>
+          } @else {
+            <!-- Masaüstü tablo -->
+            <div class="hidden overflow-x-auto md:block">
+              <table class="w-full border-collapse text-14.5">
+                <thead>
+                  <tr class="bg-surface-muted text-left text-12 font-semibold uppercase tracking-[0.03em] text-fg-muted">
+                    <th class="h-10 whitespace-nowrap border-b border-line px-4">{{ a().colDate }}</th>
+                    <th class="h-10 border-b border-line px-3">{{ a().colExpense }}</th>
+                    <th class="h-10 border-b border-line px-3">{{ a().colCategory }}</th>
+                    <th class="h-10 border-b border-line px-3 text-right">{{ a().colAmount }}</th>
+                    <th class="h-10 w-14 border-b border-line px-2"><span class="sr-only">{{ t().common.delete }}</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (e of filtered(); track e.id) {
+                    <tr class="list-row border-b border-line last:border-b-0">
+                      <td class="num h-[56px] whitespace-nowrap px-4 text-fg-secondary">{{ expenseDate(e) | date:'dd.MM.yyyy' }}</td>
+                      <td class="max-w-[320px] px-3">
+                        <span class="block truncate font-semibold text-fg">{{ e.title }}</span>
+                        @if (e.note) { <span class="block truncate text-12.5 text-fg-muted">{{ e.note }}</span> }
+                      </td>
+                      <td class="px-3">
+                        <span class="flex flex-wrap items-center gap-1.5">
+                          <ui-status-badge [tone]="catTone(e.category)" [icon]="catIcon(e.category)">{{ e.category }}</ui-status-badge>
+                          @if (e.recurringId) {
+                            <ui-status-badge tone="info" icon="pi-sync">{{ t().expenses.recurringBadge }}@if (seriesPos(e); as sp) { · {{ sp }} }</ui-status-badge>
+                          }
+                        </span>
+                      </td>
+                      <td class="num whitespace-nowrap px-3 text-right font-extrabold text-fg">{{ e.amount | currencyTr }}</td>
+                      <td class="px-2 text-right">
+                        <ui-icon-button icon="pi-trash" tone="danger" size="sm" [ariaLabel]="t().expenses.deleteTitle + ': ' + e.title"
+                          (click)="confirmDelete(e)" />
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
 
+            <!-- Mobil satırlar -->
+            <ul class="m-0 list-none p-0 md:hidden">
+              @for (e of filtered(); track e.id) {
+                <li class="flex min-h-[64px] items-center gap-3 border-b border-line px-3 py-2.5 last:border-b-0">
+                  <span class="grid h-10 w-10 shrink-0 place-items-center rounded-token-md" [class]="catClass(e.category)" aria-hidden="true">
+                    <i class="pi text-base" [class]="catIcon(e.category)"></i>
+                  </span>
+                  <div class="min-w-0 flex-1">
+                    <p class="m-0 truncate text-15 font-semibold text-fg">{{ e.title }}</p>
+                    <p class="num m-0 mt-0.5 truncate text-12.5 text-fg-muted">
+                      {{ expenseDate(e) | date:'dd.MM.yyyy' }} · {{ e.category }}@if (e.recurringId) { · <i class="pi pi-sync text-10" aria-hidden="true"></i> {{ seriesPos(e) }} }
+                    </p>
+                  </div>
+                  <ui-money class="font-display shrink-0 text-15 font-extrabold text-fg" [value]="e.amount" />
+                  <ui-icon-button icon="pi-trash" tone="danger" [ariaLabel]="t().expenses.deleteTitle + ': ' + e.title"
+                    (click)="confirmDelete(e)" />
+                </li>
+              }
+            </ul>
+          }
+        </ui-glass-card>
+
+        <!-- Kategoriye göre -->
+        <ui-glass-card [title]="a().byCategory" icon="pi-chart-pie" tone="info" padding="none" clip>
+          @if (byCategory().length === 0) {
+            <ui-empty-state compact icon="pi-chart-pie" [title]="t().expenses.noExpenses" />
+          } @else {
+            <ul class="m-0 list-none p-0">
+              @for (c of byCategory(); track c.name) {
+                <li class="flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0">
+                  <span class="grid h-9 w-9 shrink-0 place-items-center rounded-token-md" [class]="catClass(c.name)" aria-hidden="true">
+                    <i class="pi text-14" [class]="catIcon(c.name)"></i>
+                  </span>
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-baseline justify-between gap-2">
+                      <span class="truncate text-14 font-semibold text-fg">{{ c.name }}</span>
+                      <span class="num shrink-0 text-14 font-extrabold text-fg">{{ c.amount | currencyTr }}</span>
+                    </div>
+                    <div class="mt-1.5 flex items-center gap-2">
+                      <span class="block h-1.5 flex-1 overflow-hidden rounded-full bg-surface-strong" aria-hidden="true">
+                        <span class="block h-full rounded-full bg-accent" [style.width.%]="c.pct"></span>
+                      </span>
+                      <span class="num w-10 shrink-0 text-right text-12 text-fg-muted">%{{ c.pct }}</span>
+                    </div>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        </ui-glass-card>
       </div>
     </div>
 
-    <!-- Add Expense Dialog -->
+    <!-- Gider ekleme -->
     <p-dialog
-      [(visible)]="dialogVisible"
+      [visible]="dialogVisible()"
+      (visibleChange)="setDialogVisible($event)"
       [header]="t().expenses.addExpenseTitle"
       [modal]="true"
-      [style]="{ width: '400px' }"
       [draggable]="false"
+      appendTo="body"
+      styleClass="w-[440px] max-w-[95vw]"
     >
-      <div style="display:flex; flex-direction:column; gap:14px; padding:4px 0;">
-        <div style="display:flex; flex-direction:column; gap:6px;">
-          <label style="font-size:12px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">{{ t().expenses.expenseName }}</label>
-          <input pInputText [(ngModel)]="form.title" [placeholder]="t().expenses.expenseNamePlaceholder" style="width:100%;" />
+      <form class="flex flex-col gap-4 py-1" (ngSubmit)="save()" novalidate>
+        <div class="flex flex-col gap-1.5">
+          <label for="ex-title" class="text-sm font-semibold text-fg-secondary">{{ t().expenses.expenseName }}</label>
+          <input pInputText id="ex-title" name="title" class="w-full" [(ngModel)]="form.title"
+            [placeholder]="t().expenses.expenseNamePlaceholder"
+            [attr.aria-invalid]="tried() && !form.title.trim()" [attr.aria-describedby]="tried() && !form.title.trim() ? 'ex-title-err' : null" />
+          @if (tried() && !form.title.trim()) {
+            <p id="ex-title-err" class="m-0 text-xs font-medium text-danger-text">{{ t().expenses.titleRequired }}</p>
+          }
         </div>
-        <div style="display:flex; flex-direction:column; gap:6px;">
-          <label style="font-size:12px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">{{ t().expenses.category }}</label>
+
+        <div class="flex flex-col gap-1.5">
+          <label for="ex-category" class="text-sm font-semibold text-fg-secondary">{{ t().expenses.category }}</label>
           <p-autocomplete
+            #categoryAc
+            inputId="ex-category"
+            name="category"
             [(ngModel)]="form.category"
             [suggestions]="categorySuggestions"
             (completeMethod)="searchCategory($event)"
@@ -142,39 +217,50 @@ type Period = 'month' | 'week' | 'all';
             appendTo="body"
             [placeholder]="t().expenses.category"
             styleClass="w-full"
+            inputStyleClass="w-full"
           />
-        </div>
-        <div style="display:flex; gap:12px;">
-          <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
-            <label style="font-size:12px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">{{ t().expenses.amount }}</label>
-            <p-inputNumber [(ngModel)]="form.amount" [min]="0" [minFractionDigits]="2" [maxFractionDigits]="2" mode="decimal" locale="tr-TR" styleClass="w-full" />
-          </div>
-          <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
-            <label style="font-size:12px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">{{ t().expenses.date }}</label>
-            <p-datepicker [(ngModel)]="form.date" dateFormat="dd.mm.yy" [showIcon]="true" appendTo="body" styleClass="w-full" />
-          </div>
-        </div>
-        <div style="display:flex; flex-direction:column; gap:6px;">
-          <label style="font-size:12px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">{{ t().expenses.note }} <span style="font-weight:400; text-transform:none;">({{ t().common.optional }})</span></label>
-          <input pInputText [(ngModel)]="form.note" [placeholder]="t().expenses.notePlaceholder" style="width:100%;" />
+          @if (tried() && !categoryValue()) {
+            <p class="m-0 text-xs font-medium text-danger-text">{{ t().expenses.categoryRequired }}</p>
+          }
         </div>
 
-        <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-page); border-radius:12px; padding:12px 14px;">
-          <div>
-            <p style="font-size:13px; font-weight:600; color:var(--text-primary); margin:0 0 2px;">{{ t().expenses.recurring }}</p>
-            <p style="font-size:12px; color:var(--text-muted); margin:0;">{{ t().expenses.recurringDesc }}</p>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="flex min-w-0 flex-col gap-1.5">
+            <label for="ex-amount" class="text-sm font-semibold text-fg-secondary">{{ t().expenses.amount }}</label>
+            <p-inputNumber inputId="ex-amount" name="amount" [(ngModel)]="form.amount" [min]="0" [minFractionDigits]="2"
+              [maxFractionDigits]="2" mode="decimal" [locale]="numberLocale()" styleClass="w-full" inputStyleClass="num w-full" />
+            @if (tried() && !(form.amount > 0)) {
+              <p class="m-0 text-xs font-medium text-danger-text">{{ t().expenses.amountRequired }}</p>
+            }
           </div>
-          <p-toggleswitch [(ngModel)]="form.recurring" />
+          <div class="flex min-w-0 flex-col gap-1.5">
+            <label for="ex-date" class="text-sm font-semibold text-fg-secondary">{{ t().expenses.date }}</label>
+            <p-datepicker inputId="ex-date" name="date" [(ngModel)]="form.date" dateFormat="dd.mm.yy" [showIcon]="true"
+              appendTo="body" styleClass="w-full" inputStyleClass="num w-full" />
+          </div>
         </div>
-      </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label for="ex-note" class="text-sm font-semibold text-fg-secondary">
+            {{ t().expenses.note }} <span class="font-normal text-fg-muted">({{ t().common.optional }})</span>
+          </label>
+          <input pInputText id="ex-note" name="note" class="w-full" [(ngModel)]="form.note" [placeholder]="t().expenses.notePlaceholder" />
+        </div>
+
+        <div class="flex items-center justify-between gap-3 rounded-token-lg border border-line bg-surface-muted px-4 py-3">
+          <label for="ex-recurring" class="min-w-0 cursor-pointer">
+            <span class="block text-sm font-semibold text-fg">{{ t().expenses.recurring }}</span>
+            <span class="block text-xs text-fg-muted">{{ t().expenses.recurringDesc }}</span>
+          </label>
+          <p-toggleswitch inputId="ex-recurring" name="recurring" [(ngModel)]="form.recurring" />
+        </div>
+      </form>
       <ng-template pTemplate="footer">
-        <p-button [label]="t().common.cancel" severity="secondary" [outlined]="true" (onClick)="dialogVisible = false" />
+        <p-button [label]="t().common.cancel" severity="secondary" (onClick)="setDialogVisible(false)" />
         <p-button
           [label]="t().common.save"
           icon="pi pi-check"
-          severity="warn"
           [loading]="saving()"
-          [disabled]="!form.title.trim() || !form.amount || !form.category"
           (onClick)="save()"
         />
       </ng-template>
@@ -185,42 +271,60 @@ export class ExpensesPage implements OnInit {
   private readonly svc = inject(ExpenseService);
   private readonly toast = inject(MessageService);
   private readonly confirm = inject(ConfirmationService);
-  readonly t = inject(LangService).t;
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly lang = inject(LangService);
+  readonly t = this.lang.t;
+  readonly a = computed(() => this.t().acc);
+  readonly numberLocale = computed(() => this.lang.lang() === 'tr' ? 'tr-TR' : 'en-US');
 
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly expenses = signal<Expense[]>([]);
-  readonly period = signal<Period>('month');
+  readonly period = signal<ExpensePeriod>('month');
 
-  dialogVisible = false;
+  readonly dialogVisible = signal(false);
+  private readonly categoryAc = viewChild<AutoComplete>('categoryAc');
+
+  /**
+   * Dialog kapanırken (Esc dahil) kategori önerileri panelini de kapat: panel body'ye ekli (appendTo) olduğundan
+   * dialog içeriği yok edilince açık kalıp ekranda asılı kalıyordu.
+   */
+  setDialogVisible(v: boolean): void {
+    if (!v) this.categoryAc()?.hide();
+    this.dialogVisible.set(v);
+  }
+  /** Kaydet'e basıldı mı (doğrulama mesajlarını göstermek için). */
+  readonly tried = signal(false);
   form = { title: '', category: '', amount: 0, date: new Date(), note: '', recurring: false };
 
   categorySuggestions: string[] = [];
 
+  /** Varsayılan kategoriler + kullanıcının daha önce girdiği kategoriler. */
   private get allCategories(): string[] {
-    return [...new Set(this.expenses().map(e => e.category).filter(Boolean))].sort();
+    return [...new Set([...EXPENSE_CATEGORIES, ...this.expenses().map(e => e.category).filter(Boolean)])]
+      .sort((a, b) => a.localeCompare(b, 'tr'));
   }
 
   searchCategory(event: { query: string }): void {
-    const q = event.query.trim().toLowerCase();
+    const q = event.query.trim().toLocaleLowerCase('tr');
     const all = this.allCategories;
     if (!q) {
       this.categorySuggestions = all;
     } else {
-      const filtered = all.filter(v => v.toLowerCase().includes(q));
-      if (!filtered.some(v => v.toLowerCase() === q) && event.query.trim()) {
+      const filtered = all.filter(v => v.toLocaleLowerCase('tr').includes(q));
+      if (!filtered.some(v => v.toLocaleLowerCase('tr') === q) && event.query.trim()) {
         filtered.push(event.query.trim());
       }
       this.categorySuggestions = filtered;
     }
   }
 
-  readonly periods = computed(() => {
+  readonly periods = computed<UiSegmentOption<ExpensePeriod>[]>(() => {
     const e = this.t().expenses;
     return [
-      { value: 'month' as Period, label: e.month },
-      { value: 'week' as Period, label: e.week },
-      { value: 'all' as Period, label: e.all },
+      { value: 'month' as ExpensePeriod, label: e.month },
+      { value: 'week' as ExpensePeriod, label: e.week },
+      { value: 'all' as ExpensePeriod, label: e.all },
     ];
   });
 
@@ -228,24 +332,65 @@ export class ExpensesPage implements OnInit {
     const list = this.expenses();
     const p = this.period();
     if (p === 'all') return list;
-    const now = new Date();
-    const start = new Date();
-    const end = new Date();
-    if (p === 'month') {
-      start.setDate(1); start.setHours(0, 0, 0, 0);
-      end.setMonth(end.getMonth() + 1); end.setDate(0); end.setHours(23, 59, 59, 999);
-    } else {
-      const d = now.getDay();
-      start.setDate(now.getDate() - (d === 0 ? 6 : d - 1)); start.setHours(0, 0, 0, 0);
-      end.setDate(start.getDate() + 6); end.setHours(23, 59, 59, 999);
-    }
-    return list.filter(e => { const t = e.date.toDate(); return t >= start && t <= end; });
+    const range = getPeriodRange(p, new Date());
+    return list.filter(e => !!e.date && isInRange(e.date.toDate(), range));
   });
 
-  readonly totalFiltered = computed(() => this.filtered().reduce((s, e) => s + e.amount, 0));
+  readonly periodLabel = computed(() => this.periods().find(p => p.value === this.period())?.label ?? '');
+
+  readonly recurringCount = computed(() => this.filtered().filter(e => !!e.recurringId).length);
+
+  /** recurringId → tarihe göre sıralı gider kimlikleri (seri içindeki sıra için). */
+  private readonly seriesIndex = computed(() => {
+    const m = new Map<string, string[]>();
+    for (const e of this.expenses()) {
+      if (!e.recurringId) continue;
+      const arr = m.get(e.recurringId) ?? [];
+      arr.push(e.id);
+      m.set(e.recurringId, arr);
+    }
+    const byId = new Map(this.expenses().map(e => [e.id, e.date?.toMillis?.() ?? 0]));
+    for (const arr of m.values()) arr.sort((a, b) => (byId.get(a) ?? 0) - (byId.get(b) ?? 0));
+    return m;
+  });
+
+  /** Tekrarlayan giderde "3/12" gibi sıra; tekil ya da tek kayıtlı seride boş. */
+  seriesPos(e: Expense): string {
+    const arr = e.recurringId ? this.seriesIndex().get(e.recurringId) : undefined;
+    if (!arr || arr.length < 2) return '';
+    return `${arr.indexOf(e.id) + 1}/${arr.length}`;
+  }
+
+  categoryValue(): string {
+    return (this.form.category ?? '').toString().trim();
+  }
+
+  readonly totalFiltered = computed(() => Math.round(this.filtered().reduce((s, e) => s + (e.amount || 0), 0) * 100) / 100);
+
+  readonly avgAmount = computed(() => {
+    const n = this.filtered().length;
+    return n ? Math.round((this.totalFiltered() / n) * 100) / 100 : 0;
+  });
+
+  /** Dönemdeki giderlerin kategori dağılımı (büyükten küçüğe). */
+  readonly byCategory = computed(() => {
+    const total = this.totalFiltered();
+    const m = new Map<string, number>();
+    for (const e of this.filtered()) {
+      const k = e.category || '—';
+      m.set(k, (m.get(k) ?? 0) + (e.amount || 0));
+    }
+    return [...m.entries()]
+      .map(([name, amount]) => ({
+        name, amount: Math.round(amount * 100) / 100, pct: total > 0 ? Math.round((amount / total) * 100) : 0,
+      }))
+      .sort((x, y) => y.amount - x.amount);
+  });
+
+  readonly topCategory = computed<{ name: string; amount: number; pct: number } | null>(() => this.byCategory()[0] ?? null);
 
   ngOnInit(): void {
-    this.svc.getAll$().subscribe({
+    this.svc.getAll$().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: data => { this.expenses.set(data); this.loading.set(false); },
       error: () => this.loading.set(false),
     });
@@ -253,34 +398,34 @@ export class ExpensesPage implements OnInit {
 
   openDialog(): void {
     this.form = { title: '', category: '', amount: 0, date: new Date(), note: '', recurring: false };
-    this.dialogVisible = true;
+    this.tried.set(false);
+    this.dialogVisible.set(true);
   }
 
   async save(): Promise<void> {
-    if (!this.form.title.trim() || !this.form.amount || !this.form.category) return;
+    this.tried.set(true);
+    const category = (this.form.category ?? '').toString().trim();
+    if (!this.form.title.trim() || !this.form.amount || !category || this.saving()) return;
     this.saving.set(true);
     try {
       const base = {
         title: this.form.title.trim(),
-        amount: this.form.amount,
-        category: this.form.category,
+        amount: Math.round(this.form.amount * 100) / 100,
+        category,
         note: this.form.note.trim(),
+        date: new Date(this.form.date ?? new Date()),
       };
 
       if (this.form.recurring) {
-        const promises = Array.from({ length: 12 }, (_, i) => {
-          const d = new Date(this.form.date);
-          d.setMonth(d.getMonth() + i);
-          return this.svc.create({ ...base, date: d });
-        });
-        await Promise.all(promises);
+        // 12 aylık seri tek writeBatch ile atomik; ortak recurringId; ay sonu taşması yok.
+        await this.svc.createRecurring(base, 12);
         this.toast.add({ severity: 'success', summary: '', detail: this.t().expenses.added, life: 3000 });
       } else {
-        await this.svc.create({ ...base, date: this.form.date });
+        await this.svc.create(base);
         this.toast.add({ severity: 'success', summary: '', detail: this.t().expenses.added, life: 2500 });
       }
 
-      this.dialogVisible = false;
+      this.setDialogVisible(false);
     } catch {
       this.toast.add({ severity: 'error', summary: '', detail: this.t().common.error, life: 3000 });
     } finally {
@@ -289,6 +434,24 @@ export class ExpensesPage implements OnInit {
   }
 
   confirmDelete(e: Expense): void {
+    const series = e.recurringId ? this.expenses().filter(x => x.recurringId === e.recurringId) : [];
+    if (series.length > 1) {
+      // Tekrarlayan gider: "Tüm seri" (accept) veya "Sadece bu" (reject). Kapat (X/Esc) hiçbir şey yapmaz.
+      this.confirm.confirm({
+        message: `"${e.title}" - ${this.t().expenses.deleteSeriesConfirm} (${series.length})`,
+        header: this.t().expenses.deleteTitle,
+        icon: 'pi pi-trash',
+        acceptLabel: this.t().expenses.deleteSeries,
+        rejectLabel: this.t().expenses.deleteOnlyThis,
+        acceptButtonStyleClass: 'p-button-danger',
+        rejectButtonStyleClass: 'p-button-secondary p-button-outlined',
+        closable: true,
+        closeOnEscape: true,
+        accept: () => this.deleteSeries(series.map(x => x.id)),
+        reject: (type?: ConfirmEventType) => { if (type === ConfirmEventType.REJECT) this.delete(e.id); },
+      });
+      return;
+    }
     this.confirm.confirm({
       message: `"${e.title}" ${this.t().expenses.deleteConfirm}`,
       header: this.t().expenses.deleteTitle,
@@ -309,27 +472,29 @@ export class ExpensesPage implements OnInit {
     }
   }
 
-  catIcon(cat: string): string {
-    const m: Record<string, string> = {
-      'Kira': 'pi-home', 'Elektrik': 'pi-bolt', 'Su': 'pi-droplet',
-      'Doğalgaz': 'pi-fire', 'İnternet': 'pi-wifi', 'Personel': 'pi-users',
-      'Nakliye': 'pi-truck', 'Bakım & Onarım': 'pi-wrench', 'Vergi': 'pi-file',
-    };
-    return m[cat] ?? 'pi-wallet';
+  private async deleteSeries(ids: string[]): Promise<void> {
+    try {
+      await this.svc.deleteMany(ids);
+      this.toast.add({ severity: 'success', summary: '', detail: this.t().expenses.seriesDeleted, life: 2500 });
+    } catch {
+      this.toast.add({ severity: 'error', summary: '', detail: this.t().common.error, life: 3000 });
+    }
   }
 
-  catIconBg(cat: string): string {
-    const m: Record<string, string> = {
-      'Kira': 'background:#f0fdf4; color:#16a34a;',
-      'Elektrik': 'background:#fefce8; color:#ca8a04;',
-      'Su': 'background:#eff6ff; color:#3b82f6;',
-      'Doğalgaz': 'background:#fff7ed; color:#f97316;',
-      'İnternet': 'background:#f5f3ff; color:#8b5cf6;',
-      'Personel': 'background:#fdf4ff; color:#a855f7;',
-      'Nakliye': 'background:#f0fdf4; color:#059669;',
-      'Bakım & Onarım': 'background:#fef2f2; color:#ef4444;',
-      'Vergi': 'background:var(--bg-page); color:var(--text-secondary);',
-    };
-    return m[cat] ?? 'background:#fff7ed; color:#ea580c;';
+  /** Bekleyen serverTimestamp/eksik tarih için güvenli dönüşüm. */
+  expenseDate(e: Expense): Date | null {
+    return e.date ? e.date.toDate() : null;
+  }
+
+  catTone(cat: string): UiTone {
+    return (CATEGORY_STYLE[cat] ?? DEFAULT_CATEGORY_STYLE).tone;
+  }
+
+  catClass(cat: string): string {
+    return TONE_SOFT[this.catTone(cat)];
+  }
+
+  catIcon(cat: string): string {
+    return (CATEGORY_STYLE[cat] ?? DEFAULT_CATEGORY_STYLE).icon;
   }
 }

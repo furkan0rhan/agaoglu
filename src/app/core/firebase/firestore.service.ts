@@ -8,9 +8,6 @@ import {
   deleteDoc,
   getDoc,
   query,
-  where,
-  orderBy,
-  limit,
   onSnapshot,
   serverTimestamp,
   writeBatch,
@@ -22,11 +19,18 @@ import {
 import { Observable, from, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { LoggerService } from '../logging/logger.service';
+import { LicenseError, LicenseService } from '../license/license.service';
 
 @Injectable({ providedIn: 'root' })
 export class FirestoreService {
   private readonly firestore = inject(Firestore);
   private readonly logger = inject(LoggerService);
+  /** Lisans süresi dolmuş / askıdaysa yazma reddedilir (kurallar da reddeder; burada anlamlı hata için). */
+  private readonly license = inject(LicenseService);
+
+  private readOnlyError(): Observable<never> {
+    return throwError(() => new LicenseError('license/read-only'));
+  }
 
   col<T>(path: string): CollectionReference<T> {
     return collection(this.firestore, path) as CollectionReference<T>;
@@ -37,6 +41,7 @@ export class FirestoreService {
   }
 
   add<T extends DocumentData>(colPath: string, data: Omit<T, 'id'>): Observable<string> {
+    if (this.license.readOnly()) return this.readOnlyError();
     const payload = { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
     return from(addDoc(this.col(colPath), payload)).pipe(
       map(ref => ref.id),
@@ -48,6 +53,7 @@ export class FirestoreService {
   }
 
   update(colPath: string, id: string, data: Partial<DocumentData>): Observable<void> {
+    if (this.license.readOnly()) return this.readOnlyError();
     const payload = { ...data, updatedAt: serverTimestamp() };
     return from(updateDoc(this.docRef(`${colPath}/${id}`), payload)).pipe(
       catchError(err => {
@@ -58,6 +64,7 @@ export class FirestoreService {
   }
 
   delete(colPath: string, id: string): Observable<void> {
+    if (this.license.readOnly()) return this.readOnlyError();
     return from(deleteDoc(this.docRef(`${colPath}/${id}`))).pipe(
       catchError(err => {
         this.logger.error('Firestore delete error', colPath, id, err);
